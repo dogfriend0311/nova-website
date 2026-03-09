@@ -385,6 +385,195 @@ function FLModal({type,user,users,navigate,onClose}){
 
 // ── MESSAGES PAGE ─────────────────────────────────────────────────────────────
 function MessagesPage({cu,users,conversations,setConversations,messages,setMessages}){
+  const isMobile=useIsMobile();
+  const [activeConv,setActiveConv]=useState(null);
+  const [newMsg,setNewMsg]=useState("");
+  const [showNew,setShowNew]=useState(false);
+  const [search,setSearch]=useState("");
+  const [groupName,setGroupName]=useState("");
+  const [selectedUsers,setSelectedUsers]=useState([]);
+  const [isGroup,setIsGroup]=useState(false);
+  const msgEndRef=useRef(null);
+  const pollRef=useRef(null);
+
+  const myConvs=conversations.filter(c=>c.members.includes(cu?.id||"")).sort((a,b)=>(b.last_ts||0)-(a.last_ts||0));
+  const convMsgs=activeConv?messages.filter(m=>m.conv_id===activeConv.id).sort((a,b)=>a.ts-b.ts):[];
+
+  const showList=!isMobile||!activeConv;
+  const showChat=!isMobile||(isMobile&&!!activeConv);
+
+  useEffect(()=>{msgEndRef.current?.scrollIntoView({behavior:"smooth"});},[convMsgs.length]);
+
+  useEffect(()=>{
+    if(!activeConv)return;
+    const poll=async()=>{
+      const data=await sb.get("nova_messages",`?conv_id=eq.${activeConv.id}&order=ts.asc`);
+      if(data)setMessages(prev=>{const others=prev.filter(m=>m.conv_id!==activeConv.id);return[...others,...data];});
+    };
+    poll();
+    pollRef.current=setInterval(poll,3000);
+    return()=>clearInterval(pollRef.current);
+  },[activeConv?.id]);
+
+  useEffect(()=>{
+    if(!cu)return;
+    const poll=async()=>{
+      const data=await sb.get("nova_conversations",`?members=cs.{${cu.id}}`);
+      if(data)setConversations(data);
+    };
+    const t=setInterval(poll,5000);
+    return()=>clearInterval(t);
+  },[cu?.id]);
+
+  const sendMsg=async()=>{
+    const text=newMsg.trim();if(!text||!activeConv||!cu)return;
+    const m={id:gid(),conv_id:activeConv.id,author_id:cu.id,author_name:cu.display_name,author_avatar:cu.avatar,author_avatar_url:cu.avatar_url||"",text,ts:Date.now()};
+    setNewMsg("");
+    setMessages(prev=>[...prev,m]);
+    await sb.post("nova_messages",m);
+    await sb.patch("nova_conversations",`?id=eq.${activeConv.id}`,{last_msg:text,last_ts:Date.now(),last_sender:cu.display_name});
+    setConversations(prev=>prev.map(c=>c.id===activeConv.id?{...c,last_msg:text,last_ts:Date.now()}:c));
+  };
+
+  const createConv=async()=>{
+    if(!selectedUsers.length||!cu)return;
+    const members=[cu.id,...selectedUsers];
+    if(members.length>50){alert("Max 50 members");return;}
+    const isGrp=members.length>2||isGroup;
+    const name=isGrp?(groupName||"Group Chat"):null;
+    const conv={id:gid(),members,is_group:isGrp,name,created_by:cu.id,created_at:Date.now(),last_msg:"",last_ts:Date.now(),last_sender:""};
+    const res=await sb.post("nova_conversations",conv);
+    if(res){const newC=Array.isArray(res)?res[0]:res;setConversations(prev=>[newC,...prev]);setActiveConv(newC);}
+    setShowNew(false);setSelectedUsers([]);setGroupName("");setIsGroup(false);
+  };
+
+  const getConvName=(conv)=>{
+    if(conv.is_group)return conv.name||"Group Chat";
+    const other=users.find(u=>u.id===conv.members.find(id=>id!==cu?.id));
+    return other?.display_name||"Unknown";
+  };
+  const getConvAvatar=(conv)=>users.find(u=>u.id===conv.members.find(id=>id!==cu?.id));
+
+  if(!cu)return <div style={{maxWidth:600,margin:"60px auto",textAlign:"center",padding:40}}><div style={{fontSize:48,marginBottom:16}}>💬</div><div style={{fontFamily:"'Orbitron',sans-serif",color:"#475569"}}>Sign in to use messages</div></div>;
+
+  return <div style={{maxWidth:1080,margin:"0 auto",padding:isMobile?"0":"24px 16px 60px",height:isMobile?"calc(100vh - 120px)":"calc(100vh - 62px)",display:"flex",gap:16,overflow:"hidden"}}>
+
+    {/* Conversation list */}
+    {showList&&<div style={{width:isMobile?"100%":280,flexShrink:0,display:"flex",flexDirection:"column",gap:10,padding:isMobile?"12px 12px 0":0,overflowY:"auto"}}>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        <div style={{flex:1,fontFamily:"'Orbitron',sans-serif",fontSize:14,fontWeight:700,color:"#E2E8F0"}}>Messages</div>
+        <Btn variant="ghost" size="sm" onClick={()=>setShowNew(true)}>＋ New</Btn>
+      </div>
+      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Search..." style={{fontSize:13}}/>
+      <div style={{flex:1,display:"flex",flexDirection:"column",gap:6}}>
+        {myConvs.filter(c=>getConvName(c).toLowerCase().includes(search.toLowerCase())).map(c=>{
+          const otherUser=getConvAvatar(c);
+          const isActive=activeConv?.id===c.id;
+          return <div key={c.id} onClick={()=>setActiveConv(c)} style={{display:"flex",gap:10,alignItems:"center",padding:"10px 12px",borderRadius:12,background:isActive?"rgba(0,212,255,.1)":"rgba(255,255,255,.03)",border:`1px solid ${isActive?"rgba(0,212,255,.3)":"rgba(255,255,255,.07)"}`,cursor:"pointer",transition:"all .18s"}}>
+            {c.is_group
+              ?<div style={{width:40,height:40,borderRadius:"50%",flexShrink:0,background:"linear-gradient(135deg,#00D4FF22,#8B5CF622)",border:"1px solid rgba(0,212,255,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>👥</div>
+              :<AvatarCircle user={otherUser} size={40}/>}
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:isActive?"#00D4FF":"#E2E8F0",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{getConvName(c)}</div>
+              <div style={{fontSize:11,color:"#475569",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.last_msg||"No messages yet"}</div>
+              {c.is_group&&<div style={{fontSize:10,color:"#334155"}}>{c.members.length} members</div>}
+            </div>
+          </div>;
+        })}
+        {myConvs.length===0&&<div style={{textAlign:"center",padding:"40px 20px",color:"#334155"}}><div style={{fontSize:32,marginBottom:8}}>💬</div><div style={{fontSize:13}}>No conversations yet</div><div style={{fontSize:11,marginTop:6}}>Hit + New to start one</div></div>}
+      </div>
+    </div>}
+
+    {/* Chat panel */}
+    {showChat&&<div style={{flex:1,display:"flex",flexDirection:"column",background:"rgba(255,255,255,.02)",border:isMobile?"none":"1px solid rgba(255,255,255,.07)",borderRadius:isMobile?0:16,overflow:"hidden"}}>
+      {activeConv?<>
+        <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,.07)",display:"flex",alignItems:"center",gap:10,background:"rgba(0,0,0,.2)",flexShrink:0}}>
+          {isMobile&&<button onClick={()=>setActiveConv(null)} style={{background:"none",border:"none",color:"#00D4FF",cursor:"pointer",fontSize:22,padding:"0 4px 0 0",lineHeight:1}}>‹</button>}
+          {activeConv.is_group
+            ?<div style={{width:36,height:36,borderRadius:"50%",flexShrink:0,background:"linear-gradient(135deg,#00D4FF22,#8B5CF622)",border:"1px solid rgba(0,212,255,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>👥</div>
+            :<AvatarCircle user={getConvAvatar(activeConv)} size={36}/>}
+          <div>
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,fontWeight:700,color:"#E2E8F0"}}>{getConvName(activeConv)}</div>
+            {activeConv.is_group&&<div style={{fontSize:11,color:"#475569"}}>{activeConv.members.length} members · max 50</div>}
+          </div>
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:8}}>
+          {convMsgs.length===0&&<div style={{textAlign:"center",padding:"60px 20px",color:"#334155"}}><div style={{fontSize:32,marginBottom:8}}>👋</div><div style={{fontSize:13}}>Say something!</div></div>}
+          {convMsgs.map((m,i)=>{
+            const isMe=m.author_id===cu.id;
+            const prev=convMsgs[i-1];
+            const showAvatar=!isMe&&(!prev||prev.author_id!==m.author_id);
+            const author=users.find(u=>u.id===m.author_id);
+            return <div key={m.id} className="msg-in" style={{display:"flex",flexDirection:isMe?"row-reverse":"row",gap:8,alignItems:"flex-end"}}>
+              {!isMe&&<div style={{width:28,flexShrink:0}}>{showAvatar&&<AvatarCircle user={author} size={28}/>}</div>}
+              <div style={{maxWidth:"75%"}}>
+                {showAvatar&&!isMe&&<div style={{fontSize:10,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:3,marginLeft:4}}>{m.author_name}</div>}
+                <div style={{background:isMe?"linear-gradient(135deg,#00D4FF22,#8B5CF622)":"rgba(255,255,255,.06)",border:`1px solid ${isMe?"rgba(0,212,255,.25)":"rgba(255,255,255,.08)"}`,borderRadius:isMe?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:"9px 14px",fontSize:14,color:"#E2E8F0",lineHeight:1.5,wordBreak:"break-word"}}>{m.text}</div>
+                <div style={{fontSize:10,color:"#334155",marginTop:3,textAlign:isMe?"right":"left",paddingLeft:4,paddingRight:4}}>{fmtMsg(m.ts)}</div>
+              </div>
+            </div>;
+          })}
+          <div ref={msgEndRef}/>
+        </div>
+        <div style={{padding:"12px 16px",borderTop:"1px solid rgba(255,255,255,.07)",display:"flex",gap:10,flexShrink:0}}>
+          <input value={newMsg} onChange={e=>setNewMsg(e.target.value)} placeholder="Type a message..." onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMsg();}}} style={{flex:1,borderRadius:24,padding:"10px 18px"}}/>
+          <Btn onClick={sendMsg} disabled={!newMsg.trim()}>Send ➤</Btn>
+        </div>
+      </>:<div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:"#334155"}}>
+        <div style={{fontSize:48}}>💬</div>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13}}>Select a conversation</div>
+        <Btn variant="ghost" size="sm" onClick={()=>setShowNew(true)}>＋ Start New Chat</Btn>
+      </div>}
+    </div>}
+
+    {/* New conversation modal */}
+    {showNew&&<Modal title="💬 New Conversation" onClose={()=>{setShowNew(false);setSelectedUsers([]);setGroupName("");setIsGroup(false);}}>
+      <div style={{display:"flex",flexDirection:"column",gap:14}}>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setIsGroup(false)} style={{flex:1,padding:"8px 0",borderRadius:8,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${!isGroup?"#00D4FF":"rgba(255,255,255,.09)"}`,background:!isGroup?"rgba(0,212,255,.11)":"rgba(255,255,255,.04)",color:!isGroup?"#00D4FF":"#94A3B8"}}>💬 Direct Message</button>
+          <button onClick={()=>setIsGroup(true)} style={{flex:1,padding:"8px 0",borderRadius:8,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${isGroup?"#00D4FF":"rgba(255,255,255,.09)"}`,background:isGroup?"rgba(0,212,255,.11)":"rgba(255,255,255,.04)",color:isGroup?"#00D4FF":"#94A3B8"}}>👥 Group Chat</button>
+        </div>
+        {isGroup&&<div><Lbl>Group Name</Lbl><input value={groupName} onChange={e=>setGroupName(e.target.value)} placeholder="Squad name..."/></div>}
+        <div>
+          <Lbl>Select Members {selectedUsers.length>0&&`(${selectedUsers.length} selected)`}</Lbl>
+          <div style={{display:"flex",flexDirection:"column",gap:5,maxHeight:260,overflowY:"auto"}}>
+            {users.filter(u=>u.id!==cu.id).map(u=>{
+              const sel=selectedUsers.includes(u.id);
+              return <div key={u.id} onClick={()=>setSelectedUsers(prev=>sel?prev.filter(x=>x!==u.id):[...prev,u.id])} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,background:sel?"rgba(0,212,255,.1)":"rgba(255,255,255,.03)",border:`1px solid ${sel?"rgba(0,212,255,.3)":"rgba(255,255,255,.07)"}`,cursor:"pointer",transition:"all .15s"}}>
+                <AvatarCircle user={u} size={34}/>
+                <div style={{flex:1}}><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0"}}>{u.display_name}</div><div style={{fontSize:11,color:"#475569"}}>@{u.username}</div></div>
+                <div style={{width:20,height:20,borderRadius:"50%",border:`2px solid ${sel?"#00D4FF":"rgba(255,255,255,.2)"}`,background:sel?"#00D4FF":"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"white"}}>{sel?"✓":""}</div>
+              </div>;
+            })}
+          </div>
+        </div>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn variant="muted" onClick={()=>setShowNew(false)}>Cancel</Btn>
+          <Btn onClick={createConv} disabled={!selectedUsers.length}>{isGroup?"Create Group":"Start Chat"}</Btn>
+        </div>
+      </div>
+    </Modal>}
+  </div>;
+}
+
+
+function FLModal({type,user,users,navigate,onClose}){
+  const ids=type==="followers"?user.followers||[]:user.following||[];
+  const members=ids.map(id=>users.find(u=>u.id===id)).filter(Boolean);
+  return <Modal title={type==="followers"?`Followers`:`Following`} onClose={onClose} width={360}>
+    {members.length===0?<div style={{textAlign:"center",padding:"28px 0",color:"#334155",fontSize:13}}>None yet</div>
+    :<div style={{display:"flex",flexDirection:"column",gap:6}}>
+      {members.map(m=><div key={m.id} onClick={()=>{navigate("profile",m.id);onClose();}} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",borderRadius:10,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)",cursor:"pointer",transition:"all .18s"}} onMouseEnter={e=>e.currentTarget.style.background="rgba(0,212,255,.07)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,.03)"}>
+        <AvatarCircle user={m} size={38}/>
+        <div style={{flex:1}}><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0"}}>{m.display_name}</div><div style={{fontSize:11,color:"#475569"}}>@{m.username}</div></div>
+        <span style={{fontSize:11,color:"#00D4FF"}}>→</span>
+      </div>)}
+    </div>}
+  </Modal>;
+}
+
+// ── MESSAGES PAGE ─────────────────────────────────────────────────────────────
+function MessagesPage({cu,users,conversations,setConversations,messages,setMessages}){
   const [activeConv,setActiveConv]=useState(null);
   const [newMsg,setNewMsg]=useState("");
   const [showNew,setShowNew]=useState(false);
