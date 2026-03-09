@@ -18,8 +18,8 @@ const sb = {
   uploadBanner:(uid,file,slot)  => sbUp("nova-banners",uid,file,`${slot}-`),
   uploadClip:  (uid,file)       => sbUp("nova-clips",uid,file,"cl-"),
 };
-const getSession  = () => { try { return JSON.parse(localStorage.getItem("nova_session")); } catch { return null; } };
-const saveSession = u  => { try { localStorage.setItem("nova_session", JSON.stringify(u)); } catch {} };
+const getSess  = () => { try { return JSON.parse(localStorage.getItem("nova_session")); } catch { return null; } };
+const saveSess = u  => { try { localStorage.setItem("nova_session", JSON.stringify(u)); } catch {} };
 const clearSess   = () => { try { localStorage.removeItem("nova_session"); } catch {} };
 
 function useIsMobile(bp=768) {
