@@ -133,22 +133,72 @@ function PredictPage({cu,users,setUsers}){
   const[games,setGames]=useState([]);
   const[loading,setLoading]=useState(true);
   const[predictions,setPredictions]=useState({});
+  const[expanded,setExpanded]=useState({});
+
+  const fetchMLBDetail=async(gameId)=>{
+    try{
+      const r=await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/summary?event=${gameId}`);
+      const d=await r.json();
+      return d;
+    }catch{return null;}
+  };
 
   const fetchGames=async s=>{
     setLoading(true);
     try{
-      const url=`https://site.api.espn.com/apis/site/v2/sports/${s==="mlb"?"baseball/mlb":"football/nfl"}/scoreboard`;
-      const data=await(await fetch(url)).json();
-      setGames((data.events||[]).map(e=>{
+      const sport2=s==="mlb"?"baseball/mlb":"football/nfl";
+      const data=await(await fetch(`https://site.api.espn.com/apis/site/v2/sports/${sport2}/scoreboard`)).json();
+      const evs=await Promise.all((data.events||[]).map(async e=>{
         const comp=e.competitions[0];
         const home=comp.competitors.find(c=>c.homeAway==="home");
         const away=comp.competitors.find(c=>c.homeAway==="away");
-        const status=comp.status?.type;
-        return{id:e.id,date:e.date,
-          home:{name:home?.team?.displayName,abbr:home?.team?.abbreviation,logo:home?.team?.logo,score:home?.score,color:"#"+home?.team?.color},
-          away:{name:away?.team?.displayName,abbr:away?.team?.abbreviation,logo:away?.team?.logo,score:away?.score,color:"#"+away?.team?.color},
-          status:status?.shortDetail||"Scheduled",started:status?.completed||status?.name==="STATUS_IN_PROGRESS",completed:status?.completed};
+        const st=comp.status?.type;
+        const isMLB=s==="mlb";
+        let detail=null;
+        if(isMLB) detail=await fetchMLBDetail(e.id);
+        const situation=detail?.situation;
+        const pitchers=detail?.pitchers||detail?.boxscore?.players||null;
+        const awayPitcher=detail?.picther||null;
+        // parse starting pitchers from probables
+        const probables=comp.probables||[];
+        const awayProb=probables.find(p=>p.homeAway==="away");
+        const homeProb=probables.find(p=>p.homeAway==="home");
+        // parse injuries
+        const injuries=detail?.injuries||[];
+        // parse post-game pitching line
+        const boxPitchers=detail?.boxscore?.players?.map(side=>{
+          const pitchCat=side.statistics?.find(s=>s.name==="pitching");
+          const stats=pitchCat?.athletes||[];
+          return{team:side.team?.abbreviation,pitchers:stats.map(a=>({name:a.athlete?.displayName,stats:a.stats||[],labels:pitchCat?.labels||[]}))};
+        })||[];
+        // winning/losing/save pitchers
+        const winPitcher=detail?.winPitcher;const losePitcher=detail?.losePitcher;const savePitcher=detail?.savePitcher;
+        // top performers
+        const leaders=detail?.leaders||comp.leaders||[];
+        return{
+          id:e.id,date:e.date,
+          home:{name:home?.team?.displayName,abbr:home?.team?.abbreviation,logo:home?.team?.logo,score:home?.score},
+          away:{name:away?.team?.displayName,abbr:away?.team?.abbreviation,logo:away?.team?.logo,score:away?.score},
+          status:st?.shortDetail||"Scheduled",
+          started:st?.completed||st?.name==="STATUS_IN_PROGRESS",
+          completed:st?.completed||false,
+          isMLB,
+          outs:situation?.outs??null,
+          balls:situation?.balls??null,
+          strikes:situation?.strikes??null,
+          inning:situation?.period??null,
+          inningHalf:situation?.isRedZone?"Bot":"Top",
+          awayProb:{name:awayProb?.athlete?.displayName,era:awayProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value},
+          homeProb:{name:homeProb?.athlete?.displayName,era:homeProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value},
+          injuries,
+          boxPitchers,
+          winPitcher:winPitcher?{name:winPitcher.athlete?.displayName,wins:winPitcher.stats?.find?.(s=>s.name==="wins")?.value,losses:winPitcher.stats?.find?.(s=>s.name==="losses")?.value}:null,
+          losePitcher:losePitcher?{name:losePitcher.athlete?.displayName,wins:losePitcher.stats?.find?.(s=>s.name==="wins")?.value,losses:losePitcher.stats?.find?.(s=>s.name==="losses")?.value}:null,
+          savePitcher:savePitcher?{name:savePitcher.athlete?.displayName,saves:savePitcher.stats?.find?.(s=>s.name==="saves")?.value}:null,
+          leaders,
+        };
       }));
+      setGames(evs);
     }catch(e){setGames([]);}
     setLoading(false);
   };
@@ -165,11 +215,20 @@ function PredictPage({cu,users,setUsers}){
     setPredictions(np);
   };
 
+  const toggleExp=id=>setExpanded(prev=>({...prev,[id]:!prev[id]}));
+
+  const StatRow=({label,val,color="#94A3B8"})=>(
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+      <span style={{fontSize:11,color:"#475569"}}>{label}</span>
+      <span style={{fontSize:12,fontWeight:700,color}}>{val||"—"}</span>
+    </div>
+  );
+
   return(
     <div style={{maxWidth:900,margin:"0 auto",padding:"44px 16px 80px"}}>
       <div style={{textAlign:"center",marginBottom:32}}>
         <h1 style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?22:28,fontWeight:700,marginBottom:8,background:"linear-gradient(135deg,#fff,#00D4FF)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>🎯 Predictions</h1>
-        <p style={{color:"#475569",fontSize:14,marginBottom:20}}>Pick winners before games start. Locks at tip-off. Live scores auto-update.</p>
+        <p style={{color:"#475569",fontSize:14,marginBottom:20}}>Pick winners before games start. Locks when game begins. Live scores auto-update every 30s.</p>
         <div style={{display:"flex",gap:6,justifyContent:"center"}}>
           {[["mlb","⚾ MLB"],["nfl","🏈 NFL"]].map(([s,l])=>(
             <button key={s} onClick={()=>setSport(s)} style={{padding:"8px 20px",borderRadius:20,cursor:"pointer",fontSize:12,fontFamily:"'Rajdhani',sans-serif",fontWeight:700,border:`1px solid ${sport===s?"rgba(0,212,255,.5)":"rgba(255,255,255,.1)"}`,background:sport===s?"rgba(0,212,255,.12)":"rgba(255,255,255,.03)",color:sport===s?"#00D4FF":"#64748B",transition:"all .2s"}}>{l}</button>
@@ -180,7 +239,7 @@ function PredictPage({cu,users,setUsers}){
         ?<div style={{textAlign:"center",padding:"60px 0",color:"#334155"}}><div className="spin" style={{fontSize:28,display:"inline-block",marginBottom:12}}>⚙️</div><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,letterSpacing:".15em"}}>FETCHING LIVE DATA...</div></div>
         :games.length===0
           ?<Empty icon={sport==="mlb"?"⚾":"🏈"} msg={`No ${sport.toUpperCase()} games today. Check back tomorrow!`}/>
-          :<div style={{display:"flex",flexDirection:"column",gap:14}}>
+          :<div style={{display:"flex",flexDirection:"column",gap:16}}>
             {games.map(g=>{
               const myPick=predictions[g.id];
               const locked=g.started;
@@ -189,12 +248,40 @@ function PredictPage({cu,users,setUsers}){
               const ph=users.filter(u=>u.predictions?.[g.id]==="home").length;
               const pa=users.filter(u=>u.predictions?.[g.id]==="away").length;
               const tot=ph+pa||1;
+              const isExp=expanded[g.id];
+              const hasDetail=g.isMLB&&(g.winPitcher||g.awayProb?.name||g.injuries?.length||g.outs!==null);
               return(
                 <Card key={g.id} style={{padding:"16px 18px"}} hover={false}>
+                  {/* Status bar */}
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:6}}>
-                    <span style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700,letterSpacing:".12em",padding:"3px 10px",borderRadius:20,background:g.completed?"rgba(100,116,139,.15)":g.started?"rgba(34,197,94,.15)":"rgba(0,212,255,.1)",color:g.completed?"#64748B":g.started?"#22C55E":"#00D4FF",border:`1px solid ${g.completed?"rgba(100,116,139,.2)":g.started?"rgba(34,197,94,.3)":"rgba(0,212,255,.25)"}`}}>{g.completed?"FINAL":g.started?`LIVE · ${g.status}`:"UPCOMING"}</span>
-                    {myPick&&<span style={{fontSize:11,color:"#64748B",fontFamily:"'Orbitron',sans-serif"}}>You picked: <span style={{color:"#00D4FF"}}>{myPick==="home"?g.home.abbr:g.away.abbr}</span></span>}
+                    <span style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700,letterSpacing:".12em",padding:"3px 10px",borderRadius:20,background:g.completed?"rgba(100,116,139,.15)":g.started?"rgba(34,197,94,.15)":"rgba(0,212,255,.1)",color:g.completed?"#64748B":g.started?"#22C55E":"#00D4FF",border:`1px solid ${g.completed?"rgba(100,116,139,.2)":g.started?"rgba(34,197,94,.3)":"rgba(0,212,255,.25)"}`}}>{g.completed?"✅ FINAL":g.started?`🔴 LIVE · ${g.status}`:`🕐 ${g.status}`}</span>
+                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                      {myPick&&<span style={{fontSize:11,color:"#64748B",fontFamily:"'Orbitron',sans-serif"}}>Picked: <span style={{color:"#00D4FF"}}>{myPick==="home"?g.home.abbr:g.away.abbr}</span></span>}
+                      {hasDetail&&<button onClick={()=>toggleExp(g.id)} style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",borderRadius:8,padding:"3px 10px",cursor:"pointer",color:"#94A3B8"}}>{isExp?"▲ Less":"▼ Details"}</button>}
+                    </div>
                   </div>
+
+                  {/* Live MLB situation */}
+                  {g.isMLB&&g.started&&!g.completed&&g.outs!==null&&(
+                    <div style={{display:"flex",gap:12,justifyContent:"center",marginBottom:14,flexWrap:"wrap"}}>
+                      <div style={{background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.25)",borderRadius:10,padding:"6px 16px",textAlign:"center"}}>
+                        <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#22C55E",letterSpacing:".1em"}}>INNING</div>
+                        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:15,fontWeight:900,color:"#E2E8F0"}}>{g.inningHalf} {g.inning}</div>
+                      </div>
+                      <div style={{background:"rgba(0,212,255,.08)",border:"1px solid rgba(0,212,255,.2)",borderRadius:10,padding:"6px 16px",textAlign:"center"}}>
+                        <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",letterSpacing:".1em"}}>OUTS</div>
+                        <div style={{display:"flex",gap:5,marginTop:4,justifyContent:"center"}}>
+                          {[0,1,2].map(i=><div key={i} style={{width:14,height:14,borderRadius:"50%",background:i<g.outs?"#F59E0B":"rgba(255,255,255,.1)",border:`1px solid ${i<g.outs?"#F59E0B":"rgba(255,255,255,.15)"}`}}/>)}
+                        </div>
+                      </div>
+                      <div style={{background:"rgba(139,92,246,.08)",border:"1px solid rgba(139,92,246,.2)",borderRadius:10,padding:"6px 16px",textAlign:"center"}}>
+                        <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#8B5CF6",letterSpacing:".1em"}}>COUNT</div>
+                        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:15,fontWeight:900,color:"#E2E8F0"}}>{g.balls??0}-{g.strikes??0}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Team matchup */}
                   <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:mob?8:12,alignItems:"center"}}>
                     <button onClick={()=>!locked&&predict(g.id,"away")} disabled={locked} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,padding:mob?"12px 8px":"16px 12px",borderRadius:12,border:`2px solid ${myPick==="away"?"#00D4FF":awayWin?"#22C55E":"rgba(255,255,255,.08)"}`,background:myPick==="away"?"rgba(0,212,255,.1)":awayWin?"rgba(34,197,94,.08)":"rgba(255,255,255,.02)",cursor:locked?"default":"pointer",transition:"all .2s",opacity:g.completed&&homeWin?.5:1}}>
                       {g.away.logo&&<img src={g.away.logo} width={mob?36:48} height={mob?36:48} style={{objectFit:"contain"}}/>}
@@ -213,6 +300,8 @@ function PredictPage({cu,users,setUsers}){
                       {!locked&&<div style={{fontSize:10,color:"#475569"}}>{Math.round(ph/tot*100)}% pick</div>}
                     </button>
                   </div>
+
+                  {/* Community pick bar */}
                   {!locked&&(
                     <div style={{marginTop:12}}>
                       <div style={{display:"flex",height:4,borderRadius:4,overflow:"hidden",background:"rgba(255,255,255,.06)"}}>
@@ -222,6 +311,70 @@ function PredictPage({cu,users,setUsers}){
                       <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"#334155",marginTop:4}}>
                         <span>{pa} picked {g.away.abbr}</span><span>{ph} picked {g.home.abbr}</span>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Expandable details panel */}
+                  {isExp&&g.isMLB&&(
+                    <div style={{marginTop:16,display:"flex",flexDirection:"column",gap:14,borderTop:"1px solid rgba(255,255,255,.07)",paddingTop:14}}>
+
+                      {/* Pre-game: starting pitchers */}
+                      {!g.started&&(g.awayProb?.name||g.homeProb?.name)&&(
+                        <div>
+                          <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",marginBottom:8,letterSpacing:".12em"}}>⚾ PROBABLE STARTERS</div>
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                            {[{side:"Away",team:g.away.abbr,p:g.awayProb},{side:"Home",team:g.home.abbr,p:g.homeProb}].map(({side,team,p})=>(
+                              <div key={side} style={{background:"rgba(255,255,255,.03)",borderRadius:10,padding:"10px 12px",border:"1px solid rgba(255,255,255,.07)"}}>
+                                <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:4}}>{team} ({side})</div>
+                                <div style={{fontSize:13,fontWeight:700,color:"#E2E8F0"}}>{p?.name||"TBD"}</div>
+                                {p?.era&&<div style={{fontSize:11,color:"#94A3B8",marginTop:2}}>ERA: {p.era}</div>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Post-game: win/loss/save pitchers */}
+                      {g.completed&&(g.winPitcher||g.losePitcher||g.savePitcher)&&(
+                        <div>
+                          <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#22C55E",marginBottom:8,letterSpacing:".12em"}}>🏆 PITCHING DECISION</div>
+                          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                            {g.winPitcher&&<StatRow label={`W: ${g.winPitcher.name}`} val={`${g.winPitcher.wins??"-"}-${g.winPitcher.losses??"-"}`} color="#22C55E"/>}
+                            {g.losePitcher&&<StatRow label={`L: ${g.losePitcher.name}`} val={`${g.losePitcher.wins??"-"}-${g.losePitcher.losses??"-"}`} color="#EF4444"/>}
+                            {g.savePitcher&&<StatRow label={`SV: ${g.savePitcher.name}`} val={`${g.savePitcher.saves??"-"} SV`} color="#F59E0B"/>}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Post-game: top performers */}
+                      {g.completed&&g.leaders?.length>0&&(
+                        <div>
+                          <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#F59E0B",marginBottom:8,letterSpacing:".12em"}}>⭐ TOP PERFORMERS</div>
+                          <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                            {g.leaders.slice(0,6).map((l,i)=>(
+                              <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+                                <span style={{fontSize:11,color:"#94A3B8"}}>{l.displayName||l.name||"—"}</span>
+                                <span style={{fontSize:11,fontWeight:700,color:"#F59E0B"}}>{l.displayValue||l.value||"—"}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Injuries */}
+                      {g.injuries?.length>0&&(
+                        <div>
+                          <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#EF4444",marginBottom:8,letterSpacing:".12em"}}>🚑 INJURIES</div>
+                          <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                            {g.injuries.slice(0,8).map((inj,i)=>(
+                              <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+                                <span style={{fontSize:11,color:"#94A3B8"}}>{inj.athlete?.displayName||inj.displayName||"—"} <span style={{color:"#475569",fontSize:10}}>({inj.team?.abbreviation||""})</span></span>
+                                <span style={{fontSize:11,fontWeight:600,color:"#EF4444"}}>{inj.status||inj.type||"—"}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </Card>
@@ -487,7 +640,9 @@ function XBtn({onClick,style:ext={}}){const [h,setH]=useState(false);return <but
 function StatusDot({type,size=12,style:ext={}}){const s=STATUS_META[type]||STATUS_META.offline;return <div style={{width:size,height:size,borderRadius:"50%",background:s.color,flexShrink:0,boxShadow:type!=="offline"?`0 0 ${size/2}px ${s.color}88`:"none",border:"2px solid rgba(3,7,18,.9)",...ext}} title={s.label}/>;}
 function AvatarCircle({user,size=36,onClick}){return <div onClick={onClick} style={{width:size,height:size,borderRadius:"50%",flexShrink:0,background:`radial-gradient(circle,${user?.page_accent||"#00D4FF"}44,rgba(0,0,0,.7))`,border:`2px solid ${user?.page_accent||"#00D4FF"}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*.45,overflow:"hidden",cursor:onClick?"pointer":"default"}}>{user?.avatar_url?<img src={user.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:user?.avatar||"👤"}</div>;}
 const Av=AvatarCircle;
-function BannerUploadBtn({label,onUpload}){const [up,setUp]=useState(false);const ref=useRef(null);const h=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>10*1024*1024){alert("Max 10MB");return;}setUp(true);await onUpload(f);setUp(false);e.target.value="";};return <><input type="file" ref={ref} accept="image/*" onChange={h} style={{display:"none"}}/><Btn variant="ghost" size="sm" onClick={()=>ref.current.click()} disabled={up}>{up?"⏳":label}</Btn></>;}
+function BannerUploadBtn({label,onUpload}){const [up,setUp]=useState(false);const ref=useRef(null);const h=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>10*1024*1024){alert("Max 10MB");return;}setUp(true);await onUpload(f);setUp(false);e.target.value="";};return <><input type="file" ref={ref} accept="image/*" onChange={h} style={{display:"none"}}/><Btn variant="ghost" size="sm" onClick={()=>ref.current.click()} disabled={up}>{up?"⏳":label}</Btn></>;
+}
+const BannerBtn=BannerUploadBtn;
 function TeamLogo({espn,sport,size=22}){const [err,setErr]=useState(false);if(err)return <span style={{fontSize:size*.65}}>{sport==="mlb"?"⚾":"🏈"}</span>;return <img src={`https://a.espncdn.com/i/teamlogos/${sport}/500/${espn}.png`} width={size} height={size} style={{objectFit:"contain",flexShrink:0}} onError={()=>setErr(true)}/>;}
 function TeamBadge({teamId}){const team=[...MLB_TEAMS,...NFL_TEAMS].find(t=>t.id===teamId);if(!team)return null;const sport=teamId.startsWith("nfl_")?"nfl":"mlb";return <div style={{display:"inline-flex",alignItems:"center",gap:5,background:team.color+"22",border:`1.5px solid ${team.color}66`,borderRadius:20,padding:"3px 10px"}}><TeamLogo espn={team.espn} sport={sport} size={18}/><span style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",fontWeight:700,color:team.color,letterSpacing:".06em"}}>{team.abbr}</span><span style={{fontSize:9,color:team.color+"cc",fontWeight:600}}>{team.name}</span></div>;}
 
@@ -698,6 +853,19 @@ function MessagesPage({cu,users,conversations,setConversations,messages,setMessa
   const [isGroup,setIsGroup]=useState(false);
   const msgEndRef=useRef(null);
   const pollRef=useRef(null);
+  const groupAvatarRef=useRef(null);
+
+  const uploadGroupAvatar=async(convId,file)=>{
+    if(!file)return;
+    const ext=file.name.split(".").pop();
+    const path=`group-${convId}.${ext}`;
+    const url=await sbUp("nova-banners",path,file);
+    if(url){
+      await sb.patch("nova_conversations",`?id=eq.${convId}`,{avatar_url:url});
+      setConversations(prev=>prev.map(c=>c.id===convId?{...c,avatar_url:url}:c));
+      if(activeConv?.id===convId)setActiveConv(prev=>({...prev,avatar_url:url}));
+    }
+  };
 
   const myConvs=conversations.filter(c=>c.members.includes(cu?.id||"")).sort((a,b)=>(b.last_ts||0)-(a.last_ts||0));
   const convMsgs=activeConv?messages.filter(m=>m.conv_id===activeConv.id).sort((a,b)=>a.ts-b.ts):[];
@@ -770,7 +938,7 @@ function MessagesPage({cu,users,conversations,setConversations,messages,setMessa
               return (
                 <div key={c.id} onClick={()=>setActiveConv(c)} style={{display:"flex",gap:10,alignItems:"center",padding:"10px 12px",borderRadius:12,background:isActive?"rgba(0,212,255,.1)":"rgba(255,255,255,.03)",border:`1px solid ${isActive?"rgba(0,212,255,.3)":"rgba(255,255,255,.07)"}`,cursor:"pointer",transition:"all .18s"}}>
                   {c.is_group
-                    ? <div style={{width:40,height:40,borderRadius:"50%",flexShrink:0,background:"linear-gradient(135deg,#00D4FF22,#8B5CF622)",border:"1px solid rgba(0,212,255,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>👥</div>
+                    ? <div style={{width:40,height:40,borderRadius:"50%",flexShrink:0,background:"linear-gradient(135deg,#00D4FF22,#8B5CF622)",border:"1px solid rgba(0,212,255,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,overflow:"hidden"}}>{c.avatar_url?<img src={c.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:"👥"}</div>
                     : <AvatarCircle user={getConvAvatar(c)} size={40}/>
                   }
                   <div style={{flex:1,minWidth:0}}>
@@ -799,7 +967,13 @@ function MessagesPage({cu,users,conversations,setConversations,messages,setMessa
               <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,.07)",display:"flex",alignItems:"center",gap:10,background:"rgba(0,0,0,.2)",flexShrink:0}}>
                 {mob&&<button onClick={()=>setActiveConv(null)} style={{background:"none",border:"none",color:"#00D4FF",cursor:"pointer",fontSize:24,lineHeight:1,padding:"0 4px 0 0"}}>‹</button>}
                 {activeConv.is_group
-                  ? <div style={{width:36,height:36,borderRadius:"50%",flexShrink:0,background:"linear-gradient(135deg,#00D4FF22,#8B5CF622)",border:"1px solid rgba(0,212,255,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>👥</div>
+                  ? <div style={{position:"relative",flexShrink:0}}>
+                      <input type="file" ref={groupAvatarRef} accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files[0];if(f)uploadGroupAvatar(activeConv.id,f);e.target.value="";}}/>
+                      <div onClick={()=>groupAvatarRef.current.click()} style={{width:36,height:36,borderRadius:"50%",background:"linear-gradient(135deg,#00D4FF22,#8B5CF622)",border:"1px solid rgba(0,212,255,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,cursor:"pointer",overflow:"hidden",position:"relative"}} title="Change group photo">
+                        {activeConv.avatar_url?<img src={activeConv.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:"👥"}
+                        <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.4)",display:"flex",alignItems:"center",justifyContent:"center",opacity:0,transition:"opacity .2s"}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0}><span style={{fontSize:14}}>📷</span></div>
+                      </div>
+                    </div>
                   : <AvatarCircle user={getConvAvatar(activeConv)} size={36}/>
                 }
                 <div>
