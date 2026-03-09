@@ -719,9 +719,8 @@ function MessagesPage({cu,users,conversations,setConversations,messages,setMessa
         <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13}}>Select a conversation</div>
         <Btn variant="ghost" size="sm" onClick={()=>setShowNew(true)}>＋ Start New Chat</Btn>
       </div>}
-    </div>
-
     </div>}
+
     {/* New conversation modal */}
     {showNew&&<Modal title="💬 New Conversation" onClose={()=>{setShowNew(false);setSelectedUsers([]);setGroupName("");setIsGroup(false);}}>
       <div style={{display:"flex",flexDirection:"column",gap:14}}>
