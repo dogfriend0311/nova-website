@@ -125,6 +125,7 @@ const ALL_BADGES = [
   {id:"earlybird",icon:"🚀",label:"Early Adopter",color:"#C084FC"},{id:"commfave",icon:"🌟",label:"Community Fave",color:"#FBBF24"},
   {id:"predictor",icon:"🎯",label:"Top Predictor",color:"#EF4444"},
 ];
+const BADGES=ALL_BADGES;
 
 // ─── Predictions ───────────────────────────────────────────────────────────────
 function PredictPage({cu,users,setUsers}){
@@ -157,29 +158,34 @@ function PredictPage({cu,users,setUsers}){
         let detail=null;
         if(isMLB) detail=await fetchMLBDetail(e.id);
         const situation=detail?.situation;
-        const pitchers=detail?.pitchers||detail?.boxscore?.players||null;
-        const awayPitcher=detail?.picther||null;
-        // parse starting pitchers from probables
+        // Parse inning half from status detail string e.g. "Top 3rd", "Bot 5th", "Mid 7th"
+        const statusDetail=comp.status?.type?.shortDetail||"";
+        const halfMatch=statusDetail.match(/^(Top|Bot|Mid|End)\s/i);
+        const inningHalf=halfMatch?halfMatch[1].charAt(0).toUpperCase()+halfMatch[1].slice(1).toLowerCase():"Top";
+        // probables
         const probables=comp.probables||[];
         const awayProb=probables.find(p=>p.homeAway==="away");
         const homeProb=probables.find(p=>p.homeAway==="home");
-        // parse injuries
+        // injuries
         const injuries=detail?.injuries||[];
-        // parse post-game pitching line
-        const boxPitchers=detail?.boxscore?.players?.map(side=>{
-          const pitchCat=side.statistics?.find(s=>s.name==="pitching");
-          const stats=pitchCat?.athletes||[];
-          return{team:side.team?.abbreviation,pitchers:stats.map(a=>({name:a.athlete?.displayName,stats:a.stats||[],labels:pitchCat?.labels||[]}))};
-        })||[];
-        // winning/losing/save pitchers
-        const winPitcher=detail?.winPitcher;const losePitcher=detail?.losePitcher;const savePitcher=detail?.savePitcher;
-        // top performers
+        // win/loss/save
+        const winPitcher=detail?.winPitcher;
+        const losePitcher=detail?.losePitcher;
+        const savePitcher=detail?.savePitcher;
+        // leaders/top performers
         const leaders=detail?.leaders||comp.leaders||[];
+        // full boxscore
+        const boxTeams=detail?.boxscore?.teams||[];
+        const boxPlayers=detail?.boxscore?.players||[];
+        // linescore (runs by inning)
+        const linescore=detail?.linescore||comp.linescore||null;
+        // scoring plays
+        const scoringPlays=detail?.scoringPlays||[];
         return{
           id:e.id,date:e.date,
           home:{name:home?.team?.displayName,abbr:home?.team?.abbreviation,logo:home?.team?.logo,score:home?.score},
           away:{name:away?.team?.displayName,abbr:away?.team?.abbreviation,logo:away?.team?.logo,score:away?.score},
-          status:st?.shortDetail||"Scheduled",
+          status:statusDetail||"Scheduled",
           started:st?.completed||st?.name==="STATUS_IN_PROGRESS",
           completed:st?.completed||false,
           isMLB,
@@ -187,15 +193,21 @@ function PredictPage({cu,users,setUsers}){
           balls:situation?.balls??null,
           strikes:situation?.strikes??null,
           inning:situation?.period??null,
-          inningHalf:situation?.isRedZone?"Bot":"Top",
+          inningHalf,
+          onFirst:!!situation?.onFirst,
+          onSecond:!!situation?.onSecond,
+          onThird:!!situation?.onThird,
           awayProb:{name:awayProb?.athlete?.displayName,era:awayProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value},
           homeProb:{name:homeProb?.athlete?.displayName,era:homeProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value},
           injuries,
-          boxPitchers,
           winPitcher:winPitcher?{name:winPitcher.athlete?.displayName,wins:winPitcher.stats?.find?.(s=>s.name==="wins")?.value,losses:winPitcher.stats?.find?.(s=>s.name==="losses")?.value}:null,
           losePitcher:losePitcher?{name:losePitcher.athlete?.displayName,wins:losePitcher.stats?.find?.(s=>s.name==="wins")?.value,losses:losePitcher.stats?.find?.(s=>s.name==="losses")?.value}:null,
           savePitcher:savePitcher?{name:savePitcher.athlete?.displayName,saves:savePitcher.stats?.find?.(s=>s.name==="saves")?.value}:null,
           leaders,
+          boxTeams,
+          boxPlayers,
+          linescore,
+          scoringPlays,
         };
       }));
       setGames(evs);
@@ -263,7 +275,7 @@ function PredictPage({cu,users,setUsers}){
 
                   {/* Live MLB situation */}
                   {g.isMLB&&g.started&&!g.completed&&g.outs!==null&&(
-                    <div style={{display:"flex",gap:12,justifyContent:"center",marginBottom:14,flexWrap:"wrap"}}>
+                    <div style={{display:"flex",gap:10,justifyContent:"center",marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
                       <div style={{background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.25)",borderRadius:10,padding:"6px 16px",textAlign:"center"}}>
                         <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#22C55E",letterSpacing:".1em"}}>INNING</div>
                         <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:15,fontWeight:900,color:"#E2E8F0"}}>{g.inningHalf} {g.inning}</div>
@@ -277,6 +289,16 @@ function PredictPage({cu,users,setUsers}){
                       <div style={{background:"rgba(139,92,246,.08)",border:"1px solid rgba(139,92,246,.2)",borderRadius:10,padding:"6px 16px",textAlign:"center"}}>
                         <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#8B5CF6",letterSpacing:".1em"}}>COUNT</div>
                         <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:15,fontWeight:900,color:"#E2E8F0"}}>{g.balls??0}-{g.strikes??0}</div>
+                      </div>
+                      {/* Base runners diamond */}
+                      <div style={{background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.2)",borderRadius:10,padding:"6px 14px",textAlign:"center"}}>
+                        <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#F59E0B",letterSpacing:".1em",marginBottom:4}}>BASES</div>
+                        <div style={{position:"relative",width:36,height:36,margin:"0 auto"}}>
+                          {/* Diamond layout: 2B top, 3B left, 1B right */}
+                          <div style={{position:"absolute",top:0,left:"50%",transform:"translateX(-50%) rotate(45deg)",width:13,height:13,background:g.onSecond?"#F59E0B":"rgba(255,255,255,.1)",border:`1px solid ${g.onSecond?"#F59E0B":"rgba(255,255,255,.15)"}`}}/>
+                          <div style={{position:"absolute",top:"50%",left:0,transform:"translateY(-50%) rotate(45deg)",width:13,height:13,background:g.onThird?"#F59E0B":"rgba(255,255,255,.1)",border:`1px solid ${g.onThird?"#F59E0B":"rgba(255,255,255,.15)"}`}}/>
+                          <div style={{position:"absolute",top:"50%",right:0,transform:"translateY(-50%) rotate(45deg)",width:13,height:13,background:g.onFirst?"#F59E0B":"rgba(255,255,255,.1)",border:`1px solid ${g.onFirst?"#F59E0B":"rgba(255,255,255,.15)"}`}}/>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -346,20 +368,160 @@ function PredictPage({cu,users,setUsers}){
                         </div>
                       )}
 
-                      {/* Post-game: top performers */}
-                      {g.completed&&g.leaders?.length>0&&(
-                        <div>
-                          <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#F59E0B",marginBottom:8,letterSpacing:".12em"}}>⭐ TOP PERFORMERS</div>
-                          <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                            {g.leaders.slice(0,6).map((l,i)=>(
-                              <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
-                                <span style={{fontSize:11,color:"#94A3B8"}}>{l.displayName||l.name||"—"}</span>
-                                <span style={{fontSize:11,fontWeight:700,color:"#F59E0B"}}>{l.displayValue||l.value||"—"}</span>
+                      {/* Post-game: top performers / auto Player of the Game */}
+                      {g.completed&&g.leaders?.length>0&&(()=>{
+                        // Auto-pick player of the game: find leader with highest numeric displayValue
+                        const potg=g.leaders.reduce((best,l)=>{
+                          const v=parseFloat((l.displayValue||"0").replace(/[^0-9.]/g,""))||0;
+                          const bv=parseFloat((best?.displayValue||"0").replace(/[^0-9.]/g,""))||0;
+                          return v>bv?l:best;
+                        },g.leaders[0]);
+                        return(
+                          <div>
+                            {potg&&(
+                              <div style={{background:"linear-gradient(135deg,rgba(245,158,11,.15),rgba(251,191,36,.07))",border:"1px solid rgba(245,158,11,.3)",borderRadius:12,padding:"12px 16px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
+                                <div style={{fontSize:28}}>🌟</div>
+                                <div>
+                                  <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#F59E0B",letterSpacing:".12em",marginBottom:2}}>PLAYER OF THE GAME</div>
+                                  <div style={{fontSize:14,fontWeight:700,color:"#E2E8F0"}}>{potg.athlete?.displayName||potg.displayName||potg.name||"—"}</div>
+                                  <div style={{fontSize:12,color:"#F59E0B",fontWeight:600}}>{potg.displayValue||potg.value||"—"}</div>
+                                </div>
                               </div>
-                            ))}
+                            )}
+                            <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#F59E0B",marginBottom:8,letterSpacing:".12em"}}>⭐ TOP PERFORMERS</div>
+                            <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                              {g.leaders.slice(0,8).map((l,i)=>(
+                                <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+                                  <span style={{fontSize:11,color:"#94A3B8"}}>{l.athlete?.displayName||l.displayName||l.name||"—"}</span>
+                                  <span style={{fontSize:11,fontWeight:700,color:"#F59E0B"}}>{l.displayValue||l.value||"—"}</span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
+
+                      {/* Linescore by inning */}
+                      {(g.started||g.completed)&&g.linescore?.columns?.length>0&&(()=>{
+                        const cols=g.linescore.columns||[];
+                        const rows=g.linescore.rows||[];
+                        return(
+                          <div style={{overflowX:"auto"}}>
+                            <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",marginBottom:8,letterSpacing:".12em"}}>📊 LINE SCORE</div>
+                            <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:300}}>
+                              <thead>
+                                <tr>
+                                  <td style={{padding:"4px 8px",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:10}}>TEAM</td>
+                                  {cols.map((c,i)=><td key={i} style={{padding:"4px 6px",textAlign:"center",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:10}}>{c.label||c.value||i+1}</td>)}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {rows.map((row,ri)=>(
+                                  <tr key={ri} style={{background:ri%2===0?"rgba(255,255,255,.02)":"transparent"}}>
+                                    <td style={{padding:"4px 8px",color:"#E2E8F0",fontWeight:700,fontFamily:"'Orbitron',sans-serif",fontSize:10}}>{row.label||row.team||""}</td>
+                                    {(row.columns||[]).map((cell,ci)=>(
+                                      <td key={ci} style={{padding:"4px 6px",textAlign:"center",color:cell.bold?"#22C55E":"#94A3B8",fontWeight:cell.bold?700:400}}>{cell.value??""}</td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Team stats */}
+                      {g.boxTeams?.length>0&&(()=>{
+                        const awayTeam=g.boxTeams.find(t=>t.homeAway==="away")||g.boxTeams[0];
+                        const homeTeam=g.boxTeams.find(t=>t.homeAway==="home")||g.boxTeams[1];
+                        const awayStats=awayTeam?.statistics||[];
+                        const homeStats=homeTeam?.statistics||[];
+                        if(!awayStats.length&&!homeStats.length)return null;
+                        return(
+                          <div>
+                            <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#8B5CF6",marginBottom:8,letterSpacing:".12em"}}>📋 TEAM STATS</div>
+                            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:6}}>
+                              <div style={{textAlign:"center",fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#64748B"}}>{g.away.abbr}</div>
+                              <div style={{textAlign:"center",fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#64748B"}}>{g.home.abbr}</div>
+                            </div>
+                            {awayStats.slice(0,8).map((stat,i)=>{
+                              const hStat=homeStats.find(s=>s.name===stat.name);
+                              return(
+                                <div key={i} style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:6,padding:"4px 0",borderBottom:"1px solid rgba(255,255,255,.04)",alignItems:"center"}}>
+                                  <div style={{textAlign:"right",fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{stat.displayValue||stat.value||"—"}</div>
+                                  <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",textAlign:"center",minWidth:70}}>{stat.label||stat.name}</div>
+                                  <div style={{textAlign:"left",fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{hStat?.displayValue||hStat?.value||"—"}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Player stats by team in lineup order */}
+                      {g.boxPlayers?.length>0&&g.boxPlayers.map((side,si)=>{
+                        const categories=side.statistics||[];
+                        if(!categories.length)return null;
+                        const hitting=categories.find(c=>c.name==="batting"||c.name==="hitting")||categories[0];
+                        const pitching=categories.find(c=>c.name==="pitching");
+                        const players=hitting?.athletes||[];
+                        const pitchers=pitching?.athletes||[];
+                        if(!players.length&&!pitchers.length)return null;
+                        const teamAbbr=side.team?.abbreviation||`Team ${si+1}`;
+                        const hitLabels=hitting?.labels||hitting?.keys||[];
+                        const pitchLabels=pitching?.labels||pitching?.keys||[];
+                        return(
+                          <div key={si}>
+                            <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",marginBottom:8,letterSpacing:".12em"}}>🧢 {teamAbbr} — PLAYER STATS</div>
+                            {players.length>0&&(
+                              <div style={{overflowX:"auto",marginBottom:10}}>
+                                <div style={{fontSize:9,color:"#475569",marginBottom:5,fontFamily:"'Orbitron',sans-serif"}}>BATTING</div>
+                                <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,minWidth:280}}>
+                                  <thead>
+                                    <tr style={{borderBottom:"1px solid rgba(255,255,255,.08)"}}>
+                                      <td style={{padding:"3px 6px",color:"#475569",minWidth:100}}>PLAYER</td>
+                                      {hitLabels.slice(0,6).map((l,i)=><td key={i} style={{padding:"3px 6px",textAlign:"center",color:"#475569"}}>{l}</td>)}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {players.map((p,pi)=>(
+                                      <tr key={pi} style={{background:pi%2===0?"rgba(255,255,255,.02)":"transparent",borderBottom:"1px solid rgba(255,255,255,.03)"}}>
+                                        <td style={{padding:"4px 6px",color:"#E2E8F0",fontWeight:600,whiteSpace:"nowrap"}}>{p.athlete?.shortName||p.athlete?.displayName||"—"}</td>
+                                        {(p.stats||[]).slice(0,6).map((s,si2)=>(
+                                          <td key={si2} style={{padding:"4px 6px",textAlign:"center",color:"#94A3B8"}}>{s||"—"}</td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                            {pitchers.length>0&&(
+                              <div style={{overflowX:"auto"}}>
+                                <div style={{fontSize:9,color:"#475569",marginBottom:5,fontFamily:"'Orbitron',sans-serif"}}>PITCHING</div>
+                                <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,minWidth:280}}>
+                                  <thead>
+                                    <tr style={{borderBottom:"1px solid rgba(255,255,255,.08)"}}>
+                                      <td style={{padding:"3px 6px",color:"#475569",minWidth:100}}>PITCHER</td>
+                                      {pitchLabels.slice(0,6).map((l,i)=><td key={i} style={{padding:"3px 6px",textAlign:"center",color:"#475569"}}>{l}</td>)}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {pitchers.map((p,pi)=>(
+                                      <tr key={pi} style={{background:pi%2===0?"rgba(255,255,255,.02)":"transparent",borderBottom:"1px solid rgba(255,255,255,.03)"}}>
+                                        <td style={{padding:"4px 6px",color:"#E2E8F0",fontWeight:600,whiteSpace:"nowrap"}}>{p.athlete?.shortName||p.athlete?.displayName||"—"}</td>
+                                        {(p.stats||[]).slice(0,6).map((s,si2)=>(
+                                          <td key={si2} style={{padding:"4px 6px",textAlign:"center",color:"#94A3B8"}}>{s||"—"}</td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
 
                       {/* Injuries */}
                       {g.injuries?.length>0&&(
@@ -1392,13 +1554,15 @@ function AddLinkClipModal({onAdd,onClose}){
 function DashboardPage({cu,users,setUsers,navigate}){
   const mob=useIsMobile();
   const[sel,setSel]=useState(null);
-  const[badgeModal,setBadgeModal]=useState(false);
+  const[tab,setTab]=useState("members");
+  const[announce,setAnnounce]=useState("");
+  const[announcements,setAnnouncements]=useState([]);
+  const[announceSent,setAnnounceSent]=useState(false);
   const target=sel?users.find(u=>u.id===sel):null;
-  if(!cu?.is_owner)return<div style={{padding:"100px 20px",textAlign:"center",color:"#334155"}}>Access denied</div>;
+  if(!cu?.is_owner)return<div style={{padding:"100px 20px",textAlign:"center",color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>⛔ Access Denied</div>;
   const toggleBadge=async(uid,bid)=>{
     const u=users.find(x=>x.id===uid);if(!u)return;
-    const bs=u.badges||[];
-    const nb=bs.includes(bid)?bs.filter(b=>b!==bid):[...bs,bid];
+    const bs=u.badges||[];const nb=bs.includes(bid)?bs.filter(b=>b!==bid):[...bs,bid];
     await sb.patch("nova_users",`?id=eq.${uid}`,{badges:nb});
     setUsers(prev=>prev.map(x=>x.id===uid?{...x,badges:nb}:x));
   };
@@ -1407,61 +1571,208 @@ function DashboardPage({cu,users,setUsers,navigate}){
     setUsers(prev=>prev.map(x=>x.id===uid?{...x,staff_role:role||null}:x));
   };
   const deleteUser=async uid=>{
-    if(!confirm("Delete this user?"))return;
+    if(!confirm("Permanently delete this user? This cannot be undone."))return;
     await sb.del("nova_users",`?id=eq.${uid}`);
-    setUsers(prev=>prev.filter(u=>u.id!==uid));
-    setSel(null);
+    setUsers(prev=>prev.filter(u=>u.id!==uid));setSel(null);
   };
+  const resetAvatar=async uid=>{
+    await sb.patch("nova_users",`?id=eq.${uid}`,{avatar_url:"",avatar:"👤"});
+    setUsers(prev=>prev.map(x=>x.id===uid?{...x,avatar_url:"",avatar:"👤"}:x));
+  };
+  const sendAnnouncement=async()=>{
+    if(!announce.trim())return;
+    const notifs=users.filter(u=>u.id!==cu.id).map(u=>({id:gid(),to_user_id:u.id,from_user_id:cu.id,msg:`📢 ${announce}`,ts:Date.now(),read:false}));
+    await Promise.all(notifs.map(n=>sb.post("nova_notifications",n)));
+    setAnnouncements(prev=>[{text:announce,ts:Date.now()},...prev]);
+    setAnnounce("");setAnnounceSent(true);setTimeout(()=>setAnnounceSent(false),3000);
+  };
+  const statsCards=[
+    {label:"TOTAL MEMBERS",val:users.length,color:"#00D4FF",icon:"👥"},
+    {label:"ONLINE NOW",val:users.filter(u=>u.status_type==="online").length,color:"#22C55E",icon:"🟢"},
+    {label:"STAFF MEMBERS",val:users.filter(u=>u.staff_role).length,color:"#A78BFA",icon:"⭐"},
+    {label:"BADGES GIVEN",val:users.reduce((a,u)=>a+(u.badges||[]).length,0),color:"#F59E0B",icon:"🏅"},
+    {label:"TOTAL PREDICTIONS",val:users.reduce((a,u)=>a+Object.keys(u.predictions||{}).length,0),color:"#EF4444",icon:"🎯"},
+    {label:"AVG FOLLOWERS",val:users.length?Math.round(users.reduce((a,u)=>a+(u.followers||[]).length,0)/users.length):0,color:"#34D399",icon:"📈"},
+  ];
   return(
-    <div style={{maxWidth:1080,margin:"0 auto",padding:"44px 16px 80px"}}>
-      <h1 style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?22:28,fontWeight:700,marginBottom:24,background:"linear-gradient(135deg,#F59E0B,#EF4444)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>⚡ Owner Dashboard</h1>
-      <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:16,marginBottom:20}}>
-        <Card style={{padding:20}}><div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#475569",letterSpacing:".15em",marginBottom:6}}>TOTAL MEMBERS</div><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:32,fontWeight:900,color:"#00D4FF"}}>{users.length}</div></Card>
-        <Card style={{padding:20}}><div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#475569",letterSpacing:".15em",marginBottom:6}}>ONLINE NOW</div><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:32,fontWeight:900,color:"#22C55E"}}>{users.filter(u=>u.status_type==="online").length}</div></Card>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:16}}>
+    <div style={{maxWidth:1200,margin:"0 auto",padding:"44px 16px 80px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:28}}>
+        <div style={{fontSize:32}}>⚡</div>
         <div>
-          <h2 style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,fontWeight:700,color:"#94A3B8",marginBottom:14,letterSpacing:".1em"}}>ALL MEMBERS</h2>
-          <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:500,overflowY:"auto"}}>
-            {users.map(u=>(
-              <div key={u.id} onClick={()=>setSel(u.id===sel?null:u.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:12,background:sel===u.id?"rgba(0,212,255,.1)":"rgba(255,255,255,.03)",border:`1px solid ${sel===u.id?"rgba(0,212,255,.3)":"rgba(255,255,255,.07)"}`,cursor:"pointer",transition:"all .18s"}}>
-                <Av user={u} size={34}/>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.display_name}</div>
-                  <div style={{fontSize:11,color:"#475569"}}>@{u.username}{u.staff_role&&` · ${u.staff_role}`}</div>
+          <h1 style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?20:26,fontWeight:700,margin:0,background:"linear-gradient(135deg,#F59E0B,#EF4444)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Owner Dashboard</h1>
+          <div style={{fontSize:12,color:"#475569",marginTop:2}}>Nova Command Center · Welcome back, {cu.display_name}</div>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(3,1fr)",gap:12,marginBottom:28}}>
+        {statsCards.map((s,i)=>(
+          <Card key={i} style={{padding:"16px 18px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{fontSize:24}}>{s.icon}</div>
+              <div>
+                <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#475569",letterSpacing:".12em"}}>{s.label}</div>
+                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:24,fontWeight:900,color:s.color}}>{s.val}</div>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
+        {[["members","👥 Members"],["badges","🏅 Badges"],["roles","⭐ Roles"],["announce","📢 Announce"]].map(([t,l])=>(
+          <button key={t} onClick={()=>setTab(t)} style={{padding:"8px 16px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"rgba(245,158,11,.5)":"rgba(255,255,255,.1)"}`,background:tab===t?"rgba(245,158,11,.12)":"rgba(255,255,255,.03)",color:tab===t?"#F59E0B":"#64748B",transition:"all .2s"}}>{l}</button>
+        ))}
+      </div>
+      {tab==="members"&&(
+        <div style={{display:"grid",gridTemplateColumns:mob?"1fr":sel?"1fr 1fr":"1fr",gap:16}}>
+          <div>
+            <h2 style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:"#94A3B8",marginBottom:12,letterSpacing:".1em"}}>ALL MEMBERS ({users.length})</h2>
+            <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:600,overflowY:"auto"}}>
+              {[...users].sort((a,b)=>(b.followers||[]).length-(a.followers||[]).length).map(u=>(
+                <div key={u.id} onClick={()=>setSel(u.id===sel?null:u.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:12,background:sel===u.id?"rgba(245,158,11,.1)":"rgba(255,255,255,.03)",border:`1px solid ${sel===u.id?"rgba(245,158,11,.3)":"rgba(255,255,255,.07)"}`,cursor:"pointer",transition:"all .18s"}}>
+                  <Av user={u} size={36}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.display_name}</div>
+                    <div style={{fontSize:11,color:"#475569"}}>@{u.username}{u.staff_role&&<span style={{color:ROLE_COLOR[u.staff_role]||"#00D4FF"}}> · {u.staff_role}</span>}</div>
+                    <div style={{fontSize:10,color:"#334155"}}>{(u.followers||[]).length} followers · {(u.badges||[]).length} badges</div>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                    <StatusDot type={u.status_type||"offline"} size={10}/>
+                    {u.is_owner&&<span style={{fontSize:9,color:"#F59E0B",fontFamily:"'Orbitron',sans-serif"}}>OWNER</span>}
+                  </div>
                 </div>
-                <StatusDot type={u.status_type||"offline"} size={10}/>
+              ))}
+            </div>
+          </div>
+          {target&&(
+            <div>
+              <h2 style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:"#94A3B8",marginBottom:12,letterSpacing:".1em"}}>MANAGING: {target.display_name.toUpperCase()}</h2>
+              <Card style={{padding:20,display:"flex",flexDirection:"column",gap:16}}>
+                <div style={{display:"flex",alignItems:"center",gap:12}}>
+                  <Av user={target} size={52}/>
+                  <div>
+                    <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:14,fontWeight:700,color:"#E2E8F0"}}>{target.display_name}</div>
+                    <div style={{fontSize:12,color:"#475569"}}>@{target.username}</div>
+                    <div style={{fontSize:11,color:"#334155",marginTop:2}}>Joined {target.joined} · {(target.followers||[]).length} followers</div>
+                  </div>
+                </div>
+                <div><Lbl>Staff Role</Lbl>
+                  <select value={target.staff_role||""} onChange={e=>setRole(target.id,e.target.value)} style={{width:"100%"}}>
+                    <option value="">None</option>
+                    {Object.keys(ROLE_COLOR).map(r=><option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div><Lbl>Badges</Lbl>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                    {BADGES.map(b=>{const has=(target.badges||[]).includes(b.id);return(
+                      <button key={b.id} onClick={()=>toggleBadge(target.id,b.id)} style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:20,cursor:"pointer",border:`1.5px solid ${has?b.color:b.color+"33"}`,background:has?b.color+"22":"rgba(255,255,255,.03)",color:has?b.color:"#475569",fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700,transition:"all .15s"}}><span>{b.icon}</span>{b.label}</button>
+                    );})}
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <Btn variant="ghost" size="sm" onClick={()=>navigate("profile",target.id)}>👤 View Profile</Btn>
+                  <Btn variant="ghost" size="sm" onClick={()=>resetAvatar(target.id)}>🗑 Reset Avatar</Btn>
+                  {!target.is_owner&&<Btn variant="danger" size="sm" onClick={()=>deleteUser(target.id)}>⛔ Delete User</Btn>}
+                </div>
+              </Card>
+            </div>
+          )}
+        </div>
+      )}
+      {tab==="badges"&&(
+        <div>
+          <h2 style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:"#94A3B8",marginBottom:16,letterSpacing:".1em"}}>BADGE OVERVIEW</h2>
+          <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"repeat(2,1fr)",gap:12}}>
+            {BADGES.map(b=>{
+              const holders=users.filter(u=>(u.badges||[]).includes(b.id));
+              return(
+                <Card key={b.id} style={{padding:"14px 16px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                    <div style={{width:36,height:36,borderRadius:"50%",background:b.color+"22",border:`1px solid ${b.color}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{b.icon}</div>
+                    <div>
+                      <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:b.color}}>{b.label}</div>
+                      <div style={{fontSize:11,color:"#475569"}}>{holders.length} member{holders.length!==1?"s":""} have this</div>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                    {holders.slice(0,8).map(u=>(
+                      <div key={u.id} onClick={()=>{setTab("members");setSel(u.id);}} title={u.display_name} style={{cursor:"pointer"}}><Av user={u} size={28}/></div>
+                    ))}
+                    {holders.length>8&&<div style={{width:28,height:28,borderRadius:"50%",background:"rgba(255,255,255,.06)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#475569"}}>+{holders.length-8}</div>}
+                    {holders.length===0&&<div style={{fontSize:11,color:"#334155"}}>No members yet</div>}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {tab==="roles"&&(
+        <div>
+          <h2 style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:"#94A3B8",marginBottom:16,letterSpacing:".1em"}}>STAFF ROLES</h2>
+          <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"repeat(2,1fr)",gap:12,marginBottom:20}}>
+            {Object.entries(ROLE_COLOR).map(([role,color])=>{
+              const members=users.filter(u=>u.staff_role===role);
+              return(
+                <Card key={role} style={{padding:"14px 16px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                    <div style={{width:10,height:10,borderRadius:"50%",background:color}}/>
+                    <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color}}>{role}</div>
+                    <div style={{fontSize:11,color:"#475569",marginLeft:"auto"}}>{members.length} member{members.length!==1?"s":""}</div>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                    {members.map(u=>(
+                      <div key={u.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:8,background:"rgba(255,255,255,.03)"}}>
+                        <Av user={u} size={26}/>
+                        <div style={{flex:1}}><div style={{fontSize:11,fontWeight:600,color:"#E2E8F0"}}>{u.display_name}</div><div style={{fontSize:10,color:"#475569"}}>@{u.username}</div></div>
+                        <button onClick={()=>setRole(u.id,"")} style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer",fontSize:12}} title="Remove role">✕</button>
+                      </div>
+                    ))}
+                    {members.length===0&&<div style={{fontSize:11,color:"#334155"}}>No {role}s yet</div>}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+          <h2 style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:"#94A3B8",marginBottom:12,letterSpacing:".1em"}}>QUICK ASSIGN</h2>
+          <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:300,overflowY:"auto"}}>
+            {users.filter(u=>!u.is_owner).map(u=>(
+              <div key={u.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",borderRadius:10,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)"}}>
+                <Av user={u} size={30}/>
+                <div style={{flex:1}}><div style={{fontSize:12,color:"#E2E8F0"}}>{u.display_name}</div></div>
+                <select value={u.staff_role||""} onChange={e=>setRole(u.id,e.target.value)} style={{fontSize:11,padding:"4px 8px",borderRadius:8,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.1)",color:"#E2E8F0",minWidth:110}}>
+                  <option value="">No Role</option>
+                  {Object.keys(ROLE_COLOR).map(r=><option key={r} value={r}>{r}</option>)}
+                </select>
               </div>
             ))}
           </div>
         </div>
-        {target&&(
-          <div>
-            <h2 style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,fontWeight:700,color:"#94A3B8",marginBottom:14,letterSpacing:".1em"}}>MANAGE: {target.display_name}</h2>
-            <Card style={{padding:18,display:"flex",flexDirection:"column",gap:14}}>
-              <div>
-                <Lbl>Staff Role</Lbl>
-                <select value={target.staff_role||""} onChange={e=>setRole(target.id,e.target.value)} style={{width:"100%"}}>
-                  <option value="">None</option>
-                  {Object.keys(ROLE_COLOR).map(r=><option key={r} value={r}>{r}</option>)}
-                </select>
+      )}
+      {tab==="announce"&&(
+        <div style={{maxWidth:600}}>
+          <h2 style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:"#94A3B8",marginBottom:16,letterSpacing:".1em"}}>SEND ANNOUNCEMENT</h2>
+          <Card style={{padding:20,marginBottom:20}}>
+            <Lbl>Message (sent as notification to all members)</Lbl>
+            <textarea value={announce} onChange={e=>setAnnounce(e.target.value)} placeholder="Type your announcement..." style={{resize:"vertical",minHeight:100,width:"100%",marginBottom:12,boxSizing:"border-box"}}/>
+            <div style={{display:"flex",gap:10,alignItems:"center"}}>
+              <Btn onClick={sendAnnouncement} disabled={!announce.trim()}>📢 Send to All</Btn>
+              {announceSent&&<span style={{fontSize:12,color:"#22C55E",fontFamily:"'Orbitron',sans-serif"}}>✓ Sent!</span>}
+            </div>
+          </Card>
+          {announcements.length>0&&(
+            <div>
+              <h3 style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,color:"#475569",marginBottom:10,letterSpacing:".1em"}}>RECENT ANNOUNCEMENTS</h3>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {announcements.map((a,i)=>(
+                  <Card key={i} style={{padding:"12px 16px"}}>
+                    <div style={{fontSize:13,color:"#E2E8F0",marginBottom:4}}>{a.text}</div>
+                    <div style={{fontSize:10,color:"#334155"}}>{fmtAgo(a.ts)}</div>
+                  </Card>
+                ))}
               </div>
-              <div>
-                <Lbl>Badges</Lbl>
-                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                  {BADGES.map(b=>{const has=(target.badges||[]).includes(b.id);return(
-                    <button key={b.id} onClick={()=>toggleBadge(target.id,b.id)} style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:20,cursor:"pointer",border:`1.5px solid ${has?b.color:b.color+"33"}`,background:has?b.color+"22":"rgba(255,255,255,.03)",color:has?b.color:"#475569",fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700,transition:"all .15s"}}><span>{b.icon}</span>{b.label}</button>
-                  );})}
-                </div>
-              </div>
-              <div style={{display:"flex",gap:8}}>
-                <Btn variant="ghost" size="sm" onClick={()=>navigate("profile",target.id)}>View Profile</Btn>
-                {!target.is_owner&&<Btn variant="danger" size="sm" onClick={()=>deleteUser(target.id)}>Delete User</Btn>}
-              </div>
-            </Card>
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
