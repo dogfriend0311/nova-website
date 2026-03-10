@@ -179,8 +179,8 @@ function PredictPage({cu,users,setUsers,navigate}){
     if(!playerId)return null;
     if(playerNameCache[playerId])return playerNameCache[playerId];
     try{
-      const d=await(await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/athletes/${playerId}`)).json();
-      const name=d.athlete?.displayName||d.athlete?.shortName||d.displayName||null;
+      const d=await(await fetch(`/api/hyperbeam?athlete=${playerId}`)).json();
+      const name=d.name||null;
       if(name)playerNameCache[playerId]=name;
       return name;
     }catch{return null;}
@@ -503,8 +503,8 @@ function GameDetailPage({gameId,sport,navigate}){
       // ESPN only returns playerId in situation — resolve to names via athlete API
       const gdP=sit?.pitcher; const gdB=sit?.batter;
       const [gdPitcherName,gdBatterName]=await Promise.all([
-        (async(id)=>{if(!id)return null;try{const d=await(await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/athletes/${id}`)).json();return d.athlete?.displayName||d.athlete?.shortName||null;}catch{return null;}})(gdP?.playerId),
-        (async(id)=>{if(!id)return null;try{const d=await(await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/athletes/${id}`)).json();return d.athlete?.displayName||d.athlete?.shortName||null;}catch{return null;}})(gdB?.playerId),
+        (async(id)=>{if(!id)return null;try{const d=await(await fetch(`/api/hyperbeam?athlete=${id}`)).json();return d.name||null;}catch{return null;}})(gdP?.playerId),
+        (async(id)=>{if(!id)return null;try{const d=await(await fetch(`/api/hyperbeam?athlete=${id}`)).json();return d.name||null;}catch{return null;}})(gdB?.playerId),
       ]);
       const currentPitcher=gdP?.playerId?{name:gdPitcherName,summary:""}:null;
       const currentBatter=gdB?.playerId?{name:gdBatterName,summary:""}:null;
@@ -1634,8 +1634,9 @@ function VoiceCall({cu,conv,users,onEnd}){
 
 // ─── Watch Party Component ───────────────────────────────────────────────────────
 // ─── Watch Party (Hyperbeam) ─────────────────────────────────────────────────────
-// ─── GIF Picker (Giphy) with starred favorites ──────────────────────────────────
-const GIPHY_KEY = "dc6zaTOxFJmzC"; // Giphy public beta key
+// ─── GIF Picker (Tenor) with starred favorites ───────────────────────────────────
+// Tenor anonymous key - works from any domain, no registration needed
+const TENOR_KEY = "LIVDSRZULELA";
 
 // Favorites stored in localStorage per user
 const getFavGifs=()=>{try{return JSON.parse(localStorage.getItem("nova_fav_gifs")||"[]");}catch{return[];}};
@@ -1657,13 +1658,21 @@ function GifPicker({onSelect,onClose}){
 
   useEffect(()=>{ if(tab!=="favorites")searchRef.current?.focus(); },[tab]);
 
+  // Parse Tenor v1 result into {id, url, preview, title}
+  const parseTenor=results=>(results||[]).map(g=>{
+    const med=g.media?.[0];
+    const url=med?.gif?.url||med?.mediumgif?.url||med?.tinygif?.url||"";
+    const preview=med?.tinygif?.url||med?.gif?.url||url;
+    return{id:g.id,url,preview,title:g.title||""};
+  }).filter(g=>g.url);
+
   const fetchTrending=async()=>{
     setLoading(true);
     try{
-      const r=await fetch(`https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=24&rating=g`);
+      const r=await fetch(`https://api.tenor.com/v1/trending?key=${TENOR_KEY}&limit=24&contentfilter=medium&media_filter=minimal`);
       const d=await r.json();
-      setGifs((d.data||[]).map(g=>({id:g.id,url:g.images.fixed_height_small.url,preview:g.images.fixed_height_small.url,title:g.title})));
-    }catch(e){console.error("Giphy error",e);}
+      setGifs(parseTenor(d.results));
+    }catch(e){console.error("Tenor trending error",e);}
     setLoading(false);
   };
 
@@ -1671,10 +1680,10 @@ function GifPicker({onSelect,onClose}){
     if(!q.trim()){fetchTrending();return;}
     setLoading(true);
     try{
-      const r=await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=24&rating=g`);
+      const r=await fetch(`https://api.tenor.com/v1/search?q=${encodeURIComponent(q)}&key=${TENOR_KEY}&limit=24&contentfilter=medium&media_filter=minimal`);
       const d=await r.json();
-      setGifs((d.data||[]).map(g=>({id:g.id,url:g.images.fixed_height_small.url,preview:g.images.fixed_height_small.url,title:g.title})));
-    }catch(e){console.error("Giphy search error",e);}
+      setGifs(parseTenor(d.results));
+    }catch(e){console.error("Tenor search error",e);}
     setLoading(false);
   };
 
@@ -1740,7 +1749,7 @@ function GifPicker({onSelect,onClose}){
         </div>
         {/* Footer */}
         <div style={{padding:"6px 12px",borderTop:"1px solid rgba(255,255,255,.07)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
-          <div style={{fontSize:9,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".05em"}}>POWERED BY GIPHY</div>
+          <div style={{fontSize:9,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".05em"}}>POWERED BY TENOR</div>
           {favs.length>0&&tab==="favorites"&&<button onClick={()=>{setFavs([]);saveFavGifs([]);}} style={{fontSize:10,color:"#EF4444",background:"none",border:"none",cursor:"pointer"}}>Clear all</button>}
         </div>
       </div>
@@ -1774,6 +1783,35 @@ function WatchParty({cu,conv,users,onEnd}){
   const chatTsRef=useRef(Date.now()-500);
   const memberPollRef=useRef(null);
   const isHost=useRef(false);
+  const hbContainerRef=useRef(null);
+  const hbInstanceRef=useRef(null);
+
+  // Load Hyperbeam SDK once
+  useEffect(()=>{
+    if(!document.getElementById("hb-sdk")){
+      const s=document.createElement("script");
+      s.id="hb-sdk";
+      s.src="https://unpkg.com/@hyperbeam/web@latest/dist/index.js";
+      document.head.appendChild(s);
+    }
+  },[]);
+
+  // When embedUrl arrives and phase goes active, init SDK
+  useEffect(()=>{
+    if(phase!=="active"||!embedUrl||!hbContainerRef.current)return;
+    const init=async()=>{
+      // Wait for SDK to load
+      let tries=0;
+      while(!window.Hyperbeam&&tries<30){await new Promise(r=>setTimeout(r,200));tries++;}
+      if(!window.Hyperbeam){console.error("Hyperbeam SDK failed to load");return;}
+      try{
+        if(hbInstanceRef.current)hbInstanceRef.current.destroy();
+        hbInstanceRef.current=await window.Hyperbeam(hbContainerRef.current,embedUrl);
+      }catch(e){console.error("HB init error",e);}
+    };
+    init();
+    return()=>{ if(hbInstanceRef.current){try{hbInstanceRef.current.destroy();}catch{}} hbInstanceRef.current=null; };
+  },[phase,embedUrl]);
 
   useEffect(()=>{
     // Check if session already exists for this conv
@@ -1898,12 +1936,8 @@ function WatchParty({cu,conv,users,onEnd}){
 
       {phase==="active"&&embedUrl&&(
         <div style={{flex:1,display:"flex",overflow:"hidden"}}>
-          {/* Hyperbeam iframe */}
-          <iframe
-            src={embedUrl}
-            allow="microphone; camera; fullscreen; clipboard-read; clipboard-write; autoplay"
-            style={{flex:1,border:"none",background:"#000"}}
-          />
+          {/* Hyperbeam SDK container */}
+          <div ref={hbContainerRef} style={{flex:1,background:"#000",minWidth:0}}/>
           {/* Party chat sidebar */}
           <div style={{width:220,flexShrink:0,display:"flex",flexDirection:"column",borderLeft:"1px solid rgba(255,255,255,.07)",background:"rgba(0,0,0,.4)"}}>
             <div style={{padding:"8px 12px",fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#475569",borderBottom:"1px solid rgba(255,255,255,.05)",letterSpacing:".1em"}}>PARTY CHAT</div>
