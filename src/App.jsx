@@ -40,6 +40,7 @@ const CSS = `
   @keyframes badgePop{0%{transform:scale(0) rotate(-15deg);opacity:0}70%{transform:scale(1.15) rotate(4deg)}100%{transform:scale(1) rotate(0);opacity:1}}
   @keyframes carouselIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
   @keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  div:hover>.gif-star{opacity:1!important;}
   @keyframes spin{to{transform:rotate(360deg)}}
   .fadeUp{animation:fadeUp .55s ease both}
   .d1{animation-delay:.05s}.d2{animation-delay:.1s}.d3{animation-delay:.15s}
@@ -1633,64 +1634,115 @@ function VoiceCall({cu,conv,users,onEnd}){
 
 // ─── Watch Party Component ───────────────────────────────────────────────────────
 // ─── Watch Party (Hyperbeam) ─────────────────────────────────────────────────────
-// ─── GIF Picker (Tenor) ─────────────────────────────────────────────────────────
-const TENOR_KEY = "AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCZQ"; // free public Tenor API key
+// ─── GIF Picker (Giphy) with starred favorites ──────────────────────────────────
+const GIPHY_KEY = "dc6zaTOxFJmzC"; // Giphy public beta key
+
+// Favorites stored in localStorage per user
+const getFavGifs=()=>{try{return JSON.parse(localStorage.getItem("nova_fav_gifs")||"[]");}catch{return[];}};
+const saveFavGifs=arr=>{try{localStorage.setItem("nova_fav_gifs",JSON.stringify(arr.slice(0,50)));}catch{}};
 
 function GifPicker({onSelect,onClose}){
+  const [tab,setTab]=useState("trending"); // trending | search | favorites
   const [query,setQuery]=useState("");
   const [gifs,setGifs]=useState([]);
+  const [favs,setFavs]=useState(()=>getFavGifs());
   const [loading,setLoading]=useState(false);
   const searchRef=useRef(null);
 
   useEffect(()=>{
-    searchRef.current?.focus();
-    fetchTrending();
-  },[]);
+    if(tab==="trending")fetchTrending();
+    else if(tab==="search"&&query.trim())doSearch(query);
+    else if(tab==="search")fetchTrending();
+  },[tab]);
+
+  useEffect(()=>{ if(tab!=="favorites")searchRef.current?.focus(); },[tab]);
 
   const fetchTrending=async()=>{
     setLoading(true);
     try{
-      const r=await fetch(`https://tenor.googleapis.com/v2/featured?key=${TENOR_KEY}&limit=24&media_filter=gif`);
+      const r=await fetch(`https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=24&rating=g`);
       const d=await r.json();
-      setGifs(d.results||[]);
-    }catch{}
+      setGifs((d.data||[]).map(g=>({id:g.id,url:g.images.fixed_height_small.url,preview:g.images.fixed_height_small.url,title:g.title})));
+    }catch(e){console.error("Giphy error",e);}
     setLoading(false);
   };
 
-  const search=async(q)=>{
+  const doSearch=async(q)=>{
     if(!q.trim()){fetchTrending();return;}
     setLoading(true);
     try{
-      const r=await fetch(`https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=${TENOR_KEY}&limit=24&media_filter=gif`);
+      const r=await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=24&rating=g`);
       const d=await r.json();
-      setGifs(d.results||[]);
-    }catch{}
+      setGifs((d.data||[]).map(g=>({id:g.id,url:g.images.fixed_height_small.url,preview:g.images.fixed_height_small.url,title:g.title})));
+    }catch(e){console.error("Giphy search error",e);}
     setLoading(false);
   };
 
+  const toggleFav=(gif,e)=>{
+    e.stopPropagation();
+    const exists=favs.find(f=>f.id===gif.id);
+    const next=exists?favs.filter(f=>f.id!==gif.id):[gif,...favs];
+    setFavs(next);
+    saveFavGifs(next);
+  };
+
+  const isFav=id=>favs.some(f=>f.id===id);
+
+  const displayGifs=tab==="favorites"?favs:gifs;
+
+  const tabStyle=(t)=>({
+    padding:"5px 12px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",border:"none",
+    background:tab===t?"rgba(0,212,255,.2)":"rgba(255,255,255,.05)",
+    color:tab===t?"#00D4FF":"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".05em"
+  });
+
   return(
-    <div style={{position:"fixed",inset:0,zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.7)"}} onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{width:420,maxHeight:520,background:"#0c1220",border:"1px solid rgba(255,255,255,.12)",borderRadius:16,display:"flex",flexDirection:"column",overflow:"hidden",boxShadow:"0 20px 60px rgba(0,0,0,.8)"}}>
-        <div style={{padding:"12px 14px",borderBottom:"1px solid rgba(255,255,255,.07)",display:"flex",gap:10,alignItems:"center"}}>
+    <div style={{position:"fixed",inset:0,zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.75)"}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{width:440,height:540,background:"#0c1220",border:"1px solid rgba(255,255,255,.12)",borderRadius:16,display:"flex",flexDirection:"column",overflow:"hidden",boxShadow:"0 20px 60px rgba(0,0,0,.9)"}}>
+        {/* Header */}
+        <div style={{padding:"12px 14px",borderBottom:"1px solid rgba(255,255,255,.07)",display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
           <span style={{fontSize:18}}>🎭</span>
-          <input ref={searchRef} placeholder="Search GIFs..." value={query} onChange={e=>{setQuery(e.target.value);}} onKeyDown={e=>{if(e.key==="Enter")search(query);}} style={{flex:1,padding:"7px 12px",borderRadius:20,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.12)",color:"#E2E8F0",fontSize:13,outline:"none"}}/>
-          <button onClick={()=>search(query)} style={{background:"rgba(0,212,255,.15)",border:"1px solid rgba(0,212,255,.3)",borderRadius:8,padding:"6px 12px",cursor:"pointer",color:"#00D4FF",fontSize:12}}>Search</button>
-          <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",color:"#475569",fontSize:18}}>✕</button>
+          <input ref={searchRef} placeholder="Search GIFs..." value={query}
+            onChange={e=>setQuery(e.target.value)}
+            onKeyDown={e=>{if(e.key==="Enter"){setTab("search");doSearch(query);}}}
+            style={{flex:1,padding:"7px 12px",borderRadius:20,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.12)",color:"#E2E8F0",fontSize:13,outline:"none"}}/>
+          <button onClick={()=>{setTab("search");doSearch(query);}} style={{background:"rgba(0,212,255,.15)",border:"1px solid rgba(0,212,255,.3)",borderRadius:8,padding:"6px 12px",cursor:"pointer",color:"#00D4FF",fontSize:12}}>Go</button>
+          <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",color:"#475569",fontSize:20,lineHeight:1}}>✕</button>
         </div>
-        <div style={{flex:1,overflowY:"auto",padding:10,display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
-          {loading&&<div style={{gridColumn:"1/-1",textAlign:"center",padding:30,color:"#475569"}}>Loading...</div>}
-          {!loading&&gifs.length===0&&<div style={{gridColumn:"1/-1",textAlign:"center",padding:30,color:"#475569"}}>No GIFs found</div>}
-          {gifs.map(g=>{
-            const med=g.media_formats?.gif||g.media_formats?.tinygif||Object.values(g.media_formats||{})[0];
-            if(!med)return null;
-            return(
-              <div key={g.id} onClick={()=>{onSelect(med.url);onClose();}} style={{cursor:"pointer",borderRadius:8,overflow:"hidden",aspectRatio:"1",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.06)"}}>
-                <img src={med.url} style={{width:"100%",height:"100%",objectFit:"cover"}} loading="lazy"/>
-              </div>
-            );
-          })}
+        {/* Tabs */}
+        <div style={{display:"flex",gap:6,padding:"8px 12px",borderBottom:"1px solid rgba(255,255,255,.05)",flexShrink:0}}>
+          <button style={tabStyle("trending")} onClick={()=>setTab("trending")}>🔥 Trending</button>
+          <button style={tabStyle("search")} onClick={()=>setTab("search")}>🔍 Search</button>
+          <button style={tabStyle("favorites")} onClick={()=>setTab("favorites")}>⭐ Saved {favs.length>0&&`(${favs.length})`}</button>
         </div>
-        <div style={{padding:"6px 10px",borderTop:"1px solid rgba(255,255,255,.07)",fontSize:9,color:"#334155",textAlign:"right",fontFamily:"'Orbitron',sans-serif",letterSpacing:".05em"}}>POWERED BY TENOR</div>
+        {/* Grid */}
+        <div style={{flex:1,overflowY:"auto",padding:10,display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,alignContent:"start"}}>
+          {loading&&<div style={{gridColumn:"1/-1",textAlign:"center",padding:30,color:"#475569",fontSize:13}}>Loading GIFs...</div>}
+          {!loading&&tab==="favorites"&&favs.length===0&&(
+            <div style={{gridColumn:"1/-1",textAlign:"center",padding:"30px 20px",color:"#334155"}}>
+              <div style={{fontSize:28,marginBottom:8}}>⭐</div>
+              <div style={{fontSize:12}}>Star GIFs to save them here</div>
+            </div>
+          )}
+          {!loading&&tab!=="favorites"&&gifs.length===0&&<div style={{gridColumn:"1/-1",textAlign:"center",padding:30,color:"#475569"}}>No GIFs found</div>}
+          {!loading&&displayGifs.map(g=>(
+            <div key={g.id} style={{position:"relative",cursor:"pointer",borderRadius:8,overflow:"hidden",aspectRatio:"1",background:"rgba(255,255,255,.04)",border:`1px solid ${isFav(g.id)?"rgba(245,158,11,.4)":"rgba(255,255,255,.06)"}`,transition:"border-color .15s"}}
+              onClick={()=>{onSelect(g.url);onClose();}}>
+              <img src={g.preview||g.url} alt={g.title} style={{width:"100%",height:"100%",objectFit:"cover"}} loading="lazy"/>
+              {/* Star button */}
+              <button onClick={e=>toggleFav(g,e)} style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,.6)",border:"none",borderRadius:6,width:24,height:24,cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",opacity:0,transition:"opacity .15s"}}
+                onMouseEnter={e=>{e.currentTarget.style.opacity=1;e.currentTarget.parentElement.querySelector("button").style.opacity=1;}}
+                className="gif-star">
+                {isFav(g.id)?"⭐":"☆"}
+              </button>
+            </div>
+          ))}
+        </div>
+        {/* Footer */}
+        <div style={{padding:"6px 12px",borderTop:"1px solid rgba(255,255,255,.07)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+          <div style={{fontSize:9,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".05em"}}>POWERED BY GIPHY</div>
+          {favs.length>0&&tab==="favorites"&&<button onClick={()=>{setFavs([]);saveFavGifs([]);}} style={{fontSize:10,color:"#EF4444",background:"none",border:"none",cursor:"pointer"}}>Clear all</button>}
+        </div>
       </div>
     </div>
   );
@@ -1781,16 +1833,22 @@ function WatchParty({cu,conv,users,onEnd}){
   };
 
   const sendGif=async(url)=>{
-    const msg={name:cu.display_name,text:`__IMG__${url}`,ts:Date.now()};
-    await sb.post("nova_signaling",{id:gid(),conv_id:conv.id+"_hbchat",from_id:cu.id,type:"hb-chat",data:JSON.stringify(msg),ts:Date.now()});
-    setChatMsgs(prev=>[...prev,{...msg,id:gid()}]);
+    const now=Date.now();
+    const msgId=gid();
+    const msg={name:cu.display_name,text:`__IMG__${url}`,ts:now};
+    setChatMsgs(prev=>[...prev,{...msg,id:msgId}]); // optimistic
+    chatTsRef.current=now; // bump so pollChat skips this message
+    await sb.post("nova_signaling",{id:msgId,conv_id:conv.id+"_hbchat",from_id:cu.id,type:"hb-chat",data:JSON.stringify(msg),ts:now});
   };
   const sendChat=async()=>{
     if(!chatInput.trim())return;
-    const msg={name:cu.display_name,text:chatInput.trim(),ts:Date.now()};
-    await sb.post("nova_signaling",{id:gid(),conv_id:conv.id+"_hbchat",from_id:cu.id,type:"hb-chat",data:JSON.stringify(msg),ts:Date.now()});
-    setChatMsgs(prev=>[...prev,{...msg,id:gid()}]);
+    const now=Date.now();
+    const msgId=gid();
+    const msg={name:cu.display_name,text:chatInput.trim(),ts:now};
+    setChatMsgs(prev=>[...prev,{...msg,id:msgId}]); // optimistic
+    chatTsRef.current=now; // bump so pollChat skips this message
     setChatInput("");
+    await sb.post("nova_signaling",{id:msgId,conv_id:conv.id+"_hbchat",from_id:cu.id,type:"hb-chat",data:JSON.stringify(msg),ts:now});
   };
 
   return(
