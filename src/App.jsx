@@ -70,6 +70,7 @@ const extractYT = u => { const m=u.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_
 const extractYouTube = u => { const m=u.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/); return m?m[1]:null; };
 const extractMedal   = u => { const m=u.match(/clips\/(\d+)/); return m?m[1]:null; };
 const fmtTime = ts => { const d=Math.floor((Date.now()-ts)/1000); if(d<60)return"just now"; if(d<3600)return`${Math.floor(d/60)}m ago`; if(d<86400)return`${Math.floor(d/3600)}h ago`; return new Date(ts).toLocaleDateString("en-US",{month:"short",day:"numeric"}); };
+const fmtAgo  = fmtTime;
 const fmtMsg  = ts => new Date(ts).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
 const ROLE_COLOR  = { Owner:"#F59E0B", Moderator:"#00D4FF", "Event Host":"#A78BFA", Helper:"#34D399" };
 const STATUS_META = { online:{color:"#22C55E",label:"Online"}, idle:{color:"#EAB308",label:"Idle"}, dnd:{color:"#EF4444",label:"Do Not Disturb"}, offline:{color:"#6B7280",label:"Offline"} };
@@ -805,6 +806,11 @@ const Av=AvatarCircle;
 function BannerUploadBtn({label,onUpload}){const [up,setUp]=useState(false);const ref=useRef(null);const h=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>10*1024*1024){alert("Max 10MB");return;}setUp(true);await onUpload(f);setUp(false);e.target.value="";};return <><input type="file" ref={ref} accept="image/*" onChange={h} style={{display:"none"}}/><Btn variant="ghost" size="sm" onClick={()=>ref.current.click()} disabled={up}>{up?"⏳":label}</Btn></>;
 }
 const BannerBtn=BannerUploadBtn;
+function CommentImgUpload({onUpload}){
+  const[up,setUp]=useState(false);const ref=useRef(null);
+  const h=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>8*1024*1024){alert("Max 8MB");return;}setUp(true);await onUpload(f);setUp(false);e.target.value="";};
+  return <><input type="file" ref={ref} accept="image/*" onChange={h} style={{display:"none"}}/><button onClick={()=>ref.current.click()} disabled={up} title="Attach photo" style={{background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.09)",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:12,color:"#64748B",display:"flex",alignItems:"center",gap:5,width:"fit-content"}}>{up?"⏳ Uploading...":"📷 Add Photo"}</button></>;
+}
 function TeamLogo({espn,sport,size=22}){const [err,setErr]=useState(false);if(err)return <span style={{fontSize:size*.65}}>{sport==="mlb"?"⚾":"🏈"}</span>;return <img src={`https://a.espncdn.com/i/teamlogos/${sport}/500/${espn}.png`} width={size} height={size} style={{objectFit:"contain",flexShrink:0}} onError={()=>setErr(true)}/>;}
 function TeamBadge({teamId}){const team=[...MLB_TEAMS,...NFL_TEAMS].find(t=>t.id===teamId);if(!team)return null;const sport=teamId.startsWith("nfl_")?"nfl":"mlb";return <div style={{display:"inline-flex",alignItems:"center",gap:5,background:team.color+"22",border:`1.5px solid ${team.color}66`,borderRadius:20,padding:"3px 10px"}}><TeamLogo espn={team.espn} sport={sport} size={18}/><span style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",fontWeight:700,color:team.color,letterSpacing:".06em"}}>{team.abbr}</span><span style={{fontSize:9,color:team.color+"cc",fontWeight:600}}>{team.name}</span></div>;}
 
@@ -941,8 +947,8 @@ function FLModal({type,user,users,navigate,onClose}){
 // ── Navbar ────────────────────────────────────────────────────────────────────
 function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onClearNotifs,users,msgUnread}){
   const mob=useIsMobile();
-  const dTabs=[["home","Home"],["members","Members"],["feed","🎬 Feed"],["predict","🎯 Predict"],["leaderboard","🏆 Board"]];
-  const mTabs=[{p:"home",icon:"🏠",lbl:"Home"},{p:"members",icon:"👥",lbl:"Members"},{p:"feed",icon:"🎬",lbl:"Feed"},{p:"predict",icon:"🎯",lbl:"Predict"},{p:"leaderboard",icon:"🏆",lbl:"Board"},{p:"messages",icon:"💬",lbl:"DMs",badge:msgUnread}];
+  const dTabs=[["home","Home"],["members","Members"],["news","📰 News"],["feed","🎬 Feed"],["predict","🎯 Predict"],["leaderboard","🏆 Board"]];
+  const mTabs=[{p:"home",icon:"🏠",lbl:"Home"},{p:"members",icon:"👥",lbl:"Members"},{p:"news",icon:"📰",lbl:"News"},{p:"predict",icon:"🎯",lbl:"Predict"},{p:"leaderboard",icon:"🏆",lbl:"Board"},{p:"messages",icon:"💬",lbl:"DMs",badge:msgUnread}];
   return (
     <>
       <nav style={{position:"fixed",top:0,left:0,right:0,zIndex:100,height:62,display:"flex",alignItems:"center",justifyContent:"space-between",padding:mob?"0 12px":"0 20px",background:"rgba(3,7,18,.97)",backdropFilter:"blur(24px)",borderBottom:"1px solid rgba(255,255,255,.055)"}}>
@@ -1016,6 +1022,24 @@ function MessagesPage({cu,users,conversations,setConversations,messages,setMessa
   const msgEndRef=useRef(null);
   const pollRef=useRef(null);
   const groupAvatarRef=useRef(null);
+  const dmImgRef=useRef(null);
+  const [dmUploading,setDmUploading]=useState(false);
+
+  const sendImage=async(file)=>{
+    if(!file||!activeConv||!cu)return;
+    setDmUploading(true);
+    const ext=file.name.split(".").pop();
+    const path=`dm-${gid()}.${ext}`;
+    const url=await sbUp("nova-banners",path,file);
+    if(url){
+      const m={id:gid(),conv_id:activeConv.id,author_id:cu.id,author_name:cu.display_name,author_avatar:cu.avatar,author_avatar_url:cu.avatar_url||"",text:`__IMG__${url}`,ts:Date.now()};
+      setMessages(prev=>[...prev,m]);
+      await sb.post("nova_messages",m);
+      await sb.patch("nova_conversations",`?id=eq.${activeConv.id}`,{last_msg:"📷 Photo",last_ts:Date.now(),last_sender:cu.display_name});
+      setConversations(prev=>prev.map(c=>c.id===activeConv.id?{...c,last_msg:"📷 Photo",last_ts:Date.now()}:c));
+    }
+    setDmUploading(false);
+  };
 
   const uploadGroupAvatar=async(convId,file)=>{
     if(!file)return;
@@ -1160,7 +1184,12 @@ function MessagesPage({cu,users,conversations,setConversations,messages,setMessa
                       {!isMe&&<div style={{width:28,flexShrink:0}}>{showAv&&<AvatarCircle user={author} size={28}/>}</div>}
                       <div style={{maxWidth:"75%"}}>
                         {showAv&&!isMe&&<div style={{fontSize:10,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:3,marginLeft:4}}>{m.author_name}</div>}
-                        <div style={{background:isMe?"linear-gradient(135deg,#00D4FF22,#8B5CF622)":"rgba(255,255,255,.06)",border:`1px solid ${isMe?"rgba(0,212,255,.25)":"rgba(255,255,255,.08)"}`,borderRadius:isMe?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:"9px 14px",fontSize:14,color:"#E2E8F0",lineHeight:1.5,wordBreak:"break-word"}}>{m.text}</div>
+                        <div style={{background:isMe?"linear-gradient(135deg,#00D4FF22,#8B5CF622)":"rgba(255,255,255,.06)",border:`1px solid ${isMe?"rgba(0,212,255,.25)":"rgba(255,255,255,.08)"}`,borderRadius:isMe?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:m.text.startsWith("__IMG__")?"4px":"9px 14px",fontSize:14,color:"#E2E8F0",lineHeight:1.5,wordBreak:"break-word",overflow:"hidden"}}>
+                          {m.text.startsWith("__IMG__")
+                            ?<img src={m.text.slice(7)} style={{maxWidth:240,maxHeight:300,borderRadius:12,display:"block",objectFit:"contain"}} onClick={()=>window.open(m.text.slice(7),"_blank")} />
+                            :m.text
+                          }
+                        </div>
                         <div style={{fontSize:10,color:"#334155",marginTop:3,textAlign:isMe?"right":"left",paddingLeft:4,paddingRight:4}}>{fmtMsg(m.ts)}</div>
                       </div>
                     </div>
@@ -1168,7 +1197,9 @@ function MessagesPage({cu,users,conversations,setConversations,messages,setMessa
                 })}
                 <div ref={msgEndRef}/>
               </div>
-              <div style={{padding:"12px 16px",borderTop:"1px solid rgba(255,255,255,.07)",display:"flex",gap:10,flexShrink:0}}>
+              <div style={{padding:"12px 16px",borderTop:"1px solid rgba(255,255,255,.07)",display:"flex",gap:8,flexShrink:0,alignItems:"center"}}>
+                <input type="file" ref={dmImgRef} accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files[0];if(f)sendImage(f);e.target.value="";}}/>
+                <button onClick={()=>dmImgRef.current.click()} disabled={dmUploading} title="Send photo" style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,width:38,height:38,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{dmUploading?"⏳":"📷"}</button>
                 <input value={newMsg} onChange={e=>setNewMsg(e.target.value)} placeholder="Type a message..." onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMsg();}}} style={{flex:1,borderRadius:24,padding:"10px 18px"}}/>
                 <Btn onClick={sendMsg} disabled={!newMsg.trim()}>Send ➤</Btn>
               </div>
@@ -1257,9 +1288,10 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
     await sb.patch("nova_users",`?id=eq.${u.id}`,patch);
     setUsers(prev=>prev.map(x=>x.id===u.id?{...x,...patch}:x));
   };
-  const submitComment=async()=>{
-    if(!commentText.trim()||!cu)return;
-    const c={id:gid(),profile_user_id:u.id,author_id:cu.id,author_name:cu.display_name,author_avatar:cu.avatar,author_avatar_url:cu.avatar_url||"",text:commentText.trim(),timestamp:Date.now()};
+  const submitComment=async(imgUrl="")=>{
+    if(!commentText.trim()&&!imgUrl||!cu)return;
+    const text=imgUrl?`__IMG__${imgUrl}`:commentText.trim();
+    const c={id:gid(),profile_user_id:u.id,author_id:cu.id,author_name:cu.display_name,author_avatar:cu.avatar,author_avatar_url:cu.avatar_url||"",text,timestamp:Date.now()};
     await sb.post("nova_comments",c);
     setComments(prev=>[c,...prev]);
     setCommentText("");
@@ -1393,23 +1425,40 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
 
           {/* Comments */}
           <Sec title="💬 Comments">
-            {cu&&(
-              <div style={{display:"flex",gap:10,marginBottom:16,alignItems:"flex-start"}}>
-                <Av user={cu} size={32}/>
-                <div style={{flex:1,display:"flex",gap:8}}>
-                  <input value={commentText} onChange={e=>setCommentText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();submitComment();}}} placeholder="Leave a comment..." style={{flex:1}}/>
-                  <Btn size="sm" onClick={submitComment} disabled={!commentText.trim()}>Post</Btn>
+            {cu&&(()=>{
+              const cmtImgRef=React.createRef();
+              const[cmtUpl,setCmtUpl]=React.useState?React.useState(false):[false,()=>{}];
+              return(
+                <div style={{display:"flex",gap:10,marginBottom:16,alignItems:"flex-start"}}>
+                  <Av user={cu} size={32}/>
+                  <div style={{flex:1,display:"flex",flexDirection:"column",gap:6}}>
+                    <div style={{display:"flex",gap:8}}>
+                      <input value={commentText} onChange={e=>setCommentText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();submitComment();}}} placeholder="Leave a comment..." style={{flex:1}}/>
+                      <Btn size="sm" onClick={()=>submitComment()} disabled={!commentText.trim()}>Post</Btn>
+                    </div>
+                    <CommentImgUpload onUpload={async f=>{
+                      const ext=f.name.split(".").pop();
+                      const url=await sbUp("nova-banners",`cmt-${gid()}.${ext}`,f);
+                      if(url)submitComment(url);
+                    }}/>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
             {comments.length===0?<Empty icon="💬" msg="No comments yet"/>
             :<div style={{display:"flex",flexDirection:"column",gap:8}}>
               {comments.map(c=>{
                 const author=users.find(x=>x.id===c.author_id);const canDel=cu&&(cu.id===c.author_id||cu.id===u.id||cu.is_owner);
+                const isImg=c.text?.startsWith("__IMG__");
                 return(
                   <div key={c.id} className="comment-row" style={{display:"flex",gap:10,padding:"10px 12px",borderRadius:10,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",position:"relative"}}>
                     <Av user={author||{avatar:c.author_avatar,avatar_url:c.author_avatar_url,page_accent:"#00D4FF"}} size={30} onClick={()=>navigate("profile",c.author_id)}/>
-                    <div style={{flex:1}}><div style={{display:"flex",gap:8,alignItems:"center",marginBottom:3}}><span style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#E2E8F0",cursor:"pointer"}} onClick={()=>navigate("profile",c.author_id)}>{c.author_name}</span><span style={{fontSize:10,color:"#334155"}}>{fmtAgo(c.timestamp)}</span></div><div style={{fontSize:13,color:"#94A3B8",lineHeight:1.5}}>{c.text}</div></div>
+                    <div style={{flex:1}}><div style={{display:"flex",gap:8,alignItems:"center",marginBottom:3}}><span style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#E2E8F0",cursor:"pointer"}} onClick={()=>navigate("profile",c.author_id)}>{c.author_name}</span><span style={{fontSize:10,color:"#334155"}}>{fmtAgo(c.timestamp)}</span></div>
+                    {isImg
+                      ?<img src={c.text.slice(7)} style={{maxWidth:220,maxHeight:260,borderRadius:10,display:"block",marginTop:4,objectFit:"contain",cursor:"pointer"}} onClick={()=>window.open(c.text.slice(7),"_blank")}/>
+                      :<div style={{fontSize:13,color:"#94A3B8",lineHeight:1.5}}>{c.text}</div>
+                    }
+                    </div>
                     {canDel&&<XBtn className="del-btn" onClick={()=>deleteComment(c.id)} style={{opacity:0,position:"absolute",top:8,right:8}}/>}
                   </div>
                 );
@@ -1777,6 +1826,245 @@ function DashboardPage({cu,users,setUsers,navigate}){
   );
 }
 
+// ─── News Page ────────────────────────────────────────────────────────────────
+const NEWS_ACCOUNTS=[
+  {handle:"JeffPassan",      label:"Jeff Passan",         sport:"⚾", color:"#1DA1F2"},
+  {handle:"AdamSchefter",    label:"Adam Schefter",        sport:"🏈", color:"#1DA1F2"},
+  {handle:"UnderdogNFL",     label:"Underdog NFL",         sport:"🏈", color:"#F59E0B"},
+  {handle:"UnderdogFantasy", label:"Underdog MLB",         sport:"⚾", color:"#F59E0B"},
+  {handle:"FriedgeHNIC",     label:"Elliotte Friedman",    sport:"🏒", color:"#1DA1F2"},
+  {handle:"NFL",             label:"NFL",                  sport:"🏈", color:"#013369"},
+  {handle:"MLB",             label:"MLB",                  sport:"⚾", color:"#002D72"},
+  {handle:"SleeperHQ",       label:"Sleeper",              sport:"🏈", color:"#8B5CF6"},
+  {handle:"MLBDeadline",     label:"MLB Deadline News",    sport:"⚾", color:"#EF4444"},
+];
+
+// Keywords → team tags for both MLB and NFL
+const TEAM_KEYWORDS={
+  // MLB
+  "Yankees":["Yankees","NYY"],"Red Sox":["Red Sox","BOS"],
+  "Mets":["Mets","NYM"],"Dodgers":["Dodgers","LAD"],
+  "Cubs":["Cubs","CHC"],"Cardinals":["Cardinals","STL"],
+  "Braves":["Braves","ATL"],"Astros":["Astros","HOU"],
+  "Giants":["Giants","SF","SFG"],"Padres":["Padres","SD","SDP"],
+  "Phillies":["Phillies","PHI"],"Brewers":["Brewers","MIL"],
+  "Rays":["Rays","TB"],"Blue Jays":["Blue Jays","TOR"],
+  "Orioles":["Orioles","BAL"],"White Sox":["White Sox","CWS"],
+  "Royals":["Royals","KC"],"Twins":["Twins","MIN"],
+  "Guardians":["Guardians","CLE"],"Tigers":["Tigers","DET"],
+  "Mariners":["Mariners","SEA"],"Angels":["Angels","LAA"],
+  "Athletics":["Athletics","OAK","A's"],"Rangers":["Rangers","TEX"],
+  "Rockies":["Rockies","COL"],"Marlins":["Marlins","MIA"],
+  "Nationals":["Nationals","WSH"],"Pirates":["Pirates","PIT"],
+  "Reds":["Reds","CIN"],"Diamondbacks":["Diamondbacks","ARI"],
+  // NFL
+  "Chiefs":["Chiefs","KC"],"Eagles":["Eagles","PHI"],
+  "Cowboys":["Cowboys","DAL"],"49ers":["49ers","SF","SFO"],
+  "Bills":["Bills","BUF"],"Dolphins":["Dolphins","MIA"],
+  "Patriots":["Patriots","NE"],"Jets":["Jets","NYJ"],
+  "Ravens":["Ravens","BAL"],"Steelers":["Steelers","PIT"],
+  "Browns":["Browns","CLE"],"Bengals":["Bengals","CIN"],
+  "Texans":["Texans","HOU"],"Colts":["Colts","IND"],
+  "Jaguars":["Jaguars","JAX"],"Titans":["Titans","TEN"],
+  "Broncos":["Broncos","DEN"],"Raiders":["Raiders","LV"],
+  "Chargers":["Chargers","LAC"],"Seahawks":["Seahawks","SEA"],
+  "Rams":["Rams","LAR"],"Cardinals":["Cardinals","ARI"],
+  "Packers":["Packers","GB"],"Bears":["Bears","CHI"],
+  "Lions":["Lions","DET"],"Vikings":["Vikings","MIN"],
+  "Saints":["Saints","NO"],"Falcons":["Falcons","ATL"],
+  "Panthers":["Panthers","CAR"],"Buccaneers":["Buccaneers","TB"],
+  "Giants":["Giants","NYG"],"Commanders":["Commanders","WSH"],
+};
+
+function detectTeams(text){
+  if(!text)return[];
+  const found=[];
+  for(const[team,kws] of Object.entries(TEAM_KEYWORDS)){
+    if(kws.some(kw=>text.includes(kw))&&!found.includes(team))found.push(team);
+  }
+  return found.slice(0,3);
+}
+
+const NITTER_INSTANCES=["https://nitter.privacydev.net","https://nitter.poast.org","https://nitter.1d4.us"];
+
+async function fetchAccountRSS(handle){
+  const rss2json="https://api.rss2json.com/v1/api.json?rss_url=";
+  for(const inst of NITTER_INSTANCES){
+    try{
+      const url=`${rss2json}${encodeURIComponent(`${inst}/${handle}/rss`)}`;
+      const r=await fetch(url);
+      if(!r.ok)continue;
+      const d=await r.json();
+      if(d.status!=="ok"||!d.items?.length)continue;
+      return d.items.slice(0,8).map(item=>({
+        id:`${handle}_${item.guid||item.link}`,
+        handle,
+        account:NEWS_ACCOUNTS.find(a=>a.handle===handle)||{handle,label:handle,sport:"📰",color:"#1DA1F2"},
+        title:item.title||"",
+        text:(item.description||item.content||item.title||"").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim(),
+        link:item.link||`https://twitter.com/${handle}`,
+        pubDate:item.pubDate?new Date(item.pubDate).getTime():Date.now(),
+        teams:detectTeams((item.title||"")+" "+(item.description||"")+" "+(item.content||"")),
+      }));
+    }catch{}
+  }
+  return[];
+}
+
+function NewsPage({cu,users,addNotif}){
+  const mob=useIsMobile();
+  const[feed,setFeed]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[expandedId,setExpandedId]=useState(null);
+  const[comments,setComments]=useState({});
+  const[commentTexts,setCommentTexts]=useState({});
+  const[seenIds,setSeenIds]=useState(new Set());
+  const notifiedRef=useRef(new Set());
+
+  const loadFeed=async()=>{
+    try{
+      const results=await Promise.allSettled(NEWS_ACCOUNTS.map(a=>fetchAccountRSS(a.handle)));
+      const all=results.flatMap(r=>r.status==="fulfilled"?r.value:[]);
+      const deduped=[...new Map(all.map(x=>[x.id,x])).values()];
+      const sorted=deduped.sort((a,b)=>b.pubDate-a.pubDate);
+      setFeed(sorted);
+      // Notify cu of new items mentioning their team
+      if(cu&&sorted.length){
+        const cuTeams=[cu.mlb_team,cu.nfl_team].filter(Boolean);
+        sorted.forEach(item=>{
+          if(notifiedRef.current.has(item.id))return;
+          if(item.teams.some(t=>cuTeams.some(ct=>ct.includes(t)||t.includes(ct)))){
+            addNotif&&addNotif(cu.id,cu.id,`📰 ${item.account.label}: ${item.text.slice(0,60)}...`);
+            notifiedRef.current.add(item.id);
+          }
+        });
+      }
+    }catch{}
+    setLoading(false);
+  };
+
+  useEffect(()=>{loadFeed();},[]);
+  useEffect(()=>{const t=setInterval(loadFeed,60000);return()=>clearInterval(t);},[]);
+
+  const postComment=(itemId,imgUrl="")=>{
+    const text=commentTexts[itemId]||"";
+    if(!text.trim()&&!imgUrl||!cu)return;
+    const msg=imgUrl?`__IMG__${imgUrl}`:text.trim();
+    const c={id:gid(),author_id:cu.id,author_name:cu.display_name,author_avatar:cu.avatar,author_avatar_url:cu.avatar_url||"",text:msg,ts:Date.now()};
+    setComments(prev=>({...prev,[itemId]:[c,...(prev[itemId]||[])]}));
+    setCommentTexts(prev=>({...prev,[itemId]:""}));
+  };
+
+  const SportTag=({sport,color})=>(
+    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:color+"22",border:`1px solid ${color}44`,color,fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{sport}</span>
+  );
+  const TeamTag=({team})=>(
+    <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:"rgba(0,212,255,.1)",border:"1px solid rgba(0,212,255,.25)",color:"#00D4FF",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{team}</span>
+  );
+
+  return(
+    <div style={{maxWidth:760,margin:"0 auto",padding:"44px 16px 80px"}}>
+      <div style={{marginBottom:24}}>
+        <h1 style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?20:24,fontWeight:700,margin:"0 0 6px",background:"linear-gradient(135deg,#1DA1F2,#00D4FF)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>📰 Sports News</h1>
+        <p style={{color:"#475569",fontSize:13,margin:0}}>Live feed from top reporters — updates every 60s</p>
+      </div>
+
+      {loading&&<div style={{textAlign:"center",padding:"60px 0",color:"#334155"}}><div className="spin" style={{fontSize:28,display:"inline-block",marginBottom:12}}>⚙️</div><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,letterSpacing:".15em"}}>FETCHING LATEST NEWS...</div></div>}
+
+      {!loading&&feed.length===0&&(
+        <div style={{textAlign:"center",padding:"60px 20px"}}>
+          <div style={{fontSize:40,marginBottom:12}}>📡</div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,color:"#475569",marginBottom:8}}>Feed unavailable</div>
+          <div style={{fontSize:12,color:"#334155",marginBottom:16}}>Twitter/X RSS is rate-limited. Try refreshing in a minute.</div>
+          <Btn variant="ghost" onClick={()=>{setLoading(true);loadFeed();}}>↻ Retry</Btn>
+        </div>
+      )}
+
+      <div style={{display:"flex",flexDirection:"column",gap:14}}>
+        {feed.map(item=>{
+          const isExp=expandedId===item.id;
+          const itemComments=comments[item.id]||[];
+          const cmtText=commentTexts[item.id]||"";
+          return(
+            <Card key={item.id} style={{padding:"14px 16px"}} hover={false}>
+              {/* Header */}
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                <div style={{width:32,height:32,borderRadius:"50%",background:item.account.color+"22",border:`1px solid ${item.account.color}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>{item.account.sport}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:item.account.color}}>{item.account.label}</div>
+                  <div style={{fontSize:10,color:"#334155"}}>@{item.handle} · {fmtAgo(item.pubDate)}</div>
+                </div>
+                <a href={item.link} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#475569",textDecoration:"none",flexShrink:0}} title="Open on Twitter/X">↗</a>
+              </div>
+
+              {/* Tweet text */}
+              <div style={{fontSize:14,color:"#E2E8F0",lineHeight:1.6,marginBottom:10}}>{item.text}</div>
+
+              {/* Team tags */}
+              {item.teams.length>0&&(
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+                  {item.teams.map(t=><TeamTag key={t} team={t}/>)}
+                  <SportTag sport={item.account.sport} color={item.account.color}/>
+                </div>
+              )}
+
+              {/* Comment toggle */}
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <button onClick={()=>setExpandedId(isExp?null:item.id)} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:"#475569",display:"flex",alignItems:"center",gap:5,padding:"4px 0"}}>
+                  💬 {itemComments.length>0?`${itemComments.length} comment${itemComments.length!==1?"s":""}`:cu?"Add comment":""}
+                  <span style={{fontSize:10}}>{isExp?"▲":"▼"}</span>
+                </button>
+              </div>
+
+              {/* Expanded comments */}
+              {isExp&&(
+                <div style={{marginTop:12,borderTop:"1px solid rgba(255,255,255,.07)",paddingTop:12}}>
+                  {cu&&(
+                    <div style={{display:"flex",gap:8,marginBottom:12,flexDirection:"column"}}>
+                      <div style={{display:"flex",gap:8}}>
+                        <Av user={cu} size={28}/>
+                        <input value={cmtText} onChange={e=>setCommentTexts(prev=>({...prev,[item.id]:e.target.value}))} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();postComment(item.id);}}} placeholder="Discuss this..." style={{flex:1,fontSize:13}}/>
+                        <Btn size="sm" onClick={()=>postComment(item.id)} disabled={!cmtText.trim()}>Post</Btn>
+                      </div>
+                      <CommentImgUpload onUpload={async f=>{
+                        const ext=f.name.split(".").pop();
+                        const url=await sbUp("nova-banners",`news-${gid()}.${ext}`,f);
+                        if(url)postComment(item.id,url);
+                      }}/>
+                    </div>
+                  )}
+                  {!cu&&<div style={{fontSize:12,color:"#475569",marginBottom:10}}>Sign in to comment</div>}
+                  <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                    {itemComments.map(c=>{
+                      const isImg=c.text?.startsWith("__IMG__");
+                      return(
+                        <div key={c.id} style={{display:"flex",gap:8,padding:"8px 10px",borderRadius:8,background:"rgba(255,255,255,.03)"}}>
+                          <AvatarCircle user={{avatar:c.author_avatar,avatar_url:c.author_avatar_url,page_accent:"#00D4FF"}} size={26}/>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:3}}>
+                              <span style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#E2E8F0"}}>{c.author_name}</span>
+                              <span style={{fontSize:10,color:"#334155"}}>{fmtAgo(c.ts)}</span>
+                            </div>
+                            {isImg
+                              ?<img src={c.text.slice(7)} style={{maxWidth:200,maxHeight:160,borderRadius:8,display:"block",objectFit:"contain",cursor:"pointer"}} onClick={()=>window.open(c.text.slice(7),"_blank")}/>
+                              :<div style={{fontSize:12,color:"#94A3B8",lineHeight:1.5,wordBreak:"break-word"}}>{c.text}</div>
+                            }
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {itemComments.length===0&&<div style={{fontSize:11,color:"#334155"}}>No comments yet</div>}
+                  </div>
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Auth Modals ───────────────────────────────────────────────────────────────
 function LoginModal({onLogin,onClose,users}){
   const[un,setUn]=useState("");const[pw,setPw]=useState("");const[err,setErr]=useState("");const[loading,setLoading]=useState(false);
@@ -1929,6 +2217,7 @@ export default function App(){
 
   const content=()=>{
     if(page==="profile"&&profileId)return <ProfilePage userId={profileId} cu={cu} users={users} setUsers={us=>{setUsers(us);if(cu){const up=us.find(x=>x.id===cu.id);if(up)setCu(up);}}} navigate={nav} addNotif={addNotif}/>;
+    if(page==="news")return <NewsPage cu={cu} users={users} addNotif={addNotif}/>;
     if(page==="members")return <MembersPage users={users} nav={nav}/>;
     if(page==="feed")return <FeedPage users={users} cu={cu} likes={likes} onLike={handleLike} navigate={nav}/>;
     if(page==="predict")return <PredictPage cu={cu} users={users} setUsers={setUsers}/>;
