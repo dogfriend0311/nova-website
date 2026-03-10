@@ -164,7 +164,7 @@ const ALL_BADGES = [
 const BADGES=ALL_BADGES;
 
 // ─── Predictions ───────────────────────────────────────────────────────────────
-function PredictPage({cu,users,setUsers}){
+function PredictPage({cu,users,setUsers,navigate}){
   const mob=useIsMobile();
   const[sport,setSport]=useState("mlb");
   const[games,setGames]=useState([]);
@@ -239,11 +239,22 @@ function PredictPage({cu,users,setUsers}){
 
   useEffect(()=>{fetchGames(sport);},[sport]);
   useEffect(()=>{const t=setInterval(()=>fetchGames(sport),30000);return()=>clearInterval(t);},[sport]);
+  // Auto-refresh at midnight PST (UTC-8) to load new day's schedule
+  useEffect(()=>{
+    const msPSTnow=()=>{const now=new Date();const pst=new Date(now.toLocaleString("en-US",{timeZone:"America/Los_Angeles"}));return pst;};
+    const scheduleNext=()=>{
+      const pst=msPSTnow();const next=new Date(pst);next.setDate(next.getDate()+1);next.setHours(0,0,5,0);
+      const diff=next-pst;
+      return setTimeout(()=>{fetchGames(sport);scheduleNext();},diff);
+    };
+    const t=scheduleNext();return()=>clearTimeout(t);
+  },[sport]);
   useEffect(()=>{if(cu)setPredictions(cu.predictions||{});},[cu?.id]);
 
   const predict=async(gameId,pick)=>{
     if(!cu)return;
-    const np={...(cu.predictions||{}),[gameId]:pick};
+    // Use local predictions state (not cu.predictions) to avoid stale data across multiple picks
+    const np={...predictions,[gameId]:pick};
     await sb.patch("nova_users",`?id=eq.${cu.id}`,{predictions:np});
     setUsers(prev=>prev.map(u=>u.id===cu.id?{...u,predictions:np}:u));
     setPredictions(np);
@@ -291,7 +302,7 @@ function PredictPage({cu,users,setUsers}){
                     <span style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700,letterSpacing:".12em",padding:"3px 10px",borderRadius:20,background:g.completed?"rgba(100,116,139,.15)":g.started?"rgba(34,197,94,.15)":"rgba(0,212,255,.1)",color:g.completed?"#64748B":g.started?"#22C55E":"#00D4FF",border:`1px solid ${g.completed?"rgba(100,116,139,.2)":g.started?"rgba(34,197,94,.3)":"rgba(0,212,255,.25)"}`}}>{g.completed?"✅ FINAL":g.started?`🔴 LIVE · ${g.status}`:`🕐 ${g.status}`}</span>
                     <div style={{display:"flex",gap:8,alignItems:"center"}}>
                       {myPick&&<span style={{fontSize:11,color:"#64748B",fontFamily:"'Orbitron',sans-serif"}}>Picked: <span style={{color:"#00D4FF"}}>{myPick==="home"?g.home.abbr:g.away.abbr}</span></span>}
-                      {hasDetail&&<button onClick={()=>toggleExp(g.id)} style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",borderRadius:8,padding:"3px 10px",cursor:"pointer",color:"#94A3B8"}}>{isExp?"▲ Less":"▼ Details"}</button>}
+                      {hasDetail&&<button onClick={()=>navigate("game",{id:g.id,sport:g.sport})} style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",background:"rgba(0,212,255,.08)",border:"1px solid rgba(0,212,255,.2)",borderRadius:8,padding:"3px 12px",cursor:"pointer",color:"#00D4FF"}}>📊 Full Stats →</button>}
                     </div>
                   </div>
 
@@ -372,186 +383,6 @@ function PredictPage({cu,users,setUsers}){
                     </div>
                   )}
 
-                  {/* Expandable details panel — all sports */}
-                  {isExp&&(
-                    <div style={{marginTop:16,display:"flex",flexDirection:"column",gap:14,borderTop:"1px solid rgba(255,255,255,.07)",paddingTop:14}}>
-
-                      {/* MLB pre-game: probable starters */}
-                      {g.sport==="mlb"&&!g.started&&(g.awayProb?.name||g.homeProb?.name)&&(
-                        <div>
-                          <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",marginBottom:8,letterSpacing:".12em"}}>⚾ PROBABLE STARTERS</div>
-                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                            {[{side:"Away",team:g.away.abbr,p:g.awayProb},{side:"Home",team:g.home.abbr,p:g.homeProb}].map(({side,team,p})=>(
-                              <div key={side} style={{background:"rgba(255,255,255,.03)",borderRadius:10,padding:"10px 12px",border:"1px solid rgba(255,255,255,.07)"}}>
-                                <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:4}}>{team} ({side})</div>
-                                <div style={{fontSize:13,fontWeight:700,color:"#E2E8F0"}}>{p?.name||"TBD"}</div>
-                                {p?.era&&<div style={{fontSize:11,color:"#94A3B8",marginTop:2}}>ERA: {p.era}</div>}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* MLB post-game: pitching decision */}
-                      {g.sport==="mlb"&&g.completed&&(g.winPitcher||g.losePitcher||g.savePitcher)&&(
-                        <div>
-                          <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#22C55E",marginBottom:8,letterSpacing:".12em"}}>🏆 PITCHING DECISION</div>
-                          <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                            {g.winPitcher&&<div style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}><span style={{fontSize:11,color:"#475569"}}>W: {g.winPitcher.name}</span><span style={{fontSize:12,fontWeight:700,color:"#22C55E"}}>{g.winPitcher.wins??"-"}-{g.winPitcher.losses??"-"}</span></div>}
-                            {g.losePitcher&&<div style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}><span style={{fontSize:11,color:"#475569"}}>L: {g.losePitcher.name}</span><span style={{fontSize:12,fontWeight:700,color:"#EF4444"}}>{g.losePitcher.wins??"-"}-{g.losePitcher.losses??"-"}</span></div>}
-                            {g.savePitcher&&<div style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}><span style={{fontSize:11,color:"#475569"}}>SV: {g.savePitcher.name}</span><span style={{fontSize:12,fontWeight:700,color:"#F59E0B"}}>{g.savePitcher.saves??"-"} SV</span></div>}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Player of the game / top performers */}
-                      {g.completed&&g.leaders?.length>0&&(()=>{
-                        const potg=g.leaders.reduce((best,l)=>{const v=parseFloat((l.displayValue||"0").replace(/[^0-9.]/g,""))||0;const bv=parseFloat((best?.displayValue||"0").replace(/[^0-9.]/g,""))||0;return v>bv?l:best;},g.leaders[0]);
-                        return(
-                          <div>
-                            {potg&&<div style={{background:"linear-gradient(135deg,rgba(245,158,11,.15),rgba(251,191,36,.07))",border:"1px solid rgba(245,158,11,.3)",borderRadius:12,padding:"12px 16px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
-                              <div style={{fontSize:28}}>🌟</div>
-                              <div>
-                                <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#F59E0B",letterSpacing:".12em",marginBottom:2}}>PLAYER OF THE GAME</div>
-                                <div style={{fontSize:14,fontWeight:700,color:"#E2E8F0"}}>{potg.athlete?.displayName||potg.displayName||potg.name||"—"}</div>
-                                <div style={{fontSize:12,color:"#F59E0B",fontWeight:600}}>{potg.displayValue||potg.value||"—"}</div>
-                              </div>
-                            </div>}
-                            <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#F59E0B",marginBottom:8,letterSpacing:".12em"}}>⭐ TOP PERFORMERS</div>
-                            <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                              {g.leaders.slice(0,8).map((l,i)=>(
-                                <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
-                                  <span style={{fontSize:11,color:"#94A3B8"}}>{l.athlete?.displayName||l.displayName||l.name||"—"}</span>
-                                  <span style={{fontSize:11,fontWeight:700,color:"#F59E0B"}}>{l.displayValue||l.value||"—"}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      {/* MLB linescore */}
-                      {g.sport==="mlb"&&(g.started||g.completed)&&g.linescore?.columns?.length>0&&(()=>{
-                        const cols=g.linescore.columns||[];const rows=g.linescore.rows||[];
-                        return(
-                          <div style={{overflowX:"auto"}}>
-                            <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",marginBottom:8,letterSpacing:".12em"}}>📊 LINE SCORE</div>
-                            <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:300}}>
-                              <thead><tr><td style={{padding:"4px 8px",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:10}}>TEAM</td>{cols.map((cl,i)=><td key={i} style={{padding:"4px 6px",textAlign:"center",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:10}}>{cl.label||cl.value||i+1}</td>)}</tr></thead>
-                              <tbody>{rows.map((row,ri)=>(<tr key={ri} style={{background:ri%2===0?"rgba(255,255,255,.02)":"transparent"}}><td style={{padding:"4px 8px",color:"#E2E8F0",fontWeight:700,fontFamily:"'Orbitron',sans-serif",fontSize:10}}>{row.label||row.team||""}</td>{(row.columns||[]).map((cell,ci)=>(<td key={ci} style={{padding:"4px 6px",textAlign:"center",color:cell.bold?"#22C55E":"#94A3B8",fontWeight:cell.bold?700:400}}>{cell.value??""}</td>))}</tr>))}</tbody>
-                            </table>
-                          </div>
-                        );
-                      })()}
-
-                      {/* Scoring Summary — all sports */}
-                      {(g.started||g.completed)&&g.scoringPlays?.length>0&&(
-                        <div>
-                          <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#22C55E",marginBottom:8,letterSpacing:".12em"}}>
-                            {g.sport==="mlb"?"⚾ SCORING PLAYS":g.sport==="nba"?"🏀 SCORING SUMMARY":g.sport==="nhl"?"🏒 GOALS":"🏈 SCORING SUMMARY"}
-                          </div>
-                          <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                            {g.scoringPlays.slice(0,20).map((sp,i)=>{
-                              const team=sp.team?.abbreviation||sp.team?.shortDisplayName||"";
-                              const period=sp.period?.displayValue||(sp.period?.number?`${g.sport==="nba"?"Q":"P"}${sp.period.number}`:"");
-                              const clock=sp.clock?.displayValue||sp.clock||"";
-                              const desc=sp.text||sp.description||sp.headline||"";
-                              const score=sp.awayScore!=null?`${sp.awayScore}-${sp.homeScore}`:"";
-                              return(
-                                <div key={i} style={{display:"flex",gap:8,padding:"7px 10px",borderRadius:8,background:"rgba(34,197,94,.05)",border:"1px solid rgba(34,197,94,.12)",alignItems:"flex-start"}}>
-                                  <div style={{minWidth:36,flexShrink:0}}>
-                                    {period&&<div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#22C55E",fontWeight:700}}>{period}</div>}
-                                    {clock&&<div style={{fontSize:9,color:"#475569"}}>{clock}</div>}
-                                  </div>
-                                  <div style={{flex:1,minWidth:0}}>
-                                    {team&&<span style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",marginRight:6,fontWeight:700}}>{team}</span>}
-                                    <span style={{fontSize:11,color:"#94A3B8",lineHeight:1.4}}>{desc}</span>
-                                  </div>
-                                  {score&&<div style={{fontSize:11,fontWeight:700,color:"#22C55E",flexShrink:0,fontFamily:"'Orbitron',sans-serif"}}>{score}</div>}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Team stats — all sports */}
-                      {g.boxTeams?.length>0&&(()=>{
-                        const awayTeam=g.boxTeams.find(t=>t.homeAway==="away")||g.boxTeams[0];
-                        const homeTeam=g.boxTeams.find(t=>t.homeAway==="home")||g.boxTeams[1];
-                        const awayStats=awayTeam?.statistics||[];const homeStats=homeTeam?.statistics||[];
-                        if(!awayStats.length&&!homeStats.length)return null;
-                        return(
-                          <div>
-                            <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#8B5CF6",marginBottom:8,letterSpacing:".12em"}}>📋 TEAM STATS</div>
-                            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:6}}>
-                              <div style={{textAlign:"center",fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#64748B"}}>{g.away.abbr}</div>
-                              <div style={{textAlign:"center",fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#64748B"}}>{g.home.abbr}</div>
-                            </div>
-                            {awayStats.slice(0,10).map((stat,i)=>{
-                              const hStat=homeStats.find(s=>s.name===stat.name);
-                              return(
-                                <div key={i} style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:6,padding:"4px 0",borderBottom:"1px solid rgba(255,255,255,.04)",alignItems:"center"}}>
-                                  <div style={{textAlign:"right",fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{stat.displayValue||stat.value||"—"}</div>
-                                  <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",textAlign:"center",minWidth:80}}>{stat.label||stat.name}</div>
-                                  <div style={{textAlign:"left",fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{hStat?.displayValue||hStat?.value||"—"}</div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })()}
-
-                      {/* Player box scores */}
-                      {g.boxPlayers?.length>0&&g.boxPlayers.map((side,si)=>{
-                        const categories=side.statistics||[];if(!categories.length)return null;
-                        const mainCat=categories[0];const secCat=categories[1];
-                        const mainPlayers=mainCat?.athletes||[];const secPlayers=secCat?.athletes||[];
-                        if(!mainPlayers.length&&!secPlayers.length)return null;
-                        const teamAbbr=side.team?.abbreviation||`Team ${si+1}`;
-                        const mainLabel=mainCat?.labels||mainCat?.keys||[];const secLabel=secCat?.labels||secCat?.keys||[];
-                        const sportCatNames={mlb:["BATTING","PITCHING"],nba:["PLAYERS",""],nfl:["OFFENSE","DEFENSE"],nhl:["SKATERS","GOALIES"]}[g.sport]||["PLAYERS",""];
-                        return(
-                          <div key={si}>
-                            <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",marginBottom:8,letterSpacing:".12em"}}>🧢 {teamAbbr}</div>
-                            {mainPlayers.length>0&&(
-                              <div style={{overflowX:"auto",marginBottom:8}}>
-                                {sportCatNames[0]&&<div style={{fontSize:9,color:"#475569",marginBottom:5,fontFamily:"'Orbitron',sans-serif"}}>{sportCatNames[0]}</div>}
-                                <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,minWidth:280}}>
-                                  <thead><tr style={{borderBottom:"1px solid rgba(255,255,255,.08)"}}><td style={{padding:"3px 6px",color:"#475569",minWidth:100}}>PLAYER</td>{mainLabel.slice(0,6).map((l,i)=><td key={i} style={{padding:"3px 6px",textAlign:"center",color:"#475569"}}>{l}</td>)}</tr></thead>
-                                  <tbody>{mainPlayers.map((p,pi)=>(<tr key={pi} style={{background:pi%2===0?"rgba(255,255,255,.02)":"transparent",borderBottom:"1px solid rgba(255,255,255,.03)"}}><td style={{padding:"4px 6px",color:"#E2E8F0",fontWeight:600,whiteSpace:"nowrap"}}>{p.athlete?.shortName||p.athlete?.displayName||"—"}</td>{(p.stats||[]).slice(0,6).map((s,si2)=>(<td key={si2} style={{padding:"4px 6px",textAlign:"center",color:"#94A3B8"}}>{s||"—"}</td>))}</tr>))}</tbody>
-                                </table>
-                              </div>
-                            )}
-                            {secPlayers.length>0&&(
-                              <div style={{overflowX:"auto"}}>
-                                {sportCatNames[1]&&<div style={{fontSize:9,color:"#475569",marginBottom:5,fontFamily:"'Orbitron',sans-serif"}}>{sportCatNames[1]}</div>}
-                                <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,minWidth:280}}>
-                                  <thead><tr style={{borderBottom:"1px solid rgba(255,255,255,.08)"}}><td style={{padding:"3px 6px",color:"#475569",minWidth:100}}>PLAYER</td>{secLabel.slice(0,6).map((l,i)=><td key={i} style={{padding:"3px 6px",textAlign:"center",color:"#475569"}}>{l}</td>)}</tr></thead>
-                                  <tbody>{secPlayers.map((p,pi)=>(<tr key={pi} style={{background:pi%2===0?"rgba(255,255,255,.02)":"transparent",borderBottom:"1px solid rgba(255,255,255,.03)"}}><td style={{padding:"4px 6px",color:"#E2E8F0",fontWeight:600,whiteSpace:"nowrap"}}>{p.athlete?.shortName||p.athlete?.displayName||"—"}</td>{(p.stats||[]).slice(0,6).map((s,si2)=>(<td key={si2} style={{padding:"4px 6px",textAlign:"center",color:"#94A3B8"}}>{s||"—"}</td>))}</tr>))}</tbody>
-                                </table>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-
-                      {/* Injuries */}
-                      {g.injuries?.length>0&&(
-                        <div>
-                          <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#EF4444",marginBottom:8,letterSpacing:".12em"}}>🚑 INJURIES</div>
-                          <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                            {g.injuries.slice(0,8).map((inj,i)=>(
-                              <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
-                                <span style={{fontSize:11,color:"#94A3B8"}}>{inj.athlete?.displayName||inj.displayName||"—"} <span style={{color:"#475569",fontSize:10}}>({inj.team?.abbreviation||""})</span></span>
-                                <span style={{fontSize:11,fontWeight:600,color:"#EF4444"}}>{inj.status||inj.type||"—"}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </Card>
               );
             })}
@@ -562,6 +393,337 @@ function PredictPage({cu,users,setUsers}){
 }
 
 // ─── Leaderboard ───────────────────────────────────────────────────────────────
+
+// ─── Game Detail Page ──────────────────────────────────────────────────────────
+function GameDetailPage({gameId,sport,navigate}){
+  const mob=useIsMobile();
+  const[game,setGame]=useState(null);
+  const[loading,setLoading]=useState(true);
+
+  const sportPath=sport==="mlb"?"baseball/mlb":sport==="nfl"?"football/nfl":sport==="nba"?"basketball/nba":"hockey/nhl";
+
+  useEffect(()=>{load();},[gameId]);
+  useEffect(()=>{const t=setInterval(()=>load(true),30000);return()=>clearInterval(t);},[gameId]);
+
+  const load=async(quiet=false)=>{
+    if(!quiet)setLoading(true);
+    try{
+      const d=await(await fetch(`https://site.api.espn.com/apis/site/v2/sports/${sportPath}/summary?event=${gameId}`)).json();
+      const scoreboard=await(await fetch(`https://site.api.espn.com/apis/site/v2/sports/${sportPath}/scoreboard`)).json();
+      const ev=scoreboard.events?.find(e=>e.id===gameId);
+      const comp=ev?.competitions?.[0];
+      const home=comp?.competitors?.find(c=>c.homeAway==="home");
+      const away=comp?.competitors?.find(c=>c.homeAway==="away");
+      const st=comp?.status?.type;
+      const statusDetail=comp?.status?.type?.shortDetail||"";
+      const period=comp?.status?.period??null;
+      const clock=comp?.status?.displayClock||"";
+      const halfMatch=statusDetail.match(/^(Top|Bot|Mid|End)\s/i);
+      const inningHalf=halfMatch?halfMatch[1].charAt(0).toUpperCase()+halfMatch[1].slice(1).toLowerCase():"Top";
+      const sit=d?.situation;
+      const probables=comp?.probables||[];
+      const awayProb=probables.find(p=>p.homeAway==="away");
+      const homeProb=probables.find(p=>p.homeAway==="home");
+      setGame({
+        id:gameId,sport,
+        home:{name:home?.team?.displayName,abbr:home?.team?.abbreviation,logo:home?.team?.logo,score:home?.score,id:home?.team?.id},
+        away:{name:away?.team?.displayName,abbr:away?.team?.abbreviation,logo:away?.team?.logo,score:away?.score,id:away?.team?.id},
+        status:statusDetail||"Scheduled",
+        started:st?.completed||st?.name==="STATUS_IN_PROGRESS",
+        completed:st?.completed||false,
+        period,clock,
+        inning:sit?.period??null,inningHalf,
+        outs:sit?.outs??null,balls:sit?.balls??null,strikes:sit?.strikes??null,
+        onFirst:!!sit?.onFirst,onSecond:!!sit?.onSecond,onThird:!!sit?.onThird,
+        awayProb:{name:awayProb?.athlete?.displayName,era:awayProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value},
+        homeProb:{name:homeProb?.athlete?.displayName,era:homeProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value},
+        leaders:d?.leaders||comp?.leaders||[],
+        boxTeams:d?.boxscore?.teams||[],
+        boxPlayers:d?.boxscore?.players||[],
+        linescore:d?.linescore||comp?.linescore||null,
+        scoringPlays:d?.scoringPlays||[],
+        winPitcher:d?.winPitcher?{name:d.winPitcher.athlete?.displayName,wins:d.winPitcher.stats?.find?.(s=>s.name==="wins")?.value,losses:d.winPitcher.stats?.find?.(s=>s.name==="losses")?.value}:null,
+        losePitcher:d?.losePitcher?{name:d.losePitcher.athlete?.displayName,wins:d.losePitcher.stats?.find?.(s=>s.name==="wins")?.value,losses:d.losePitcher.stats?.find?.(s=>s.name==="losses")?.value}:null,
+        savePitcher:d?.savePitcher?{name:d.savePitcher.athlete?.displayName,saves:d.savePitcher.stats?.find?.(s=>s.name==="saves")?.value}:null,
+        injuries:d?.injuries||[],
+        drives:d?.drives?.previous||[],
+      });
+    }catch(e){console.error(e);}
+    if(!quiet)setLoading(false);
+  };
+
+  if(loading)return <div style={{textAlign:"center",padding:"80px 20px",color:"#334155"}}><div className="spin" style={{fontSize:32,display:"inline-block",marginBottom:12}}>⚙️</div><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,letterSpacing:".15em"}}>LOADING GAME DATA...</div></div>;
+  if(!game)return <div style={{textAlign:"center",padding:80,color:"#334155"}}>Game not found.</div>;
+
+  const g=game;
+  const sportIcon={mlb:"⚾",nfl:"🏈",nba:"🏀",nhl:"🏒"}[g.sport]||"🏆";
+
+  const SLabel=({children,color="#00D4FF"})=>(
+    <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color,marginBottom:8,letterSpacing:".12em",borderBottom:"1px solid rgba(255,255,255,.07)",paddingBottom:6}}>{children}</div>
+  );
+  const StatRow=({l,av,hv})=>(
+    <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:6,padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)",alignItems:"center"}}>
+      <div style={{textAlign:"right",fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{av||"—"}</div>
+      <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",textAlign:"center",minWidth:90,padding:"0 4px"}}>{l}</div>
+      <div style={{textAlign:"left",fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{hv||"—"}</div>
+    </div>
+  );
+
+  return(
+    <div style={{maxWidth:860,margin:"0 auto",padding:"44px 16px 80px"}}>
+      {/* Back */}
+      <button onClick={()=>navigate("predict")} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"none",cursor:"pointer",color:"#475569",fontSize:12,marginBottom:20,padding:0}}>← Back to Predictions</button>
+
+      {/* Header scoreboard */}
+      <Card style={{padding:"20px 24px",marginBottom:20}} hover={false}>
+        <div style={{textAlign:"center",marginBottom:14}}>
+          <span style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700,letterSpacing:".12em",padding:"3px 12px",borderRadius:20,background:g.completed?"rgba(100,116,139,.15)":g.started?"rgba(34,197,94,.15)":"rgba(0,212,255,.1)",color:g.completed?"#64748B":g.started?"#22C55E":"#00D4FF",border:`1px solid ${g.completed?"rgba(100,116,139,.2)":g.started?"rgba(34,197,94,.3)":"rgba(0,212,255,.25)"}`}}>
+            {g.completed?"✅ FINAL":g.started?`🔴 LIVE · ${g.status}`:`🕐 ${g.status}`}
+          </span>
+        </div>
+
+        {/* MLB live situation */}
+        {g.sport==="mlb"&&g.started&&!g.completed&&g.outs!==null&&(
+          <div style={{display:"flex",gap:10,justifyContent:"center",marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+            <div style={{background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.25)",borderRadius:10,padding:"6px 16px",textAlign:"center"}}>
+              <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#22C55E",letterSpacing:".1em"}}>INNING</div>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:15,fontWeight:900,color:"#E2E8F0"}}>{g.inningHalf} {g.inning}</div>
+            </div>
+            <div style={{background:"rgba(0,212,255,.08)",border:"1px solid rgba(0,212,255,.2)",borderRadius:10,padding:"6px 16px",textAlign:"center"}}>
+              <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",letterSpacing:".1em"}}>OUTS</div>
+              <div style={{display:"flex",gap:5,marginTop:4,justifyContent:"center"}}>{[0,1,2].map(i=><div key={i} style={{width:14,height:14,borderRadius:"50%",background:i<g.outs?"#F59E0B":"rgba(255,255,255,.1)",border:`1px solid ${i<g.outs?"#F59E0B":"rgba(255,255,255,.15)"}`}}/>)}</div>
+            </div>
+            <div style={{background:"rgba(139,92,246,.08)",border:"1px solid rgba(139,92,246,.2)",borderRadius:10,padding:"6px 16px",textAlign:"center"}}>
+              <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#8B5CF6",letterSpacing:".1em"}}>COUNT</div>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:15,fontWeight:900,color:"#E2E8F0"}}>{g.balls??0}-{g.strikes??0}</div>
+            </div>
+            <div style={{background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.2)",borderRadius:10,padding:"6px 14px",textAlign:"center"}}>
+              <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#F59E0B",letterSpacing:".1em",marginBottom:4}}>BASES</div>
+              <div style={{position:"relative",width:36,height:36,margin:"0 auto"}}>
+                <div style={{position:"absolute",top:0,left:"50%",transform:"translateX(-50%) rotate(45deg)",width:13,height:13,background:g.onSecond?"#F59E0B":"rgba(255,255,255,.1)",border:`1px solid ${g.onSecond?"#F59E0B":"rgba(255,255,255,.15)"}`}}/>
+                <div style={{position:"absolute",top:"50%",left:0,transform:"translateY(-50%) rotate(45deg)",width:13,height:13,background:g.onThird?"#F59E0B":"rgba(255,255,255,.1)",border:`1px solid ${g.onThird?"#F59E0B":"rgba(255,255,255,.15)"}`}}/>
+                <div style={{position:"absolute",top:"50%",right:0,transform:"translateY(-50%) rotate(45deg)",width:13,height:13,background:g.onFirst?"#F59E0B":"rgba(255,255,255,.1)",border:`1px solid ${g.onFirst?"#F59E0B":"rgba(255,255,255,.15)"}`}}/>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* NBA/NHL live period */}
+        {(g.sport==="nba"||g.sport==="nhl")&&g.started&&!g.completed&&g.period&&(
+          <div style={{display:"flex",gap:10,justifyContent:"center",marginBottom:14}}>
+            <div style={{background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.25)",borderRadius:10,padding:"6px 20px",textAlign:"center"}}>
+              <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#22C55E",letterSpacing:".1em"}}>{g.sport==="nba"?"QUARTER":"PERIOD"}</div>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:15,fontWeight:900,color:"#E2E8F0"}}>{g.period}</div>
+            </div>
+            {g.clock&&<div style={{background:"rgba(0,212,255,.08)",border:"1px solid rgba(0,212,255,.2)",borderRadius:10,padding:"6px 20px",textAlign:"center"}}>
+              <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",letterSpacing:".1em"}}>CLOCK</div>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:15,fontWeight:900,color:"#E2E8F0"}}>{g.clock}</div>
+            </div>}
+          </div>
+        )}
+
+        {/* Scoreboard */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:12,alignItems:"center"}}>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
+            {g.away.logo&&<img src={g.away.logo} width={mob?48:64} height={mob?48:64} style={{objectFit:"contain"}}/>}
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?12:14,fontWeight:700,color:"#E2E8F0"}}>{g.away.abbr}</div>
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?28:40,fontWeight:900,color:"#E2E8F0"}}>{g.started||g.completed?g.away.score||0:"—"}</div>
+            <div style={{fontSize:10,color:"#475569"}}>{g.away.name}</div>
+          </div>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:20,fontWeight:900,color:"#1E293B",letterSpacing:".08em"}}>VS</div>
+            <div style={{fontSize:22,marginTop:4}}>{sportIcon}</div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
+            {g.home.logo&&<img src={g.home.logo} width={mob?48:64} height={mob?48:64} style={{objectFit:"contain"}}/>}
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?12:14,fontWeight:700,color:"#E2E8F0"}}>{g.home.abbr}</div>
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?28:40,fontWeight:900,color:"#E2E8F0"}}>{g.started||g.completed?g.home.score||0:"—"}</div>
+            <div style={{fontSize:10,color:"#475569"}}>{g.home.name}</div>
+          </div>
+        </div>
+      </Card>
+
+      <div style={{display:"flex",flexDirection:"column",gap:16}}>
+
+        {/* MLB probable starters */}
+        {g.sport==="mlb"&&!g.started&&(g.awayProb?.name||g.homeProb?.name)&&(
+          <Card style={{padding:"16px 18px"}} hover={false}>
+            <SLabel>⚾ PROBABLE STARTERS</SLabel>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              {[{side:"Away",team:g.away.abbr,p:g.awayProb},{side:"Home",team:g.home.abbr,p:g.homeProb}].map(({side,team,p})=>(
+                <div key={side} style={{background:"rgba(255,255,255,.03)",borderRadius:10,padding:"12px 14px",border:"1px solid rgba(255,255,255,.07)"}}>
+                  <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:4}}>{team} ({side})</div>
+                  <div style={{fontSize:15,fontWeight:700,color:"#E2E8F0"}}>{p?.name||"TBD"}</div>
+                  {p?.era&&<div style={{fontSize:12,color:"#94A3B8",marginTop:2}}>ERA: {p.era}</div>}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* MLB pitching decision */}
+        {g.sport==="mlb"&&g.completed&&(g.winPitcher||g.losePitcher||g.savePitcher)&&(
+          <Card style={{padding:"16px 18px"}} hover={false}>
+            <SLabel color="#22C55E">🏆 PITCHING DECISION</SLabel>
+            {g.winPitcher&&<StatRow l={`W: ${g.winPitcher.name}`} av={`${g.winPitcher.wins??"-"}-${g.winPitcher.losses??"-"}`} hv="WIN"/>}
+            {g.losePitcher&&<StatRow l={`L: ${g.losePitcher.name}`} av={`${g.losePitcher.wins??"-"}-${g.losePitcher.losses??"-"}`} hv="LOSS"/>}
+            {g.savePitcher&&<StatRow l={`SV: ${g.savePitcher.name}`} av={`${g.savePitcher.saves??"-"} SV`} hv="SAVE"/>}
+          </Card>
+        )}
+
+        {/* Player of the game */}
+        {g.completed&&g.leaders?.length>0&&(()=>{
+          const potg=g.leaders.reduce((best,l)=>{const v=parseFloat((l.displayValue||"0").replace(/[^0-9.]/g,""))||0;const bv=parseFloat((best?.displayValue||"0").replace(/[^0-9.]/g,""))||0;return v>bv?l:best;},g.leaders[0]);
+          return(
+            <Card style={{padding:"16px 18px"}} hover={false}>
+              <SLabel color="#F59E0B">⭐ TOP PERFORMERS</SLabel>
+              {potg&&<div style={{background:"linear-gradient(135deg,rgba(245,158,11,.15),rgba(251,191,36,.07))",border:"1px solid rgba(245,158,11,.3)",borderRadius:12,padding:"12px 16px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
+                <div style={{fontSize:28}}>🌟</div>
+                <div>
+                  <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#F59E0B",letterSpacing:".12em",marginBottom:2}}>PLAYER OF THE GAME</div>
+                  <div style={{fontSize:15,fontWeight:700,color:"#E2E8F0"}}>{potg.athlete?.displayName||potg.displayName||potg.name||"—"}</div>
+                  <div style={{fontSize:13,color:"#F59E0B",fontWeight:600}}>{potg.displayValue||potg.value||"—"}</div>
+                </div>
+              </div>}
+              <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                {g.leaders.slice(0,10).map((l,i)=>(
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+                    <span style={{fontSize:12,color:"#94A3B8"}}>{l.athlete?.displayName||l.displayName||l.name||"—"}</span>
+                    <span style={{fontSize:12,fontWeight:700,color:"#F59E0B"}}>{l.displayValue||l.value||"—"}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          );
+        })()}
+
+        {/* MLB linescore */}
+        {g.sport==="mlb"&&(g.started||g.completed)&&g.linescore?.columns?.length>0&&(
+          <Card style={{padding:"16px 18px"}} hover={false}>
+            <SLabel>📊 LINE SCORE</SLabel>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:320}}>
+                <thead><tr style={{borderBottom:"1px solid rgba(255,255,255,.08)"}}><td style={{padding:"4px 8px",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:10}}>TEAM</td>{(g.linescore.columns||[]).map((cl,i)=><td key={i} style={{padding:"4px 6px",textAlign:"center",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:10}}>{cl.label||cl.value||i+1}</td>)}</tr></thead>
+                <tbody>{(g.linescore.rows||[]).map((row,ri)=>(<tr key={ri} style={{background:ri%2===0?"rgba(255,255,255,.02)":"transparent"}}><td style={{padding:"4px 8px",color:"#E2E8F0",fontWeight:700,fontFamily:"'Orbitron',sans-serif",fontSize:10}}>{row.label||row.team||""}</td>{(row.columns||[]).map((cell,ci)=>(<td key={ci} style={{padding:"4px 6px",textAlign:"center",color:cell.bold?"#22C55E":"#94A3B8",fontWeight:cell.bold?700:400}}>{cell.value??""}</td>))}</tr>))}</tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+
+        {/* Scoring summary — all sports */}
+        {(g.started||g.completed)&&g.scoringPlays?.length>0&&(
+          <Card style={{padding:"16px 18px"}} hover={false}>
+            <SLabel color="#22C55E">{g.sport==="mlb"?"⚾ SCORING PLAYS":g.sport==="nba"?"🏀 SCORING SUMMARY":g.sport==="nhl"?"🏒 GOALS":"🏈 SCORING SUMMARY"}</SLabel>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {g.scoringPlays.map((sp,i)=>{
+                const team=sp.team?.abbreviation||sp.team?.shortDisplayName||"";
+                const period=sp.period?.displayValue||(sp.period?.number?`${g.sport==="nba"?"Q":g.sport==="nhl"?"P":"Q"}${sp.period.number}`:"");
+                const clock=sp.clock?.displayValue||sp.clock||"";
+                const desc=sp.text||sp.description||sp.headline||"";
+                const score=sp.awayScore!=null?`${sp.awayScore}–${sp.homeScore}`:"";
+                return(
+                  <div key={i} style={{display:"flex",gap:10,padding:"8px 12px",borderRadius:8,background:"rgba(34,197,94,.05)",border:"1px solid rgba(34,197,94,.12)",alignItems:"flex-start"}}>
+                    <div style={{minWidth:44,flexShrink:0}}>
+                      {period&&<div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#22C55E",fontWeight:700}}>{period}</div>}
+                      {clock&&<div style={{fontSize:9,color:"#475569"}}>{clock}</div>}
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      {team&&<span style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",marginRight:8,fontWeight:700}}>{team}</span>}
+                      <span style={{fontSize:12,color:"#94A3B8",lineHeight:1.4}}>{desc}</span>
+                    </div>
+                    {score&&<div style={{fontSize:12,fontWeight:900,color:"#22C55E",flexShrink:0,fontFamily:"'Orbitron',sans-serif",letterSpacing:".04em"}}>{score}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+
+        {/* Team stats — all sports */}
+        {g.boxTeams?.length>0&&(()=>{
+          const awayT=g.boxTeams.find(t=>t.homeAway==="away")||g.boxTeams[0];
+          const homeT=g.boxTeams.find(t=>t.homeAway==="home")||g.boxTeams[1];
+          const aStats=awayT?.statistics||[];const hStats=homeT?.statistics||[];
+          if(!aStats.length&&!hStats.length)return null;
+          return(
+            <Card style={{padding:"16px 18px"}} hover={false}>
+              <SLabel color="#8B5CF6">📋 TEAM STATS</SLabel>
+              <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:8,marginBottom:8,alignItems:"center"}}>
+                <div style={{textAlign:"center",fontSize:11,fontFamily:"'Orbitron',sans-serif",color:"#64748B",fontWeight:700}}>{g.away.abbr}</div>
+                <div/>
+                <div style={{textAlign:"center",fontSize:11,fontFamily:"'Orbitron',sans-serif",color:"#64748B",fontWeight:700}}>{g.home.abbr}</div>
+              </div>
+              {aStats.slice(0,15).map((stat,i)=>{
+                const hStat=hStats.find(s=>s.name===stat.name);
+                return<StatRow key={i} l={stat.label||stat.name} av={stat.displayValue||stat.value} hv={hStat?.displayValue||hStat?.value}/>;
+              })}
+            </Card>
+          );
+        })()}
+
+        {/* NFL Drives */}
+        {g.sport==="nfl"&&g.drives?.length>0&&(
+          <Card style={{padding:"16px 18px"}} hover={false}>
+            <SLabel color="#F59E0B">🏈 DRIVE SUMMARY</SLabel>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {g.drives.slice(0,20).map((dr,i)=>(
+                <div key={i} style={{padding:"8px 12px",borderRadius:8,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
+                    <span style={{fontSize:11,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",fontWeight:700}}>{dr.team?.abbreviation||""}</span>
+                    <span style={{fontSize:11,color:dr.result==="TD"?"#22C55E":dr.result==="FG"?"#F59E0B":"#475569",fontWeight:700}}>{dr.result||"—"}</span>
+                  </div>
+                  <div style={{fontSize:11,color:"#64748B"}}>{dr.description||""}</div>
+                  <div style={{fontSize:10,color:"#334155",marginTop:2}}>{dr.plays?.length||0} plays · {dr.yards||0} yds</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* Player box scores — all sports */}
+        {g.boxPlayers?.length>0&&g.boxPlayers.map((side,si)=>{
+          const categories=side.statistics||[];if(!categories.length)return null;
+          const teamAbbr=side.team?.abbreviation||`Team ${si+1}`;
+          const sportCatNames={mlb:["BATTING","PITCHING"],nba:["PLAYERS",""],nfl:["PASSING/RUSHING","DEFENSE"],nhl:["SKATERS","GOALIES"]}[g.sport]||["PLAYERS",""];
+          return(
+            <Card key={si} style={{padding:"16px 18px"}} hover={false}>
+              <SLabel>🧢 {teamAbbr} — PLAYER STATS</SLabel>
+              {categories.slice(0,2).map((cat,ci)=>{
+                const players=cat.athletes||[];if(!players.length)return null;
+                const labels=cat.labels||cat.keys||[];
+                return(
+                  <div key={ci} style={{marginBottom:ci===0?14:0}}>
+                    {sportCatNames[ci]&&<div style={{fontSize:9,color:"#475569",marginBottom:6,fontFamily:"'Orbitron',sans-serif"}}>{sportCatNames[ci]}</div>}
+                    <div style={{overflowX:"auto"}}>
+                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:300}}>
+                        <thead><tr style={{borderBottom:"1px solid rgba(255,255,255,.08)"}}><td style={{padding:"4px 8px",color:"#475569",minWidth:110}}>PLAYER</td>{labels.slice(0,7).map((l,li)=><td key={li} style={{padding:"4px 6px",textAlign:"center",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:9}}>{l}</td>)}</tr></thead>
+                        <tbody>{players.map((p,pi)=>(<tr key={pi} style={{background:pi%2===0?"rgba(255,255,255,.02)":"transparent",borderBottom:"1px solid rgba(255,255,255,.03)"}}><td style={{padding:"5px 8px",color:"#E2E8F0",fontWeight:600,whiteSpace:"nowrap"}}>{p.athlete?.shortName||p.athlete?.displayName||"—"}</td>{(p.stats||[]).slice(0,7).map((s,si2)=>(<td key={si2} style={{padding:"5px 6px",textAlign:"center",color:"#94A3B8"}}>{s||"—"}</td>))}</tr>))}</tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })}
+            </Card>
+          );
+        })}
+
+        {/* Injuries */}
+        {g.injuries?.length>0&&(
+          <Card style={{padding:"16px 18px"}} hover={false}>
+            <SLabel color="#EF4444">🚑 INJURY REPORT</SLabel>
+            {g.injuries.slice(0,12).map((inj,i)=>(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+                <span style={{fontSize:12,color:"#94A3B8"}}>{inj.athlete?.displayName||inj.displayName||"—"} <span style={{color:"#475569",fontSize:10}}>({inj.team?.abbreviation||""})</span></span>
+                <span style={{fontSize:12,fontWeight:600,color:"#EF4444"}}>{inj.status||inj.type||"—"}</span>
+              </div>
+            ))}
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function LeaderboardPage({users,navigate}){
   const mob=useIsMobile();
   const[tab,setTab]=useState("followers");
@@ -1370,8 +1532,19 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
   const[commentText,setCommentText]=useState("");
   const[comments,setComments]=useState([]);
   const[showTeamPicker,setShowTeamPicker]=useState(null);
+  const[replyTo,setReplyTo]=useState(null); // {id, author_name, author_id}
+  const[profileTab,setProfileTab]=useState("posts"); // posts | activity
+  const[userActivity,setUserActivity]=useState([]); // comments made by this user elsewhere
+  const[activityLoading,setActivityLoading]=useState(false);
 
   useEffect(()=>{if(u)loadComments();},[userId]);
+  useEffect(()=>{
+    if(profileTab==="activity"&&userActivity.length===0){
+      setActivityLoading(true);
+      sb.get("nova_comments",`?author_id=eq.${userId}&order=timestamp.desc&limit=80`)
+        .then(rows=>{setUserActivity(rows||[]);setActivityLoading(false);});
+    }
+  },[profileTab,userId]);
   const loadComments=async()=>{
     const data=await sb.get("nova_comments",`?profile_user_id=eq.${userId}&order=timestamp.desc`);
     if(data)setComments(data);
@@ -1399,11 +1572,16 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
   const submitComment=async(imgUrl="")=>{
     if(!commentText.trim()&&!imgUrl||!cu)return;
     const text=imgUrl?`__IMG__${imgUrl}`:commentText.trim();
-    const c={id:gid(),profile_user_id:u.id,author_id:cu.id,author_name:cu.display_name,author_avatar:cu.avatar,author_avatar_url:cu.avatar_url||"",text,timestamp:Date.now()};
+    const c={id:gid(),profile_user_id:u.id,author_id:cu.id,author_name:cu.display_name,author_avatar:cu.avatar,author_avatar_url:cu.avatar_url||"",text,timestamp:Date.now(),reply_to:replyTo?.id||null,reply_to_name:replyTo?.author_name||null,likes:[]};
     await sb.post("nova_comments",c);
     setComments(prev=>[c,...prev]);
     setCommentText("");
+    setReplyTo(null);
     if(!isMe)addNotif(u.id,cu.id,"commented on your profile");
+    // notify person being replied to
+    if(replyTo&&replyTo.author_id&&replyTo.author_id!==cu.id&&replyTo.author_id!==u.id){
+      addNotif(replyTo.author_id,cu.id,`replied to your comment: "${text.slice(0,50)}"`);
+    }
   };
   const deleteComment=async(cid)=>{
     await sb.del("nova_comments",`?id=eq.${cid}`);
@@ -1554,14 +1732,59 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
             </Sec>
           )}
 
-          {/* Comments with likes */}
+          {/* Comments with likes + replies + activity tab */}
           <Sec title="💬 Comments">
+            {/* Tabs */}
+            <div style={{display:"flex",gap:6,marginBottom:14}}>
+              {[["posts","💬 Comments"],["activity","📋 Activity"]].map(([t,l])=>(
+                <button key={t} onClick={()=>setProfileTab(t)} style={{padding:"5px 14px",borderRadius:20,cursor:"pointer",fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${profileTab===t?"rgba(0,212,255,.4)":"rgba(255,255,255,.1)"}`,background:profileTab===t?"rgba(0,212,255,.1)":"rgba(255,255,255,.03)",color:profileTab===t?"#00D4FF":"#64748B"}}>{l}</button>
+              ))}
+            </div>
+
+            {profileTab==="activity"?(
+              <div>
+                {activityLoading&&<div style={{textAlign:"center",padding:30,color:"#334155"}}>Loading activity...</div>}
+                {!activityLoading&&userActivity.length===0&&<Empty icon="📋" msg="No comment activity yet"/>}
+                {!activityLoading&&userActivity.map(ac=>{
+                  const isNews=ac.profile_user_id?.startsWith("news_");
+                  const targetUser=!isNews&&users.find(x=>x.id===ac.profile_user_id);
+                  const isImg=ac.text?.startsWith("__IMG__");
+                  return(
+                    <div key={ac.id} style={{display:"flex",gap:10,padding:"10px 12px",borderRadius:10,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",marginBottom:8,cursor:isNews?"default":"pointer"}} onClick={()=>!isNews&&navigate("profile",ac.profile_user_id)}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:10,color:"#475569",marginBottom:4}}>
+                          {isNews
+                            ?<span style={{color:"#8B5CF6",fontWeight:700}}>📰 News Discussion</span>
+                            :<>commented on <span style={{color:"#00D4FF",fontWeight:700}}>{targetUser?.display_name||"someone"}'s profile</span></>
+                          }
+                          <span style={{marginLeft:8}}>{fmtAgo(ac.timestamp)}</span>
+                        </div>
+                        {ac.reply_to_name&&<div style={{fontSize:10,color:"#8B5CF6",marginBottom:3}}>↩ replying to {ac.reply_to_name}</div>}
+                        {isImg
+                          ?<span style={{fontSize:11,color:"#475569"}}>📷 Image</span>
+                          :<div style={{fontSize:12,color:"#94A3B8",lineHeight:1.4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ac.text}</div>
+                        }
+                        {(ac.likes?.length>0)&&<div style={{fontSize:10,color:"#EF4444",marginTop:3}}>❤️ {ac.likes.length}</div>}
+                      </div>
+                      {!isNews&&<span style={{fontSize:11,color:"#334155",flexShrink:0}}>→</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            ):(
+              <>
             {cu&&(
               <div style={{display:"flex",gap:10,marginBottom:16,alignItems:"flex-start"}}>
                 <Av user={cu} size={32}/>
                 <div style={{flex:1,display:"flex",flexDirection:"column",gap:6}}>
+                  {replyTo&&(
+                    <div style={{display:"flex",alignItems:"center",gap:8,padding:"5px 10px",borderRadius:8,background:"rgba(139,92,246,.08)",border:"1px solid rgba(139,92,246,.2)"}}>
+                      <span style={{fontSize:11,color:"#8B5CF6",flex:1}}>↩ Replying to <strong>{replyTo.author_name}</strong></span>
+                      <button onClick={()=>setReplyTo(null)} style={{background:"none",border:"none",cursor:"pointer",color:"#475569",fontSize:12}}>✕</button>
+                    </div>
+                  )}
                   <div style={{display:"flex",gap:8}}>
-                    <input value={commentText} onChange={e=>setCommentText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();submitComment();}}} placeholder="Leave a comment..." style={{flex:1}}/>
+                    <input value={commentText} onChange={e=>setCommentText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();submitComment();}}} placeholder={replyTo?`Reply to ${replyTo.author_name}...`:"Leave a comment..."} style={{flex:1}}/>
                     <Btn size="sm" onClick={()=>submitComment()} disabled={!commentText.trim()}>Post</Btn>
                   </div>
                   <CommentImgUpload onUpload={async f=>{
@@ -1575,7 +1798,8 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
             {comments.length===0?<Empty icon="💬" msg="No comments yet"/>
             :<div style={{display:"flex",flexDirection:"column",gap:8}}>
               {comments.map(c=>{
-                const author=users.find(x=>x.id===c.author_id);const canDel=cu&&(cu.id===c.author_id||cu.id===u.id||cu.is_owner);
+                const author=users.find(x=>x.id===c.author_id);
+                const canDel=cu&&(cu.id===u.id||cu.is_owner||cu.staff_role);
                 const isImg=c.text?.startsWith("__IMG__");
                 const likeCount=c.likes?.length||0;
                 const iLiked=cu&&(c.likes||[]).includes(cu.id);
@@ -1583,7 +1807,6 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
                   if(!cu)return;
                   const newLikes=iLiked?(c.likes||[]).filter(id=>id!==cu.id):[...(c.likes||[]),cu.id];
                   setComments(prev=>prev.map(x=>x.id===c.id?{...x,likes:newLikes}:x));
-                  // Persist likes in nova_comments
                   sb.patch("nova_comments",`?id=eq.${c.id}`,{likes:newLikes});
                 };
                 return(
@@ -1594,20 +1817,26 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
                         <span style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#E2E8F0",cursor:"pointer"}} onClick={()=>navigate("profile",c.author_id)}>{c.author_name}</span>
                         <span style={{fontSize:10,color:"#334155"}}>{fmtAgo(c.timestamp)}</span>
                       </div>
+                      {c.reply_to_name&&<div style={{fontSize:10,color:"#8B5CF6",marginBottom:3}}>↩ replying to {c.reply_to_name}</div>}
                       {isImg
                         ?<img src={c.text.slice(7)} style={{maxWidth:220,maxHeight:260,borderRadius:10,display:"block",marginTop:4,objectFit:"contain",cursor:"pointer"}} onClick={()=>window.open(c.text.slice(7),"_blank")}/>
                         :<div style={{fontSize:13,color:"#94A3B8",lineHeight:1.5}}>{c.text}</div>
                       }
-                      <button onClick={toggleLike} style={{marginTop:6,display:"flex",alignItems:"center",gap:4,background:"none",border:"none",cursor:cu?"pointer":"default",padding:0}}>
-                        <span style={{fontSize:13,filter:iLiked?"none":"grayscale(1)",opacity:iLiked?1:.5}}>❤️</span>
-                        {likeCount>0&&<span style={{fontSize:10,color:iLiked?"#EF4444":"#475569",fontWeight:700}}>{likeCount}</span>}
-                      </button>
+                      <div style={{display:"flex",gap:10,alignItems:"center",marginTop:6}}>
+                        <button onClick={toggleLike} style={{display:"flex",alignItems:"center",gap:4,background:"none",border:"none",cursor:cu?"pointer":"default",padding:0}}>
+                          <span style={{fontSize:13,filter:iLiked?"none":"grayscale(1)",opacity:iLiked?1:.5}}>❤️</span>
+                          {likeCount>0&&<span style={{fontSize:10,color:iLiked?"#EF4444":"#475569",fontWeight:700}}>{likeCount}</span>}
+                        </button>
+                        {cu&&<button onClick={()=>{setReplyTo({id:c.id,author_name:c.author_name,author_id:c.author_id});setProfileTab("posts");}} style={{fontSize:10,color:"#475569",background:"none",border:"none",cursor:"pointer",padding:0}}>↩ Reply</button>}
+                      </div>
                     </div>
                     {canDel&&<XBtn className="del-btn" onClick={()=>deleteComment(c.id)} style={{opacity:0,position:"absolute",top:8,right:8}}/>}
                   </div>
                 );
               })}
             </div>}
+            </>
+            )}
           </Sec>
         </div>
         {!mob&&hasSideBanners&&(
@@ -2088,16 +2317,12 @@ function NewsPage({cu,users,addNotif}){
     const items=await fetchESPNNews();
     setFeed(items);
     if(!quiet)setLoading(false);
-    // Notify cu if news matches their teams
     if(cu&&items.length){
       const cuTeams=[cu.mlb_team,cu.nfl_team,cu.nba_team,cu.nhl_team].filter(Boolean).map(t=>t.toLowerCase());
       items.forEach(item=>{
         if(notifiedRef.current.has(item.id))return;
         const match=item.teams.some(t=>cuTeams.some(ct=>ct.includes(t.toLowerCase())||t.toLowerCase().includes(ct)));
-        if(match){
-          addNotif&&addNotif(cu.id,cu.id,`📰 ${item.source.label}: ${item.headline.slice(0,70)}`);
-          notifiedRef.current.add(item.id);
-        }
+        if(match){addNotif&&addNotif(cu.id,cu.id,`📰 ${item.source.label}: ${item.headline.slice(0,70)}`);notifiedRef.current.add(item.id);}
       });
     }
   };
@@ -2105,11 +2330,24 @@ function NewsPage({cu,users,addNotif}){
   useEffect(()=>{loadFeed();},[]);
   useEffect(()=>{const t=setInterval(()=>loadFeed(true),90000);return()=>clearInterval(t);},[]);
 
-  const postComment=(itemId,imgUrl="")=>{
+  // Load persisted comments for a news item when expanded
+  const loadNewsComments=async(itemId)=>{
+    if(comments[itemId])return;
+    const rows=await sb.get("nova_comments",`?profile_user_id=eq.news_${itemId}&order=timestamp.desc`);
+    setComments(prev=>({...prev,[itemId]:rows||[]}));
+  };
+
+  const toggleExpand=(itemId)=>{
+    if(expandedId===itemId){setExpandedId(null);}
+    else{setExpandedId(itemId);loadNewsComments(itemId);}
+  };
+
+  const postComment=async(itemId,imgUrl="")=>{
     const text=commentTexts[itemId]||"";
     if(!text.trim()&&!imgUrl||!cu)return;
     const msg=imgUrl?`__IMG__${imgUrl}`:text.trim();
-    const c={id:gid(),author_id:cu.id,author_name:cu.display_name,author_avatar:cu.avatar,author_avatar_url:cu.avatar_url||"",text:msg,ts:Date.now()};
+    const c={id:gid(),profile_user_id:`news_${itemId}`,author_id:cu.id,author_name:cu.display_name,author_avatar:cu.avatar,author_avatar_url:cu.avatar_url||"",text:msg,timestamp:Date.now(),likes:[]};
+    await sb.post("nova_comments",c);
     setComments(prev=>({...prev,[itemId]:[c,...(prev[itemId]||[])]}));
     setCommentTexts(prev=>({...prev,[itemId]:""}));
   };
@@ -2200,7 +2438,7 @@ function NewsPage({cu,users,addNotif}){
               )}
 
               {/* Comment toggle */}
-              <button onClick={()=>setExpandedId(isExp?null:item.id)} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:"#475569",display:"flex",alignItems:"center",gap:5,padding:"4px 0",marginTop:2}}>
+              <button onClick={()=>toggleExpand(item.id)} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:"#475569",display:"flex",alignItems:"center",gap:5,padding:"4px 0",marginTop:2}}>
                 💬 {itemComments.length>0?`${itemComments.length} comment${itemComments.length!==1?"s":""}`:cu?"Discuss":"Comments"}
                 <span style={{fontSize:10,color:"#334155"}}>{isExp?"▲":"▼"}</span>
               </button>
@@ -2233,7 +2471,7 @@ function NewsPage({cu,users,addNotif}){
                           <div style={{flex:1,minWidth:0}}>
                             <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:2}}>
                               <span style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#E2E8F0"}}>{c.author_name}</span>
-                              <span style={{fontSize:10,color:"#334155"}}>{fmtAgo(c.ts)}</span>
+                              <span style={{fontSize:10,color:"#334155"}}>{fmtAgo(c.timestamp)}</span>
                             </div>
                             {isImg
                               ?<img src={c.text.slice(7)} style={{maxWidth:200,maxHeight:160,borderRadius:8,display:"block",objectFit:"contain",cursor:"pointer"}} onClick={()=>window.open(c.text.slice(7),"_blank")}/>
@@ -2309,6 +2547,7 @@ export default function App(){
   const[users,setUsers]=useState([]);
   const[page,setPage]=useState("home");
   const[profileId,setProfileId]=useState(null);
+  const[gameRef,setGameRef]=useState(null);
   const[showLogin,setShowLogin]=useState(false);
   const[showRegister,setShowRegister]=useState(false);
   const[notifs,setNotifs]=useState([]);
@@ -2365,6 +2604,7 @@ export default function App(){
 
   const nav=(p,id)=>{
     if(p==="profile"&&id){setProfileId(id);}
+    if(p==="game"&&id){setGameRef(id);} // id = {id, sport}
     setPage(p);
   };
 
@@ -2409,7 +2649,8 @@ export default function App(){
     if(page==="news")return <NewsPage cu={cu} users={users} addNotif={addNotif}/>;
     if(page==="members")return <MembersPage users={users} nav={nav}/>;
     if(page==="feed")return <FeedPage users={users} cu={cu} likes={likes} onLike={handleLike} navigate={nav}/>;
-    if(page==="predict")return <PredictPage cu={cu} users={users} setUsers={setUsers}/>;
+    if(page==="game"&&gameRef)return <GameDetailPage gameId={gameRef.id} sport={gameRef.sport} navigate={nav}/>;
+    if(page==="predict")return <PredictPage cu={cu} users={users} setUsers={setUsers} navigate={nav}/>;
     if(page==="leaderboard")return <LeaderboardPage users={users} navigate={nav}/>;
     if(page==="messages")return <MessagesPage cu={cu} users={users} conversations={conversations} setConversations={setConversations} messages={messages} setMessages={setMessages}/>;
     if(page==="dashboard")return <DashboardPage cu={cu} users={users} setUsers={setUsers} navigate={nav}/>;
