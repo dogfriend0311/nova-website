@@ -424,6 +424,31 @@ function GameDetailPage({gameId,sport,navigate}){
       const probables=comp?.probables||[];
       const awayProb=probables.find(p=>p.homeAway==="away");
       const homeProb=probables.find(p=>p.homeAway==="home");
+      // Build normalized scoring plays for all sports
+      const rawPlays=d?.scoringPlays||[];
+      // For MLB, ESPN uses "scoringPlays" with inning info
+      // For NBA/NHL/NFL they use period/clock fields — normalize them all
+      const scoringPlays=rawPlays.map(sp=>({
+        period:sp.period?.displayValue||(sp.period?.number?(sport==="nba"?`Q${sp.period.number}`:sport==="nhl"?`P${sp.period.number}`:sport==="mlb"?(sp.period?.type==="B"?`Bot ${sp.period.number}`:`Top ${sp.period.number}`):`Q${sp.period.number}`):sp.periodText||""),
+        clock:sp.clock?.displayValue||sp.clock||"",
+        team:sp.team?.abbreviation||sp.team?.shortDisplayName||"",
+        desc:sp.text||sp.description||sp.headline||sp.summary||"",
+        awayScore:sp.awayScore??null,
+        homeScore:sp.homeScore??null,
+        type:sp.scoringType?.displayName||sp.type?.text||"",
+      }));
+
+      // Build per-period linescore for NBA/NHL/NFL (ESPN returns comp.linescores[])
+      const compLinescores=comp?.linescores||[];
+      // For MLB use d.linescore; for others build from comp.linescores per competitor
+      const linescoreNonMLB=compLinescores.length>0?{
+        columns:compLinescores.map((_,i)=>({label:sport==="nba"?`Q${i+1}`:sport==="nhl"?`P${i+1}`:`Q${i+1}`})).concat([{label:"T"}]),
+        rows:[
+          {label:away?.team?.abbreviation,columns:[...(away?.linescores||[]).map(l=>({value:l.value??"-"})),{value:away?.score||"",bold:true}]},
+          {label:home?.team?.abbreviation,columns:[...(home?.linescores||[]).map(l=>({value:l.value??"-"})),{value:home?.score||"",bold:true}]},
+        ]
+      }:null;
+
       setGame({
         id:gameId,sport,
         home:{name:home?.team?.displayName,abbr:home?.team?.abbreviation,logo:home?.team?.logo,score:home?.score,id:home?.team?.id},
@@ -440,8 +465,8 @@ function GameDetailPage({gameId,sport,navigate}){
         leaders:d?.leaders||comp?.leaders||[],
         boxTeams:d?.boxscore?.teams||[],
         boxPlayers:d?.boxscore?.players||[],
-        linescore:d?.linescore||comp?.linescore||null,
-        scoringPlays:d?.scoringPlays||[],
+        linescore:sport==="mlb"?(d?.linescore||comp?.linescore||null):linescoreNonMLB,
+        scoringPlays,
         winPitcher:d?.winPitcher?{name:d.winPitcher.athlete?.displayName,wins:d.winPitcher.stats?.find?.(s=>s.name==="wins")?.value,losses:d.winPitcher.stats?.find?.(s=>s.name==="losses")?.value}:null,
         losePitcher:d?.losePitcher?{name:d.losePitcher.athlete?.displayName,wins:d.losePitcher.stats?.find?.(s=>s.name==="wins")?.value,losses:d.losePitcher.stats?.find?.(s=>s.name==="losses")?.value}:null,
         savePitcher:d?.savePitcher?{name:d.savePitcher.athlete?.displayName,saves:d.savePitcher.stats?.find?.(s=>s.name==="saves")?.value}:null,
@@ -614,24 +639,22 @@ function GameDetailPage({gameId,sport,navigate}){
         {(g.started||g.completed)&&g.scoringPlays?.length>0&&(
           <Card style={{padding:"16px 18px"}} hover={false}>
             <SLabel color="#22C55E">{g.sport==="mlb"?"⚾ SCORING PLAYS":g.sport==="nba"?"🏀 SCORING SUMMARY":g.sport==="nhl"?"🏒 GOALS":"🏈 SCORING SUMMARY"}</SLabel>
-            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            <div style={{display:"flex",flexDirection:"column",gap:5}}>
               {g.scoringPlays.map((sp,i)=>{
-                const team=sp.team?.abbreviation||sp.team?.shortDisplayName||"";
-                const period=sp.period?.displayValue||(sp.period?.number?`${g.sport==="nba"?"Q":g.sport==="nhl"?"P":"Q"}${sp.period.number}`:"");
-                const clock=sp.clock?.displayValue||sp.clock||"";
-                const desc=sp.text||sp.description||sp.headline||"";
+                // scoringPlays are pre-normalized: {period, clock, team, desc, awayScore, homeScore, type}
                 const score=sp.awayScore!=null?`${sp.awayScore}–${sp.homeScore}`:"";
                 return(
                   <div key={i} style={{display:"flex",gap:10,padding:"8px 12px",borderRadius:8,background:"rgba(34,197,94,.05)",border:"1px solid rgba(34,197,94,.12)",alignItems:"flex-start"}}>
-                    <div style={{minWidth:44,flexShrink:0}}>
-                      {period&&<div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#22C55E",fontWeight:700}}>{period}</div>}
-                      {clock&&<div style={{fontSize:9,color:"#475569"}}>{clock}</div>}
+                    <div style={{minWidth:52,flexShrink:0}}>
+                      {sp.period&&<div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#22C55E",fontWeight:700}}>{sp.period}</div>}
+                      {sp.clock&&<div style={{fontSize:9,color:"#475569"}}>{sp.clock}</div>}
                     </div>
                     <div style={{flex:1,minWidth:0}}>
-                      {team&&<span style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",marginRight:8,fontWeight:700}}>{team}</span>}
-                      <span style={{fontSize:12,color:"#94A3B8",lineHeight:1.4}}>{desc}</span>
+                      {sp.team&&<span style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",marginRight:8,fontWeight:700}}>{sp.team}</span>}
+                      {sp.type&&<span style={{fontSize:9,color:"#F59E0B",marginRight:6,fontFamily:"'Orbitron',sans-serif"}}>{sp.type}</span>}
+                      <span style={{fontSize:12,color:"#94A3B8",lineHeight:1.4}}>{sp.desc}</span>
                     </div>
-                    {score&&<div style={{fontSize:12,fontWeight:900,color:"#22C55E",flexShrink:0,fontFamily:"'Orbitron',sans-serif",letterSpacing:".04em"}}>{score}</div>}
+                    {score&&<div style={{fontSize:13,fontWeight:900,color:"#22C55E",flexShrink:0,fontFamily:"'Orbitron',sans-serif",letterSpacing:".04em"}}>{score}</div>}
                   </div>
                 );
               })}
@@ -1156,38 +1179,65 @@ function Starfield(){
   </div>;
 }
 
-function NotifBell({notifs,onRead,onClear,navigate,users}){
+function NotifBell({notifs,onRead,onClear,onMarkOne,navigate,users}){
   const [open,setOpen]=useState(false);const ref=useRef(null);
   const unread=notifs.filter(n=>!n.read).length;
   useEffect(()=>{const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};document.addEventListener("mousedown",h);return()=>document.removeEventListener("mousedown",h);},[]);
+  const handleClick=(n)=>{
+    if(!n.read&&onMarkOne)onMarkOne(n.id);
+    if(n.meta?.type==="news"&&n.meta?.url){window.open(n.meta.url,"_blank");setOpen(false);}
+    else if(n.from_user_id&&n.from_user_id!==n.to_user_id){navigate("profile",n.from_user_id);setOpen(false);}
+  };
   return (
     <div ref={ref} style={{position:"relative"}}>
-      <button onClick={()=>{setOpen(o=>!o);if(!open)onRead();}} className={unread>0?"bell-shake":""} style={{background:open?"rgba(0,212,255,.1)":"none",border:`1px solid ${open?"rgba(0,212,255,.3)":"rgba(255,255,255,.09)"}`,borderRadius:9,width:38,height:38,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,transition:"all .2s",position:"relative"}}>
+      <button onClick={()=>{setOpen(o=>!o);}} className={unread>0?"bell-shake":""} style={{background:open?"rgba(0,212,255,.1)":"none",border:`1px solid ${open?"rgba(0,212,255,.3)":"rgba(255,255,255,.09)"}`,borderRadius:9,width:38,height:38,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,transition:"all .2s",position:"relative"}}>
         🔔
         {unread>0&&<div style={{position:"absolute",top:-4,right:-4,width:17,height:17,borderRadius:"50%",background:"linear-gradient(135deg,#EF4444,#DC2626)",color:"white",fontSize:9,fontWeight:900,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Orbitron',sans-serif",border:"2px solid #030712"}}>{unread>9?"9+":unread}</div>}
       </button>
       {open&&(
-        <div style={{position:"absolute",right:0,top:46,width:300,zIndex:300,background:"linear-gradient(150deg,#0c1220,#0f1929)",border:"1px solid rgba(0,212,255,.15)",borderRadius:14,boxShadow:"0 20px 60px rgba(0,0,0,.8)",overflow:"hidden"}}>
+        <div style={{position:"absolute",right:0,top:46,width:340,zIndex:300,background:"linear-gradient(150deg,#0c1220,#0f1929)",border:"1px solid rgba(0,212,255,.15)",borderRadius:14,boxShadow:"0 20px 60px rgba(0,0,0,.8)",overflow:"hidden"}}>
           <div style={{padding:"14px 18px 10px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
-            <span style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#94A3B8",letterSpacing:".1em"}}>NOTIFICATIONS</span>
-            {notifs.length>0&&<button onClick={onClear} style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:"#334155"}}>Clear all</button>}
+            <span style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#94A3B8",letterSpacing:".1em"}}>NOTIFICATIONS {unread>0&&<span style={{color:"#EF4444"}}>· {unread} NEW</span>}</span>
+            <div style={{display:"flex",gap:8}}>
+              {unread>0&&<button onClick={onRead} style={{background:"none",border:"none",cursor:"pointer",fontSize:10,color:"#00D4FF"}}>Mark all read</button>}
+              {notifs.length>0&&<button onClick={onClear} style={{background:"none",border:"none",cursor:"pointer",fontSize:10,color:"#334155"}}>Clear</button>}
+            </div>
           </div>
-          <div style={{maxHeight:300,overflowY:"auto"}}>
+          <div style={{maxHeight:380,overflowY:"auto"}}>
             {notifs.length===0
               ? <div style={{padding:"28px 18px",textAlign:"center",color:"#334155",fontSize:13}}><div style={{fontSize:26,marginBottom:8}}>🔕</div>No notifications yet</div>
               : notifs.slice().reverse().map(n=>{
+                  const isNews=n.meta?.type==="news";
                   const from=users.find(u=>u.id===n.from_user_id);
                   return (
-                    <div key={n.id} className="notif-item" onClick={()=>{navigate("profile",n.from_user_id);setOpen(false);}} style={{padding:"12px 18px",display:"flex",gap:12,alignItems:"flex-start",borderBottom:"1px solid rgba(255,255,255,.04)",cursor:"pointer",background:n.read?"transparent":"rgba(0,212,255,.04)"}}>
-                      <AvatarCircle user={from} size={32}/>
-                      <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,color:"#C4CDD6",lineHeight:1.4}}><span style={{fontWeight:700,color:"#E2E8F0"}}>{from?.display_name||"Someone"}</span> {n.msg}</div><div style={{fontSize:11,color:"#334155",marginTop:3}}>{fmtTime(n.ts||Date.now())}</div></div>
-                      {!n.read&&<div style={{width:7,height:7,borderRadius:"50%",background:"#00D4FF",marginTop:4,flexShrink:0}}/>}
+                    <div key={n.id} onClick={()=>handleClick(n)} style={{padding:"11px 16px",display:"flex",gap:10,alignItems:"flex-start",borderBottom:"1px solid rgba(255,255,255,.04)",cursor:"pointer",background:n.read?"transparent":"rgba(0,212,255,.05)",transition:"background .15s"}}
+                      onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,.04)"}
+                      onMouseLeave={e=>e.currentTarget.style.background=n.read?"transparent":"rgba(0,212,255,.05)"}>
+                      {isNews
+                        ?<div style={{width:32,height:32,borderRadius:8,background:"rgba(139,92,246,.2)",border:"1px solid rgba(139,92,246,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>📰</div>
+                        :<AvatarCircle user={from} size={32}/>
+                      }
+                      <div style={{flex:1,minWidth:0}}>
+                        {isNews
+                          ?<div style={{fontSize:12,color:"#C4CDD6",lineHeight:1.4,marginBottom:2}}>{n.msg}</div>
+                          :<div style={{fontSize:12,color:"#C4CDD6",lineHeight:1.4}}><span style={{fontWeight:700,color:"#E2E8F0"}}>{from?.display_name||"Someone"}</span> {n.msg}</div>
+                        }
+                        <div style={{display:"flex",alignItems:"center",gap:8,marginTop:2}}>
+                          <span style={{fontSize:10,color:"#334155"}}>{fmtTime(n.ts||Date.now())}</span>
+                          {isNews&&<span style={{fontSize:9,color:"#8B5CF6",fontFamily:"'Orbitron',sans-serif"}}>TAP TO READ →</span>}
+                        </div>
+                      </div>
+                      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,flexShrink:0}}>
+                        {!n.read&&<div style={{width:7,height:7,borderRadius:"50%",background:"#00D4FF"}}/>}
+                        {!n.read&&<button onClick={e=>{e.stopPropagation();onMarkOne&&onMarkOne(n.id);}} style={{fontSize:9,background:"none",border:"1px solid rgba(255,255,255,.1)",borderRadius:4,cursor:"pointer",color:"#475569",padding:"2px 4px"}} title="Mark read">✓</button>}
+                      </div>
                     </div>
                   );
                 })
             }
           </div>
         </div>
+
       )}
     </div>
   );
@@ -1215,7 +1265,7 @@ function FLModal({type,user,users,navigate,onClose}){
 }
 
 // ── Navbar ────────────────────────────────────────────────────────────────────
-function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onClearNotifs,users,msgUnread}){
+function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onClearNotifs,onMarkOneNotif,users,msgUnread}){
   const mob=useIsMobile();
   const dTabs=[["home","Home"],["members","Members"],["news","📰 News"],["feed","🎬 Feed"],["predict","🎯 Predict"],["leaderboard","🏆 Board"]];
   const mTabs=[{p:"home",icon:"🏠",lbl:"Home"},{p:"members",icon:"👥",lbl:"Members"},{p:"news",icon:"📰",lbl:"News"},{p:"predict",icon:"🎯",lbl:"Predict"},{p:"leaderboard",icon:"🏆",lbl:"Board"},{p:"messages",icon:"💬",lbl:"DMs",badge:msgUnread}];
@@ -1237,7 +1287,7 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
         <div style={{display:"flex",alignItems:"center",gap:mob?6:8}}>
           {cu ? (
             <>
-              <NotifBell notifs={notifs} onRead={onReadNotifs} onClear={onClearNotifs} navigate={nav} users={users}/>
+              <NotifBell notifs={notifs} onRead={onReadNotifs} onClear={onClearNotifs} onMarkOne={onMarkOneNotif} navigate={nav} users={users}/>
               {!mob&&(
                 <button onClick={()=>nav("messages")} style={{position:"relative",background:page==="messages"?"rgba(0,212,255,.1)":"none",border:`1px solid ${page==="messages"?"rgba(0,212,255,.3)":"rgba(255,255,255,.09)"}`,borderRadius:9,width:38,height:38,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>
                   💬
@@ -2318,11 +2368,20 @@ function NewsPage({cu,users,addNotif}){
     setFeed(items);
     if(!quiet)setLoading(false);
     if(cu&&items.length){
-      const cuTeams=[cu.mlb_team,cu.nfl_team,cu.nba_team,cu.nhl_team].filter(Boolean).map(t=>t.toLowerCase());
+      // Map user's team IDs (like "nfl_kc") to team name strings (like "Chiefs") for matching
+      const allTeams=[...MLB_TEAMS,...NFL_TEAMS,...NBA_TEAMS,...NHL_TEAMS];
+      const cuTeamNames=[cu.mlb_team,cu.nfl_team,cu.nba_team,cu.nhl_team]
+        .filter(Boolean)
+        .map(id=>allTeams.find(t=>t.id===id))
+        .filter(Boolean)
+        .flatMap(t=>[t.name.toLowerCase(),t.abbr.toLowerCase()]);
       items.forEach(item=>{
         if(notifiedRef.current.has(item.id))return;
-        const match=item.teams.some(t=>cuTeams.some(ct=>ct.includes(t.toLowerCase())||t.toLowerCase().includes(ct)));
-        if(match){addNotif&&addNotif(cu.id,cu.id,`📰 ${item.source.label}: ${item.headline.slice(0,70)}`);notifiedRef.current.add(item.id);}
+        const match=item.teams.some(t=>cuTeamNames.some(cn=>cn===t.toLowerCase()||t.toLowerCase().includes(cn)||cn.includes(t.toLowerCase())));
+        if(match){
+          addNotif&&addNotif(cu.id,cu.id,`📰 ${item.headline.slice(0,80)}`,{type:"news",url:item.link});
+          notifiedRef.current.add(item.id);
+        }
       });
     }
   };
@@ -2353,7 +2412,14 @@ function NewsPage({cu,users,addNotif}){
   };
 
   const[teamFilter,setTeamFilter]=useState("");
-  const allTeamNames=[...new Set(feed.flatMap(x=>x.teams))].sort();
+  // Build grouped team list from all 4 sports, alphabetically per sport, only teams in current feed
+  const feedTeamSet=new Set(feed.flatMap(x=>x.teams));
+  const groupedTeams=[
+    {label:"⚾ MLB", teams:MLB_TEAMS.filter(t=>feedTeamSet.has(t.name)).map(t=>t.name).sort()},
+    {label:"🏈 NFL", teams:NFL_TEAMS.filter(t=>feedTeamSet.has(t.name)).map(t=>t.name).sort()},
+    {label:"🏀 NBA", teams:NBA_TEAMS.filter(t=>feedTeamSet.has(t.name)).map(t=>t.name).sort()},
+    {label:"🏒 NHL", teams:NHL_TEAMS.filter(t=>feedTeamSet.has(t.name)).map(t=>t.name).sort()},
+  ].filter(g=>g.teams.length>0);
   const displayed=(()=>{
     let items=filter==="all"?feed:feed.filter(x=>x.source.id===filter);
     if(teamFilter)items=items.filter(x=>x.teams.includes(teamFilter));
@@ -2377,12 +2443,16 @@ function NewsPage({cu,users,addNotif}){
       </div>
 
       {/* Team filter dropdown */}
-      {allTeamNames.length>0&&(
+      {groupedTeams.length>0&&(
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
           <span style={{fontSize:11,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".08em",flexShrink:0}}>🏷 TEAM:</span>
-          <select value={teamFilter} onChange={e=>setTeamFilter(e.target.value)} style={{flex:1,maxWidth:220,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"6px 10px",color:teamFilter?"#00D4FF":"#64748B",fontSize:12,cursor:"pointer"}}>
+          <select value={teamFilter} onChange={e=>setTeamFilter(e.target.value)} style={{flex:1,maxWidth:240,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"6px 10px",color:teamFilter?"#00D4FF":"#64748B",fontSize:12,cursor:"pointer"}}>
             <option value="">All Teams</option>
-            {allTeamNames.map(t=><option key={t} value={t} style={{background:"#0F172A"}}>{t}</option>)}
+            {groupedTeams.map(g=>(
+              <optgroup key={g.label} label={g.label}>
+                {g.teams.map(t=><option key={t} value={t} style={{background:"#0F172A"}}>{t}</option>)}
+              </optgroup>
+            ))}
           </select>
           {teamFilter&&<button onClick={()=>setTeamFilter("")} style={{background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.3)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:11,color:"#EF4444"}}>✕ Clear</button>}
         </div>
@@ -2608,8 +2678,8 @@ export default function App(){
     setPage(p);
   };
 
-  const addNotif=async(toId,fromId,msg)=>{
-    const n={id:gid(),to_user_id:toId,from_user_id:fromId,msg,ts:Date.now(),read:false};
+  const addNotif=async(toId,fromId,msg,meta=null)=>{
+    const n={id:gid(),to_user_id:toId,from_user_id:fromId,msg,ts:Date.now(),read:false,meta};
     await sb.post("nova_notifications",n);
   };
 
@@ -2622,6 +2692,10 @@ export default function App(){
     if(!unread.length)return;
     await Promise.all(unread.map(n=>sb.patch("nova_notifications",`?id=eq.${n.id}`,{read:true})));
     setNotifs(prev=>prev.map(n=>({...n,read:true})));
+  };
+  const markOneNotif=async(nid)=>{
+    await sb.patch("nova_notifications",`?id=eq.${nid}`,{read:true});
+    setNotifs(prev=>prev.map(n=>n.id===nid?{...n,read:true}:n));
   };
   const clearNotifs=async()=>{
     if(!cu)return;
@@ -2662,7 +2736,7 @@ export default function App(){
       <style>{CSS}</style>
       <Starfield/>
       <div style={{position:"relative",zIndex:1,minHeight:"100vh",paddingTop:62,paddingBottom:mob&&page!=="feed"?58:0}}>
-        <Navbar cu={cu} onLogin={()=>setShowLogin(true)} onRegister={()=>setShowRegister(true)} onLogout={handleLogout} nav={nav} page={page} notifs={notifs} onReadNotifs={readNotifs} onClearNotifs={clearNotifs} users={users} msgUnread={msgUnread}/>
+        <Navbar cu={cu} onLogin={()=>setShowLogin(true)} onRegister={()=>setShowRegister(true)} onLogout={handleLogout} nav={nav} page={page} notifs={notifs} onReadNotifs={readNotifs} onClearNotifs={clearNotifs} onMarkOneNotif={markOneNotif} users={users} msgUnread={msgUnread}/>
         {content()}
       </div>
       {showLogin&&<LoginModal onLogin={handleLogin} onClose={()=>setShowLogin(false)} users={users}/>}
