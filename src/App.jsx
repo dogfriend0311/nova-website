@@ -209,6 +209,9 @@ function PredictPage({cu,users,setUsers,navigate}){
         const boxPlayers=detail?.boxscore?.players||[];
         const linescore=detail?.linescore||comp.linescore||null;
         const scoringPlays=detail?.scoringPlays||[];
+        // MLB live pitcher/batter
+        const currentPitcher=situation?.pitcher?{name:situation.pitcher.athlete?.displayName,summary:situation.pitcher.summary||""}:null;
+        const currentBatter=situation?.batter?{name:situation.batter.athlete?.displayName,summary:situation.batter.summary||""}:null;
         // Period/quarter/period info for NBA/NHL
         const period=comp.status?.period??null;
         const clock=comp.status?.displayClock||"";
@@ -223,6 +226,7 @@ function PredictPage({cu,users,setUsers,navigate}){
           outs:situation?.outs??null,balls:situation?.balls??null,strikes:situation?.strikes??null,
           inning:situation?.period??null,inningHalf,
           onFirst:!!situation?.onFirst,onSecond:!!situation?.onSecond,onThird:!!situation?.onThird,
+          currentPitcher,currentBatter,
           period,clock,
           awayProb:{name:awayProb?.athlete?.displayName,era:awayProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value},
           homeProb:{name:homeProb?.athlete?.displayName,era:homeProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value},
@@ -335,6 +339,25 @@ function PredictPage({cu,users,setUsers,navigate}){
                       </div>
                     </div>
                   )}
+                  {/* MLB pitcher/batter row */}
+                  {g.sport==="mlb"&&g.started&&!g.completed&&(g.currentPitcher?.name||g.currentBatter?.name)&&(
+                    <div style={{display:"flex",gap:8,justifyContent:"center",marginBottom:14,flexWrap:"wrap"}}>
+                      {g.currentPitcher?.name&&(
+                        <div style={{background:"rgba(0,212,255,.07)",border:"1px solid rgba(0,212,255,.18)",borderRadius:10,padding:"6px 14px",textAlign:"center",minWidth:120}}>
+                          <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",letterSpacing:".1em",marginBottom:2}}>⚾ PITCHING</div>
+                          <div style={{fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{g.currentPitcher.name}</div>
+                          {g.currentPitcher.summary&&<div style={{fontSize:10,color:"#64748B",marginTop:1}}>{g.currentPitcher.summary}</div>}
+                        </div>
+                      )}
+                      {g.currentBatter?.name&&(
+                        <div style={{background:"rgba(139,92,246,.07)",border:"1px solid rgba(139,92,246,.18)",borderRadius:10,padding:"6px 14px",textAlign:"center",minWidth:120}}>
+                          <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#8B5CF6",letterSpacing:".1em",marginBottom:2}}>🏏 AT BAT</div>
+                          <div style={{fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{g.currentBatter.name}</div>
+                          {g.currentBatter.summary&&<div style={{fontSize:10,color:"#64748B",marginTop:1}}>{g.currentBatter.summary}</div>}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Live NBA/NHL situation */}
                   {(g.sport==="nba"||g.sport==="nhl")&&g.started&&!g.completed&&g.period&&(
@@ -425,18 +448,40 @@ function GameDetailPage({gameId,sport,navigate}){
       const awayProb=probables.find(p=>p.homeAway==="away");
       const homeProb=probables.find(p=>p.homeAway==="home");
       // Build normalized scoring plays for all sports
+      // ESPN returns different period formats: object with displayValue, or plain number
       const rawPlays=d?.scoringPlays||[];
-      // For MLB, ESPN uses "scoringPlays" with inning info
-      // For NBA/NHL/NFL they use period/clock fields — normalize them all
+      const normPeriod=(sp)=>{
+        const p=sp.period;
+        if(!p)return sp.periodText||"";
+        if(typeof p==="number")return sport==="nba"?`Q${p}`:sport==="nhl"?`P${p}`:`Q${p}`;
+        if(p.displayValue)return p.displayValue;
+        if(p.number){
+          if(sport==="nba")return `Q${p.number}`;
+          if(sport==="nhl")return `P${p.number}`;
+          if(sport==="mlb")return p.type==="B"?`Bot ${p.number}`:`Top ${p.number}`;
+          return `Q${p.number}`;
+        }
+        return p.text||"";
+      };
+      const normClock=(sp)=>{
+        const c=sp.clock;
+        if(!c)return "";
+        if(typeof c==="string")return c;
+        return c.displayValue||c.value||"";
+      };
       const scoringPlays=rawPlays.map(sp=>({
-        period:sp.period?.displayValue||(sp.period?.number?(sport==="nba"?`Q${sp.period.number}`:sport==="nhl"?`P${sp.period.number}`:sport==="mlb"?(sp.period?.type==="B"?`Bot ${sp.period.number}`:`Top ${sp.period.number}`):`Q${sp.period.number}`):sp.periodText||""),
-        clock:sp.clock?.displayValue||sp.clock||"",
+        period:normPeriod(sp),
+        clock:normClock(sp),
         team:sp.team?.abbreviation||sp.team?.shortDisplayName||"",
         desc:sp.text||sp.description||sp.headline||sp.summary||"",
         awayScore:sp.awayScore??null,
         homeScore:sp.homeScore??null,
-        type:sp.scoringType?.displayName||sp.type?.text||"",
+        type:sp.scoringType?.displayName||sp.type?.text||sp.type?.name||"",
       }));
+
+      // MLB live pitcher/batter
+      const currentPitcher=sit?.pitcher?{name:sit.pitcher.athlete?.displayName,summary:sit.pitcher.summary||""}:null;
+      const currentBatter=sit?.batter?{name:sit.batter.athlete?.displayName,summary:sit.batter.summary||""}:null;
 
       // Build per-period linescore for NBA/NHL/NFL (ESPN returns comp.linescores[])
       const compLinescores=comp?.linescores||[];
@@ -460,6 +505,7 @@ function GameDetailPage({gameId,sport,navigate}){
         inning:sit?.period??null,inningHalf,
         outs:sit?.outs??null,balls:sit?.balls??null,strikes:sit?.strikes??null,
         onFirst:!!sit?.onFirst,onSecond:!!sit?.onSecond,onThird:!!sit?.onThird,
+        currentPitcher,currentBatter,
         awayProb:{name:awayProb?.athlete?.displayName,era:awayProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value},
         homeProb:{name:homeProb?.athlete?.displayName,era:homeProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value},
         leaders:d?.leaders||comp?.leaders||[],
@@ -530,6 +576,25 @@ function GameDetailPage({gameId,sport,navigate}){
                 <div style={{position:"absolute",top:"50%",right:0,transform:"translateY(-50%) rotate(45deg)",width:13,height:13,background:g.onFirst?"#F59E0B":"rgba(255,255,255,.1)",border:`1px solid ${g.onFirst?"#F59E0B":"rgba(255,255,255,.15)"}`}}/>
               </div>
             </div>
+          </div>
+        )}
+        {/* MLB live pitcher/batter */}
+        {g.sport==="mlb"&&g.started&&!g.completed&&(g.currentPitcher?.name||g.currentBatter?.name)&&(
+          <div style={{display:"flex",gap:10,justifyContent:"center",marginBottom:14,flexWrap:"wrap"}}>
+            {g.currentPitcher?.name&&(
+              <div style={{background:"rgba(0,212,255,.07)",border:"1px solid rgba(0,212,255,.2)",borderRadius:10,padding:"8px 18px",textAlign:"center",minWidth:140}}>
+                <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",letterSpacing:".1em",marginBottom:3}}>⚾ PITCHING</div>
+                <div style={{fontSize:14,fontWeight:700,color:"#E2E8F0"}}>{g.currentPitcher.name}</div>
+                {g.currentPitcher.summary&&<div style={{fontSize:11,color:"#64748B",marginTop:2}}>{g.currentPitcher.summary}</div>}
+              </div>
+            )}
+            {g.currentBatter?.name&&(
+              <div style={{background:"rgba(139,92,246,.07)",border:"1px solid rgba(139,92,246,.2)",borderRadius:10,padding:"8px 18px",textAlign:"center",minWidth:140}}>
+                <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#8B5CF6",letterSpacing:".1em",marginBottom:3}}>🏏 AT BAT</div>
+                <div style={{fontSize:14,fontWeight:700,color:"#E2E8F0"}}>{g.currentBatter.name}</div>
+                {g.currentBatter.summary&&<div style={{fontSize:11,color:"#64748B",marginTop:2}}>{g.currentBatter.summary}</div>}
+              </div>
+            )}
           </div>
         )}
 
@@ -630,6 +695,37 @@ function GameDetailPage({gameId,sport,navigate}){
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:320}}>
                 <thead><tr style={{borderBottom:"1px solid rgba(255,255,255,.08)"}}><td style={{padding:"4px 8px",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:10}}>TEAM</td>{(g.linescore.columns||[]).map((cl,i)=><td key={i} style={{padding:"4px 6px",textAlign:"center",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:10}}>{cl.label||cl.value||i+1}</td>)}</tr></thead>
                 <tbody>{(g.linescore.rows||[]).map((row,ri)=>(<tr key={ri} style={{background:ri%2===0?"rgba(255,255,255,.02)":"transparent"}}><td style={{padding:"4px 8px",color:"#E2E8F0",fontWeight:700,fontFamily:"'Orbitron',sans-serif",fontSize:10}}>{row.label||row.team||""}</td>{(row.columns||[]).map((cell,ci)=>(<td key={ci} style={{padding:"4px 6px",textAlign:"center",color:cell.bold?"#22C55E":"#94A3B8",fontWeight:cell.bold?700:400}}>{cell.value??""}</td>))}</tr>))}</tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+
+        {/* NBA/NHL/NFL period scores linescore */}
+        {g.sport!=="mlb"&&(g.started||g.completed)&&g.linescore?.columns?.length>0&&(
+          <Card style={{padding:"16px 18px"}} hover={false}>
+            <SLabel color={g.sport==="nba"?"#F59E0B":g.sport==="nhl"?"#00D4FF":"#22C55E"}>
+              {g.sport==="nba"?"🏀 QUARTER SCORES":g.sport==="nhl"?"🏒 PERIOD SCORES":"🏈 QUARTER SCORES"}
+            </SLabel>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,minWidth:280}}>
+                <thead>
+                  <tr style={{borderBottom:"1px solid rgba(255,255,255,.08)"}}>
+                    <td style={{padding:"5px 10px",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:10}}>TEAM</td>
+                    {(g.linescore.columns||[]).map((cl,i)=>(
+                      <td key={i} style={{padding:"5px 8px",textAlign:"center",color:cl.label==="T"?"#22C55E":"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:cl.label==="T"?700:400}}>{cl.label}</td>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(g.linescore.rows||[]).map((row,ri)=>(
+                    <tr key={ri} style={{background:ri%2===0?"rgba(255,255,255,.02)":"transparent",borderBottom:"1px solid rgba(255,255,255,.03)"}}>
+                      <td style={{padding:"6px 10px",color:"#E2E8F0",fontWeight:700,fontFamily:"'Orbitron',sans-serif",fontSize:11}}>{row.label}</td>
+                      {(row.columns||[]).map((cell,ci)=>(
+                        <td key={ci} style={{padding:"6px 8px",textAlign:"center",color:cell.bold?"#22C55E":"#94A3B8",fontWeight:cell.bold?900:400,fontSize:cell.bold?13:12}}>{cell.value??""}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
           </Card>
