@@ -1636,13 +1636,14 @@ function VoiceCall({cu,conv,users,onEnd}){
 const HB_KEY = "sk_test_vUEKzTF26D0FfDCFTJZpUXGrQlpzs8P7ET95_q9CRyI";
 
 async function createHBSession(){
-  const r = await fetch("https://engine.hyperbeam.com/v0/vm", {
+  // Call our Vercel serverless proxy to avoid CORS
+  const r = await fetch("/api/hyperbeam", {
     method:"POST",
-    headers:{"Authorization":`Bearer ${HB_KEY}`,"Content-Type":"application/json"},
-    body:JSON.stringify({start_url:"https://www.google.com", ublock_origin:true})
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({action:"create"})
   });
   if(!r.ok){ const t=await r.text(); throw new Error(t); }
-  return r.json(); // { session_id, embed_url, admin_token }
+  return r.json();
 }
 
 function WatchParty({cu,conv,users,onEnd}){
@@ -1707,7 +1708,7 @@ function WatchParty({cu,conv,users,onEnd}){
   const endParty=async()=>{
     if(isHost.current&&sessionId){
       try{
-        await fetch(`https://engine.hyperbeam.com/v0/vm/${sessionId}`,{method:"DELETE",headers:{"Authorization":`Bearer ${HB_KEY}`}});
+        await fetch("/api/hyperbeam",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"delete",sessionId})});
       }catch{}
       await sb.del("nova_signaling",`?conv_id=eq.${conv.id}_hb`);
       await sb.del("nova_signaling",`?conv_id=eq.${conv.id}_hbchat`);
