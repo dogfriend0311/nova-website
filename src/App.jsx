@@ -195,6 +195,7 @@ function PredictPage({cu,users,setUsers,navigate}){
         let detail=null;
         if(isMLB)detail=await fetchMLBDetail(e.id);
         const situation=detail?.situation;
+        if(situation)console.log("[MLB situation]",JSON.stringify({pitcher:situation.pitcher,batter:situation.batter},null,2));
         const halfMatch=statusDetail.match(/^(Top|Bot|Mid|End)\s/i);
         const inningHalf=halfMatch?halfMatch[1].charAt(0).toUpperCase()+halfMatch[1].slice(1).toLowerCase():"Top";
         const probables=comp.probables||[];
@@ -209,9 +210,14 @@ function PredictPage({cu,users,setUsers,navigate}){
         const boxPlayers=detail?.boxscore?.players||[];
         const linescore=detail?.linescore||comp.linescore||null;
         const scoringPlays=detail?.scoringPlays||[];
-        // MLB live pitcher/batter
-        const currentPitcher=situation?.pitcher?{name:situation.pitcher.athlete?.displayName,summary:situation.pitcher.summary||""}:null;
-        const currentBatter=situation?.batter?{name:situation.batter.athlete?.displayName,summary:situation.batter.summary||""}:null;
+        // MLB live pitcher/batter — ESPN stores stats in statistics[] array, not a summary string
+        const getStat=(arr,names)=>{if(!arr)return null;for(const n of names){const s=arr.find(x=>x.name===n||x.abbreviation===n);if(s)return s.displayValue||String(s.value||"");}return null;};
+        const sitP=situation?.pitcher; const sitB=situation?.batter;
+        const pStats=sitP?.statistics||[]; const bStats=sitB?.statistics||[];
+        const pSum=[getStat(pStats,["ERA","era"])&&`ERA ${getStat(pStats,["ERA","era"])}`,getStat(pStats,["inningsPitched","IP"])&&`${getStat(pStats,["inningsPitched","IP"])} IP`,getStat(pStats,["strikeouts","K","SO"])&&`${getStat(pStats,["strikeouts","K","SO"])} K`].filter(Boolean).join(" · ");
+        const bSum=[getStat(bStats,["avg","AVG","battingAverage"])&&`AVG ${getStat(bStats,["avg","AVG","battingAverage"])}`,getStat(bStats,["homeRuns","HR"])&&`${getStat(bStats,["homeRuns","HR"])} HR`,getStat(bStats,["RBI"])&&`${getStat(bStats,["RBI"])} RBI`].filter(Boolean).join(" · ");
+        const currentPitcher=sitP?{name:sitP.athlete?.displayName||sitP.athlete?.shortName||null,summary:pSum}:null;
+        const currentBatter=sitB?{name:sitB.athlete?.displayName||sitB.athlete?.shortName||null,summary:bSum}:null;
         // Period/quarter/period info for NBA/NHL
         const period=comp.status?.period??null;
         const clock=comp.status?.displayClock||"";
@@ -480,8 +486,14 @@ function GameDetailPage({gameId,sport,navigate}){
       }));
 
       // MLB live pitcher/batter
-      const currentPitcher=sit?.pitcher?{name:sit.pitcher.athlete?.displayName,summary:sit.pitcher.summary||""}:null;
-      const currentBatter=sit?.batter?{name:sit.batter.athlete?.displayName,summary:sit.batter.summary||""}:null;
+      // ESPN stores pitcher/batter stats in statistics[] not a summary string
+      const getStatGD=(arr,names)=>{if(!arr)return null;for(const n of names){const s=arr.find(x=>x.name===n||x.abbreviation===n);if(s)return s.displayValue||String(s.value||"");}return null;};
+      const gdP=sit?.pitcher; const gdB=sit?.batter;
+      const gdPS=gdP?.statistics||[]; const gdBS=gdB?.statistics||[];
+      const gdPSum=[getStatGD(gdPS,["ERA","era"])&&`ERA ${getStatGD(gdPS,["ERA","era"])}`,getStatGD(gdPS,["inningsPitched","IP"])&&`${getStatGD(gdPS,["inningsPitched","IP"])} IP`,getStatGD(gdPS,["strikeouts","K","SO"])&&`${getStatGD(gdPS,["strikeouts","K","SO"])} K`].filter(Boolean).join(" · ");
+      const gdBSum=[getStatGD(gdBS,["avg","AVG","battingAverage"])&&`AVG ${getStatGD(gdBS,["avg","AVG","battingAverage"])}`,getStatGD(gdBS,["homeRuns","HR"])&&`${getStatGD(gdBS,["homeRuns","HR"])} HR`,getStatGD(gdBS,["RBI"])&&`${getStatGD(gdBS,["RBI"])} RBI`].filter(Boolean).join(" · ");
+      const currentPitcher=gdP?{name:gdP.athlete?.displayName||gdP.athlete?.shortName||null,summary:gdPSum}:null;
+      const currentBatter=gdB?{name:gdB.athlete?.displayName||gdB.athlete?.shortName||null,summary:gdBSum}:null;
 
       // Build per-period linescore for NBA/NHL/NFL (ESPN returns comp.linescores[])
       const compLinescores=comp?.linescores||[];
