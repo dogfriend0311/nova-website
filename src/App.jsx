@@ -1791,7 +1791,8 @@ function WatchParty({cu,conv,users,onEnd}){
     if(!document.getElementById("hb-sdk")){
       const s=document.createElement("script");
       s.id="hb-sdk";
-      s.src="https://unpkg.com/@hyperbeam/web@latest/dist/index.js";
+      s.src="https://unpkg.com/@hyperbeam/web@0.1.29/dist/index.js";
+      s.crossOrigin="anonymous";
       document.head.appendChild(s);
     }
   },[]);
@@ -1802,12 +1803,22 @@ function WatchParty({cu,conv,users,onEnd}){
     const init=async()=>{
       // Wait for SDK to load
       let tries=0;
-      while(!window.Hyperbeam&&tries<30){await new Promise(r=>setTimeout(r,200));tries++;}
-      if(!window.Hyperbeam){console.error("Hyperbeam SDK failed to load");return;}
+      while(!window.Hyperbeam&&!window.HyperbeamEmbed&&tries<30){await new Promise(r=>setTimeout(r,200));tries++;}
+      const HB=window.Hyperbeam||window.HyperbeamEmbed;
+      if(!HB){
+        // SDK failed — fallback to iframe
+        hbContainerRef.current.innerHTML=`<iframe src="${embedUrl}" allow="microphone;camera;fullscreen;clipboard-read;clipboard-write;autoplay" style="width:100%;height:100%;border:none;background:#000;"></iframe>`;
+        return;
+      }
       try{
         if(hbInstanceRef.current)hbInstanceRef.current.destroy();
-        hbInstanceRef.current=await window.Hyperbeam(hbContainerRef.current,embedUrl);
-      }catch(e){console.error("HB init error",e);}
+        const fn=typeof HB==="function"?HB:(HB.default||HB.Hyperbeam);
+        hbInstanceRef.current=await fn(hbContainerRef.current,embedUrl);
+      }catch(e){
+        console.error("HB SDK init error",e);
+        // Fallback to iframe on SDK error
+        hbContainerRef.current.innerHTML=`<iframe src="${embedUrl}" allow="microphone;camera;fullscreen;clipboard-read;clipboard-write;autoplay" style="width:100%;height:100%;border:none;background:#000;"></iframe>`;
+      }
     };
     init();
     return()=>{ if(hbInstanceRef.current){try{hbInstanceRef.current.destroy();}catch{}} hbInstanceRef.current=null; };
