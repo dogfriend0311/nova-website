@@ -372,12 +372,12 @@ function PredictPage({cu,users,setUsers}){
                     </div>
                   )}
 
-                  {/* Expandable details panel */}
-                  {isExp&&g.isMLB&&(
+                  {/* Expandable details panel — all sports */}
+                  {isExp&&(
                     <div style={{marginTop:16,display:"flex",flexDirection:"column",gap:14,borderTop:"1px solid rgba(255,255,255,.07)",paddingTop:14}}>
 
-                      {/* Pre-game: starting pitchers */}
-                      {!g.started&&(g.awayProb?.name||g.homeProb?.name)&&(
+                      {/* MLB pre-game: probable starters */}
+                      {g.sport==="mlb"&&!g.started&&(g.awayProb?.name||g.homeProb?.name)&&(
                         <div>
                           <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",marginBottom:8,letterSpacing:".12em"}}>⚾ PROBABLE STARTERS</div>
                           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -392,38 +392,31 @@ function PredictPage({cu,users,setUsers}){
                         </div>
                       )}
 
-                      {/* Post-game: win/loss/save pitchers */}
-                      {g.completed&&(g.winPitcher||g.losePitcher||g.savePitcher)&&(
+                      {/* MLB post-game: pitching decision */}
+                      {g.sport==="mlb"&&g.completed&&(g.winPitcher||g.losePitcher||g.savePitcher)&&(
                         <div>
                           <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#22C55E",marginBottom:8,letterSpacing:".12em"}}>🏆 PITCHING DECISION</div>
-                          <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                            {g.winPitcher&&<StatRow label={`W: ${g.winPitcher.name}`} val={`${g.winPitcher.wins??"-"}-${g.winPitcher.losses??"-"}`} color="#22C55E"/>}
-                            {g.losePitcher&&<StatRow label={`L: ${g.losePitcher.name}`} val={`${g.losePitcher.wins??"-"}-${g.losePitcher.losses??"-"}`} color="#EF4444"/>}
-                            {g.savePitcher&&<StatRow label={`SV: ${g.savePitcher.name}`} val={`${g.savePitcher.saves??"-"} SV`} color="#F59E0B"/>}
+                          <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                            {g.winPitcher&&<div style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}><span style={{fontSize:11,color:"#475569"}}>W: {g.winPitcher.name}</span><span style={{fontSize:12,fontWeight:700,color:"#22C55E"}}>{g.winPitcher.wins??"-"}-{g.winPitcher.losses??"-"}</span></div>}
+                            {g.losePitcher&&<div style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}><span style={{fontSize:11,color:"#475569"}}>L: {g.losePitcher.name}</span><span style={{fontSize:12,fontWeight:700,color:"#EF4444"}}>{g.losePitcher.wins??"-"}-{g.losePitcher.losses??"-"}</span></div>}
+                            {g.savePitcher&&<div style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}><span style={{fontSize:11,color:"#475569"}}>SV: {g.savePitcher.name}</span><span style={{fontSize:12,fontWeight:700,color:"#F59E0B"}}>{g.savePitcher.saves??"-"} SV</span></div>}
                           </div>
                         </div>
                       )}
 
-                      {/* Post-game: top performers / auto Player of the Game */}
+                      {/* Player of the game / top performers */}
                       {g.completed&&g.leaders?.length>0&&(()=>{
-                        // Auto-pick player of the game: find leader with highest numeric displayValue
-                        const potg=g.leaders.reduce((best,l)=>{
-                          const v=parseFloat((l.displayValue||"0").replace(/[^0-9.]/g,""))||0;
-                          const bv=parseFloat((best?.displayValue||"0").replace(/[^0-9.]/g,""))||0;
-                          return v>bv?l:best;
-                        },g.leaders[0]);
+                        const potg=g.leaders.reduce((best,l)=>{const v=parseFloat((l.displayValue||"0").replace(/[^0-9.]/g,""))||0;const bv=parseFloat((best?.displayValue||"0").replace(/[^0-9.]/g,""))||0;return v>bv?l:best;},g.leaders[0]);
                         return(
                           <div>
-                            {potg&&(
-                              <div style={{background:"linear-gradient(135deg,rgba(245,158,11,.15),rgba(251,191,36,.07))",border:"1px solid rgba(245,158,11,.3)",borderRadius:12,padding:"12px 16px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
-                                <div style={{fontSize:28}}>🌟</div>
-                                <div>
-                                  <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#F59E0B",letterSpacing:".12em",marginBottom:2}}>PLAYER OF THE GAME</div>
-                                  <div style={{fontSize:14,fontWeight:700,color:"#E2E8F0"}}>{potg.athlete?.displayName||potg.displayName||potg.name||"—"}</div>
-                                  <div style={{fontSize:12,color:"#F59E0B",fontWeight:600}}>{potg.displayValue||potg.value||"—"}</div>
-                                </div>
+                            {potg&&<div style={{background:"linear-gradient(135deg,rgba(245,158,11,.15),rgba(251,191,36,.07))",border:"1px solid rgba(245,158,11,.3)",borderRadius:12,padding:"12px 16px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
+                              <div style={{fontSize:28}}>🌟</div>
+                              <div>
+                                <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#F59E0B",letterSpacing:".12em",marginBottom:2}}>PLAYER OF THE GAME</div>
+                                <div style={{fontSize:14,fontWeight:700,color:"#E2E8F0"}}>{potg.athlete?.displayName||potg.displayName||potg.name||"—"}</div>
+                                <div style={{fontSize:12,color:"#F59E0B",fontWeight:600}}>{potg.displayValue||potg.value||"—"}</div>
                               </div>
-                            )}
+                            </div>}
                             <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#F59E0B",marginBottom:8,letterSpacing:".12em"}}>⭐ TOP PERFORMERS</div>
                             <div style={{display:"flex",flexDirection:"column",gap:5}}>
                               {g.leaders.slice(0,8).map((l,i)=>(
@@ -437,41 +430,56 @@ function PredictPage({cu,users,setUsers}){
                         );
                       })()}
 
-                      {/* Linescore by inning */}
-                      {(g.started||g.completed)&&g.linescore?.columns?.length>0&&(()=>{
-                        const cols=g.linescore.columns||[];
-                        const rows=g.linescore.rows||[];
+                      {/* MLB linescore */}
+                      {g.sport==="mlb"&&(g.started||g.completed)&&g.linescore?.columns?.length>0&&(()=>{
+                        const cols=g.linescore.columns||[];const rows=g.linescore.rows||[];
                         return(
                           <div style={{overflowX:"auto"}}>
                             <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",marginBottom:8,letterSpacing:".12em"}}>📊 LINE SCORE</div>
                             <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:300}}>
-                              <thead>
-                                <tr>
-                                  <td style={{padding:"4px 8px",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:10}}>TEAM</td>
-                                  {cols.map((c,i)=><td key={i} style={{padding:"4px 6px",textAlign:"center",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:10}}>{c.label||c.value||i+1}</td>)}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {rows.map((row,ri)=>(
-                                  <tr key={ri} style={{background:ri%2===0?"rgba(255,255,255,.02)":"transparent"}}>
-                                    <td style={{padding:"4px 8px",color:"#E2E8F0",fontWeight:700,fontFamily:"'Orbitron',sans-serif",fontSize:10}}>{row.label||row.team||""}</td>
-                                    {(row.columns||[]).map((cell,ci)=>(
-                                      <td key={ci} style={{padding:"4px 6px",textAlign:"center",color:cell.bold?"#22C55E":"#94A3B8",fontWeight:cell.bold?700:400}}>{cell.value??""}</td>
-                                    ))}
-                                  </tr>
-                                ))}
-                              </tbody>
+                              <thead><tr><td style={{padding:"4px 8px",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:10}}>TEAM</td>{cols.map((cl,i)=><td key={i} style={{padding:"4px 6px",textAlign:"center",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:10}}>{cl.label||cl.value||i+1}</td>)}</tr></thead>
+                              <tbody>{rows.map((row,ri)=>(<tr key={ri} style={{background:ri%2===0?"rgba(255,255,255,.02)":"transparent"}}><td style={{padding:"4px 8px",color:"#E2E8F0",fontWeight:700,fontFamily:"'Orbitron',sans-serif",fontSize:10}}>{row.label||row.team||""}</td>{(row.columns||[]).map((cell,ci)=>(<td key={ci} style={{padding:"4px 6px",textAlign:"center",color:cell.bold?"#22C55E":"#94A3B8",fontWeight:cell.bold?700:400}}>{cell.value??""}</td>))}</tr>))}</tbody>
                             </table>
                           </div>
                         );
                       })()}
 
-                      {/* Team stats */}
+                      {/* Scoring Summary — all sports */}
+                      {(g.started||g.completed)&&g.scoringPlays?.length>0&&(
+                        <div>
+                          <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#22C55E",marginBottom:8,letterSpacing:".12em"}}>
+                            {g.sport==="mlb"?"⚾ SCORING PLAYS":g.sport==="nba"?"🏀 SCORING SUMMARY":g.sport==="nhl"?"🏒 GOALS":"🏈 SCORING SUMMARY"}
+                          </div>
+                          <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                            {g.scoringPlays.slice(0,20).map((sp,i)=>{
+                              const team=sp.team?.abbreviation||sp.team?.shortDisplayName||"";
+                              const period=sp.period?.displayValue||(sp.period?.number?`${g.sport==="nba"?"Q":"P"}${sp.period.number}`:"");
+                              const clock=sp.clock?.displayValue||sp.clock||"";
+                              const desc=sp.text||sp.description||sp.headline||"";
+                              const score=sp.awayScore!=null?`${sp.awayScore}-${sp.homeScore}`:"";
+                              return(
+                                <div key={i} style={{display:"flex",gap:8,padding:"7px 10px",borderRadius:8,background:"rgba(34,197,94,.05)",border:"1px solid rgba(34,197,94,.12)",alignItems:"flex-start"}}>
+                                  <div style={{minWidth:36,flexShrink:0}}>
+                                    {period&&<div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#22C55E",fontWeight:700}}>{period}</div>}
+                                    {clock&&<div style={{fontSize:9,color:"#475569"}}>{clock}</div>}
+                                  </div>
+                                  <div style={{flex:1,minWidth:0}}>
+                                    {team&&<span style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",marginRight:6,fontWeight:700}}>{team}</span>}
+                                    <span style={{fontSize:11,color:"#94A3B8",lineHeight:1.4}}>{desc}</span>
+                                  </div>
+                                  {score&&<div style={{fontSize:11,fontWeight:700,color:"#22C55E",flexShrink:0,fontFamily:"'Orbitron',sans-serif"}}>{score}</div>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Team stats — all sports */}
                       {g.boxTeams?.length>0&&(()=>{
                         const awayTeam=g.boxTeams.find(t=>t.homeAway==="away")||g.boxTeams[0];
                         const homeTeam=g.boxTeams.find(t=>t.homeAway==="home")||g.boxTeams[1];
-                        const awayStats=awayTeam?.statistics||[];
-                        const homeStats=homeTeam?.statistics||[];
+                        const awayStats=awayTeam?.statistics||[];const homeStats=homeTeam?.statistics||[];
                         if(!awayStats.length&&!homeStats.length)return null;
                         return(
                           <div>
@@ -480,12 +488,12 @@ function PredictPage({cu,users,setUsers}){
                               <div style={{textAlign:"center",fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#64748B"}}>{g.away.abbr}</div>
                               <div style={{textAlign:"center",fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#64748B"}}>{g.home.abbr}</div>
                             </div>
-                            {awayStats.slice(0,8).map((stat,i)=>{
+                            {awayStats.slice(0,10).map((stat,i)=>{
                               const hStat=homeStats.find(s=>s.name===stat.name);
                               return(
                                 <div key={i} style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:6,padding:"4px 0",borderBottom:"1px solid rgba(255,255,255,.04)",alignItems:"center"}}>
                                   <div style={{textAlign:"right",fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{stat.displayValue||stat.value||"—"}</div>
-                                  <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",textAlign:"center",minWidth:70}}>{stat.label||stat.name}</div>
+                                  <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",textAlign:"center",minWidth:80}}>{stat.label||stat.name}</div>
                                   <div style={{textAlign:"left",fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{hStat?.displayValue||hStat?.value||"—"}</div>
                                 </div>
                               );
@@ -494,64 +502,33 @@ function PredictPage({cu,users,setUsers}){
                         );
                       })()}
 
-                      {/* Player stats by team in lineup order */}
+                      {/* Player box scores */}
                       {g.boxPlayers?.length>0&&g.boxPlayers.map((side,si)=>{
-                        const categories=side.statistics||[];
-                        if(!categories.length)return null;
-                        const hitting=categories.find(c=>c.name==="batting"||c.name==="hitting")||categories[0];
-                        const pitching=categories.find(c=>c.name==="pitching");
-                        const players=hitting?.athletes||[];
-                        const pitchers=pitching?.athletes||[];
-                        if(!players.length&&!pitchers.length)return null;
+                        const categories=side.statistics||[];if(!categories.length)return null;
+                        const mainCat=categories[0];const secCat=categories[1];
+                        const mainPlayers=mainCat?.athletes||[];const secPlayers=secCat?.athletes||[];
+                        if(!mainPlayers.length&&!secPlayers.length)return null;
                         const teamAbbr=side.team?.abbreviation||`Team ${si+1}`;
-                        const hitLabels=hitting?.labels||hitting?.keys||[];
-                        const pitchLabels=pitching?.labels||pitching?.keys||[];
+                        const mainLabel=mainCat?.labels||mainCat?.keys||[];const secLabel=secCat?.labels||secCat?.keys||[];
+                        const sportCatNames={mlb:["BATTING","PITCHING"],nba:["PLAYERS",""],nfl:["OFFENSE","DEFENSE"],nhl:["SKATERS","GOALIES"]}[g.sport]||["PLAYERS",""];
                         return(
                           <div key={si}>
-                            <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",marginBottom:8,letterSpacing:".12em"}}>🧢 {teamAbbr} — PLAYER STATS</div>
-                            {players.length>0&&(
-                              <div style={{overflowX:"auto",marginBottom:10}}>
-                                <div style={{fontSize:9,color:"#475569",marginBottom:5,fontFamily:"'Orbitron',sans-serif"}}>BATTING</div>
+                            <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",marginBottom:8,letterSpacing:".12em"}}>🧢 {teamAbbr}</div>
+                            {mainPlayers.length>0&&(
+                              <div style={{overflowX:"auto",marginBottom:8}}>
+                                {sportCatNames[0]&&<div style={{fontSize:9,color:"#475569",marginBottom:5,fontFamily:"'Orbitron',sans-serif"}}>{sportCatNames[0]}</div>}
                                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,minWidth:280}}>
-                                  <thead>
-                                    <tr style={{borderBottom:"1px solid rgba(255,255,255,.08)"}}>
-                                      <td style={{padding:"3px 6px",color:"#475569",minWidth:100}}>PLAYER</td>
-                                      {hitLabels.slice(0,6).map((l,i)=><td key={i} style={{padding:"3px 6px",textAlign:"center",color:"#475569"}}>{l}</td>)}
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {players.map((p,pi)=>(
-                                      <tr key={pi} style={{background:pi%2===0?"rgba(255,255,255,.02)":"transparent",borderBottom:"1px solid rgba(255,255,255,.03)"}}>
-                                        <td style={{padding:"4px 6px",color:"#E2E8F0",fontWeight:600,whiteSpace:"nowrap"}}>{p.athlete?.shortName||p.athlete?.displayName||"—"}</td>
-                                        {(p.stats||[]).slice(0,6).map((s,si2)=>(
-                                          <td key={si2} style={{padding:"4px 6px",textAlign:"center",color:"#94A3B8"}}>{s||"—"}</td>
-                                        ))}
-                                      </tr>
-                                    ))}
-                                  </tbody>
+                                  <thead><tr style={{borderBottom:"1px solid rgba(255,255,255,.08)"}}><td style={{padding:"3px 6px",color:"#475569",minWidth:100}}>PLAYER</td>{mainLabel.slice(0,6).map((l,i)=><td key={i} style={{padding:"3px 6px",textAlign:"center",color:"#475569"}}>{l}</td>)}</tr></thead>
+                                  <tbody>{mainPlayers.map((p,pi)=>(<tr key={pi} style={{background:pi%2===0?"rgba(255,255,255,.02)":"transparent",borderBottom:"1px solid rgba(255,255,255,.03)"}}><td style={{padding:"4px 6px",color:"#E2E8F0",fontWeight:600,whiteSpace:"nowrap"}}>{p.athlete?.shortName||p.athlete?.displayName||"—"}</td>{(p.stats||[]).slice(0,6).map((s,si2)=>(<td key={si2} style={{padding:"4px 6px",textAlign:"center",color:"#94A3B8"}}>{s||"—"}</td>))}</tr>))}</tbody>
                                 </table>
                               </div>
                             )}
-                            {pitchers.length>0&&(
+                            {secPlayers.length>0&&(
                               <div style={{overflowX:"auto"}}>
-                                <div style={{fontSize:9,color:"#475569",marginBottom:5,fontFamily:"'Orbitron',sans-serif"}}>PITCHING</div>
+                                {sportCatNames[1]&&<div style={{fontSize:9,color:"#475569",marginBottom:5,fontFamily:"'Orbitron',sans-serif"}}>{sportCatNames[1]}</div>}
                                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,minWidth:280}}>
-                                  <thead>
-                                    <tr style={{borderBottom:"1px solid rgba(255,255,255,.08)"}}>
-                                      <td style={{padding:"3px 6px",color:"#475569",minWidth:100}}>PITCHER</td>
-                                      {pitchLabels.slice(0,6).map((l,i)=><td key={i} style={{padding:"3px 6px",textAlign:"center",color:"#475569"}}>{l}</td>)}
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {pitchers.map((p,pi)=>(
-                                      <tr key={pi} style={{background:pi%2===0?"rgba(255,255,255,.02)":"transparent",borderBottom:"1px solid rgba(255,255,255,.03)"}}>
-                                        <td style={{padding:"4px 6px",color:"#E2E8F0",fontWeight:600,whiteSpace:"nowrap"}}>{p.athlete?.shortName||p.athlete?.displayName||"—"}</td>
-                                        {(p.stats||[]).slice(0,6).map((s,si2)=>(
-                                          <td key={si2} style={{padding:"4px 6px",textAlign:"center",color:"#94A3B8"}}>{s||"—"}</td>
-                                        ))}
-                                      </tr>
-                                    ))}
-                                  </tbody>
+                                  <thead><tr style={{borderBottom:"1px solid rgba(255,255,255,.08)"}}><td style={{padding:"3px 6px",color:"#475569",minWidth:100}}>PLAYER</td>{secLabel.slice(0,6).map((l,i)=><td key={i} style={{padding:"3px 6px",textAlign:"center",color:"#475569"}}>{l}</td>)}</tr></thead>
+                                  <tbody>{secPlayers.map((p,pi)=>(<tr key={pi} style={{background:pi%2===0?"rgba(255,255,255,.02)":"transparent",borderBottom:"1px solid rgba(255,255,255,.03)"}}><td style={{padding:"4px 6px",color:"#E2E8F0",fontWeight:600,whiteSpace:"nowrap"}}>{p.athlete?.shortName||p.athlete?.displayName||"—"}</td>{(p.stats||[]).slice(0,6).map((s,si2)=>(<td key={si2} style={{padding:"4px 6px",textAlign:"center",color:"#94A3B8"}}>{s||"—"}</td>))}</tr>))}</tbody>
                                 </table>
                               </div>
                             )}
@@ -566,7 +543,7 @@ function PredictPage({cu,users,setUsers}){
                           <div style={{display:"flex",flexDirection:"column",gap:5}}>
                             {g.injuries.slice(0,8).map((inj,i)=>(
                               <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
-                                <span style={{fontSize:11,color:"#94A3B8"}}>{inj.athlete?.displayName||inj.displayName||"—"} <span style={{color:"#475569",fontSize:10}}>({inj.team?.abbreviation||""})</span></span>
+                                <span style={{fontSize:11,color:"#94A3B8"}}>{inj.athlete?.displayName||inj.displayName||"—"} <span style={{color:"#475569",fontSize:10}}>({inj.team?.abbreviation||})</span></span>
                                 <span style={{fontSize:11,fontWeight:600,color:"#EF4444"}}>{inj.status||inj.type||"—"}</span>
                               </div>
                             ))}
@@ -595,7 +572,7 @@ function LeaderboardPage({users,navigate}){
     connections:{label:"🌐 Social",key:u=>(u.followers||[]).length+(u.following||[]).length,suffix:"connections"},
   };
   const board=boards[tab];
-  const sorted=[...users].sort((a,b)=>board.key(b)-board.key(a)).slice(0,20);
+  const sorted=board?[...users].sort((a,b)=>board.key(b)-board.key(a)).slice(0,20):[];
   const MEDALS=["🥇","🥈","🥉"];
 
   // Collect all comments across all users for comment likes leaderboard
@@ -1459,7 +1436,14 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
   const bannerSlots=["top","left","right"];
   const hasSideBanners=(u.banner_left_url||u.banner_right_url);
 
-  const musicId=u.page_music?.type==="spotify"?extractSpotify(u.page_music.url||""):extractYT(u.page_music?.url||"");
+  // Support up to 4 tracks — page_music is now an array; handle legacy single-object
+  const musicTracks=(()=>{
+    const pm=u.page_music;
+    if(!pm)return[];
+    if(Array.isArray(pm))return pm.filter(t=>t?.url);
+    if(pm.url)return[pm]; // legacy single
+    return[];
+  })();
   const dobAge=u.dob?Math.floor((Date.now()-new Date(u.dob))/(1000*60*60*24*365.25)):null;
 
   return(
@@ -1521,26 +1505,42 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
       {/* Side banners + content */}
       <div style={{display:"flex",gap:16}}>
         {!mob&&hasSideBanners&&(
-          <div style={{width:130,flexShrink:0,display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{width:160,flexShrink:0,display:"flex",flexDirection:"column",gap:8}}>
             {u.banner_left_url
-              ?<div style={{position:"relative"}}><img src={u.banner_left_url} style={{width:130,borderRadius:12,objectFit:"cover",maxHeight:480}}/>{(isMe||isOwner)&&<XBtn onClick={()=>patchUser({banner_left_url:""})} style={{position:"absolute",top:4,right:4}}/>}</div>
+              ?<div style={{position:"relative"}}><img src={u.banner_left_url} style={{width:160,borderRadius:12,objectFit:"cover",maxHeight:560}}/>{(isMe||isOwner)&&<XBtn onClick={()=>patchUser({banner_left_url:""})} style={{position:"absolute",top:4,right:4}}/>}</div>
               :(isMe||isOwner)&&<BannerBtn label="+ Left" onUpload={f=>handleBannerUpload(f,"left")}/>
             }
           </div>
         )}
         <div style={{flex:1,minWidth:0}}>
           {/* Music */}
-          {u.page_music?.url&&musicId&&(
+          {/* Music tracks (up to 4) */}
+          {(musicTracks.length>0||(isMe||isOwner))&&(
             <Card style={{padding:16,marginBottom:16}}>
-              <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#475569",letterSpacing:".15em",marginBottom:10}}>🎵 VIBING TO</div>
-              {u.page_music.type==="spotify"
-                ?<iframe src={`https://open.spotify.com/embed/track/${musicId}?utm_source=generator&theme=0`} width="100%" height="80" frameBorder="0" allow="autoplay;clipboard-write;encrypted-media;fullscreen;picture-in-picture" style={{borderRadius:8}}/>
-                :<iframe src={`https://www.youtube.com/embed/${musicId}`} width="100%" height="150" frameBorder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowFullScreen style={{borderRadius:8}}/>
-              }
-              {(isMe||isOwner)&&<button onClick={()=>patchUser({page_music:{}})} style={{marginTop:8,background:"none",border:"none",cursor:"pointer",fontSize:11,color:"#334155"}}>Remove</button>}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:musicTracks.length>0?10:0}}>
+                <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#475569",letterSpacing:".15em"}}>🎵 VIBING TO</div>
+                {(isMe||isOwner)&&musicTracks.length<4&&<Btn variant="ghost" size="sm" onClick={()=>setEditModal("music")}>+ Add Track</Btn>}
+              </div>
+              {musicTracks.length===0&&(isMe||isOwner)&&(
+                <div style={{textAlign:"center",padding:"10px 0"}}><Btn variant="ghost" size="sm" onClick={()=>setEditModal("music")}>🎵 Add Music</Btn></div>
+              )}
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                {musicTracks.map((track,ti)=>{
+                  const tid=track.type==="spotify"?extractSpotify(track.url||""):extractYT(track.url||"");
+                  if(!tid)return null;
+                  return(
+                    <div key={ti} style={{position:"relative"}}>
+                      {track.type==="spotify"
+                        ?<iframe src={`https://open.spotify.com/embed/track/${tid}?utm_source=generator&theme=0`} width="100%" height="80" frameBorder="0" allow="autoplay;clipboard-write;encrypted-media;fullscreen;picture-in-picture" style={{borderRadius:8,display:"block"}}/>
+                        :<iframe src={`https://www.youtube.com/embed/${tid}`} width="100%" height="120" frameBorder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowFullScreen style={{borderRadius:8,display:"block"}}/>
+                      }
+                      {(isMe||isOwner)&&<button onClick={()=>{const nt=musicTracks.filter((_,i)=>i!==ti);patchUser({page_music:nt});}} style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,.6)",border:"1px solid rgba(255,255,255,.2)",borderRadius:6,color:"#94A3B8",fontSize:11,cursor:"pointer",padding:"2px 7px"}}>✕</button>}
+                    </div>
+                  );
+                })}
+              </div>
             </Card>
           )}
-          {(isMe||isOwner)&&!u.page_music?.url&&<Card style={{padding:12,marginBottom:16,textAlign:"center"}}><Btn variant="ghost" size="sm" onClick={()=>setEditModal("music")}>🎵 Add Music</Btn></Card>}
 
           {/* Clips */}
           <Sec title="🎬 Clips" onAdd={isMe||isOwner?()=>setShowAddClip(true):null}>
@@ -1611,9 +1611,9 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
           </Sec>
         </div>
         {!mob&&hasSideBanners&&(
-          <div style={{width:130,flexShrink:0,display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{width:160,flexShrink:0,display:"flex",flexDirection:"column",gap:8}}>
             {u.banner_right_url
-              ?<div style={{position:"relative"}}><img src={u.banner_right_url} style={{width:130,borderRadius:12,objectFit:"cover",maxHeight:480}}/>{(isMe||isOwner)&&<XBtn onClick={()=>patchUser({banner_right_url:""})} style={{position:"absolute",top:4,right:4}}/>}</div>
+              ?<div style={{position:"relative"}}><img src={u.banner_right_url} style={{width:160,borderRadius:12,objectFit:"cover",maxHeight:560}}/>{(isMe||isOwner)&&<XBtn onClick={()=>patchUser({banner_right_url:""})} style={{position:"absolute",top:4,right:4}}/>}</div>
               :(isMe||isOwner)&&<BannerBtn label="+ Right" onUpload={f=>handleBannerUpload(f,"right")}/>
           }
           </div>
@@ -1660,13 +1660,21 @@ function EditProfileModal({u,cu,onSave,onClose}){
   );
 }
 function EditMusicModal({u,onSave}){
-  const[url,setUrl]=useState(u.page_music?.url||"");
-  const[type,setType]=useState(u.page_music?.type||"spotify");
+  const[url,setUrl]=useState("");
+  const[type,setType]=useState("spotify");
+  const tracks=(()=>{const pm=u.page_music;if(!pm)return[];if(Array.isArray(pm))return pm.filter(t=>t?.url);if(pm.url)return[pm];return[];})();
+  const save=()=>{
+    if(!url.trim())return;
+    const newTrack={url:url.trim(),type};
+    const updated=[...tracks,newTrack].slice(0,4);
+    onSave({page_music:updated});
+  };
   return(
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      {tracks.length>0&&<div style={{fontSize:11,color:"#64748B"}}>{tracks.length}/4 tracks added</div>}
       <div style={{display:"flex",gap:8}}>{["spotify","youtube"].map(t=><button key={t} onClick={()=>setType(t)} style={{flex:1,padding:"8px",borderRadius:8,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${type===t?"#00D4FF":"rgba(255,255,255,.1)"}`,background:type===t?"rgba(0,212,255,.1)":"rgba(255,255,255,.04)",color:type===t?"#00D4FF":"#94A3B8"}}>{t==="spotify"?"🟢 Spotify":"🔴 YouTube"}</button>)}</div>
       <div><Lbl>Paste Link</Lbl><input value={url} onChange={e=>setUrl(e.target.value)} placeholder={type==="spotify"?"https://open.spotify.com/track/...":"https://youtu.be/..."}/></div>
-      <Btn onClick={()=>onSave({page_music:{url,type}})}>Save Music</Btn>
+      <Btn onClick={save} disabled={!url.trim()||tracks.length>=4}>Add Track {tracks.length>=4?"(Full)":""}</Btn>
     </div>
   );
 }
@@ -2106,7 +2114,13 @@ function NewsPage({cu,users,addNotif}){
     setCommentTexts(prev=>({...prev,[itemId]:""}));
   };
 
-  const displayed=filter==="all"?feed:feed.filter(x=>x.source.id===filter);
+  const[teamFilter,setTeamFilter]=useState("");
+  const allTeamNames=[...new Set(feed.flatMap(x=>x.teams))].sort();
+  const displayed=(()=>{
+    let items=filter==="all"?feed:feed.filter(x=>x.source.id===filter);
+    if(teamFilter)items=items.filter(x=>x.teams.includes(teamFilter));
+    return items;
+  })();
 
   return(
     <div style={{maxWidth:800,margin:"0 auto",padding:"44px 16px 80px"}}>
@@ -2123,6 +2137,18 @@ function NewsPage({cu,users,addNotif}){
         ))}
         <button onClick={()=>loadFeed()} style={{marginLeft:"auto",padding:"6px 12px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"'Rajdhani',sans-serif",fontWeight:600,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.03)",color:"#475569"}}>↻ Refresh</button>
       </div>
+
+      {/* Team filter dropdown */}
+      {allTeamNames.length>0&&(
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
+          <span style={{fontSize:11,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".08em",flexShrink:0}}>🏷 TEAM:</span>
+          <select value={teamFilter} onChange={e=>setTeamFilter(e.target.value)} style={{flex:1,maxWidth:220,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"6px 10px",color:teamFilter?"#00D4FF":"#64748B",fontSize:12,cursor:"pointer"}}>
+            <option value="">All Teams</option>
+            {allTeamNames.map(t=><option key={t} value={t} style={{background:"#0F172A"}}>{t}</option>)}
+          </select>
+          {teamFilter&&<button onClick={()=>setTeamFilter("")} style={{background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.3)",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:11,color:"#EF4444"}}>✕ Clear</button>}
+        </div>
+      )}
 
       {loading&&(
         <div style={{textAlign:"center",padding:"60px 0",color:"#334155"}}>
