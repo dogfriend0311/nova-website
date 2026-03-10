@@ -543,7 +543,7 @@ function PredictPage({cu,users,setUsers}){
                           <div style={{display:"flex",flexDirection:"column",gap:5}}>
                             {g.injuries.slice(0,8).map((inj,i)=>(
                               <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
-                                <span style={{fontSize:11,color:"#94A3B8"}}>{inj.athlete?.displayName||inj.displayName||"—"} <span style={{color:"#475569",fontSize:10}}>({inj.team?.abbreviation||})</span></span>
+                                <span style={{fontSize:11,color:"#94A3B8"}}>{inj.athlete?.displayName||inj.displayName||"—"} <span style={{color:"#475569",fontSize:10}}>({inj.team?.abbreviation||""})</span></span>
                                 <span style={{fontSize:11,fontWeight:600,color:"#EF4444"}}>{inj.status||inj.type||"—"}</span>
                               </div>
                             ))}
