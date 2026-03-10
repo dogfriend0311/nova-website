@@ -1799,7 +1799,7 @@ function WatchParty({cu,conv,users,onEnd}){
   );
 }
 
-function MessagesPage({cu,users,conversations,setConversations,messages,setMessages}){\n
+function MessagesPage({cu,users,conversations,setConversations,messages,setMessages}){
   const mob=useIsMobile();
   const [activeConv,setActiveConv]=useState(null);
   const [newMsg,setNewMsg]=useState("");
