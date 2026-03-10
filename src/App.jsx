@@ -75,7 +75,7 @@ const fmtMsg  = ts => new Date(ts).toLocaleTimeString("en-US",{hour:"numeric",mi
 const ROLE_COLOR  = { Owner:"#F59E0B", Moderator:"#00D4FF", "Event Host":"#A78BFA", Helper:"#34D399" };
 const STATUS_META = { online:{color:"#22C55E",label:"Online"}, idle:{color:"#EAB308",label:"Idle"}, dnd:{color:"#EF4444",label:"Do Not Disturb"}, offline:{color:"#6B7280",label:"Offline"} };
 const SOCIAL_ICONS = {
-  roblox:    <svg width="16" height="16" viewBox="0 0 100 100" fill="currentColor"><polygon points="27,0 73,14 86,73 27,100 0,60"/><polygon points="73,14 100,27 86,73 40,86 27,60" fill="rgba(255,255,255,.25)"/></svg>,
+  roblox:    <svg width="16" height="16" viewBox="0 0 512 512" fill="currentColor"><path d="M117.53 0L0 394.47 394.47 512 512 117.53zm177.39 289.73l-94.66-28.46 28.46-94.66 94.66 28.46z"/></svg>,
   discord:   <svg width="16" height="16" viewBox="0 0 127.14 96.36" fill="currentColor"><path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"/></svg>,
   instagram: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>,
   twitter:   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>,
@@ -117,7 +117,42 @@ const NFL_TEAMS = [
   {id:"nfl_no",abbr:"NO",espn:"no",name:"Saints",color:"#D3BC8D",div:"NFC South"},{id:"nfl_tb",abbr:"TB",espn:"tb",name:"Buccaneers",color:"#D50A0A",div:"NFC South"},
   {id:"nfl_ari",abbr:"ARI",espn:"ari",name:"Cardinals",color:"#97233F",div:"NFC West"},{id:"nfl_lar",abbr:"LAR",espn:"lar",name:"Rams",color:"#003594",div:"NFC West"},
   {id:"nfl_sf",abbr:"SF",espn:"sf",name:"49ers",color:"#AA0000",div:"NFC West"},{id:"nfl_sea",abbr:"SEA",espn:"sea",name:"Seahawks",color:"#002244",div:"NFC West"},
+];const NBA_TEAMS = [
+  {id:"nba_atl",abbr:"ATL",espn:"atl",name:"Hawks",color:"#C1272D",div:"SE"},{id:"nba_bos",abbr:"BOS",espn:"bos",name:"Celtics",color:"#007A33",div:"Atlantic"},
+  {id:"nba_bkn",abbr:"BKN",espn:"bkn",name:"Nets",color:"#000000",div:"Atlantic"},{id:"nba_cha",abbr:"CHA",espn:"cha",name:"Hornets",color:"#1D1160",div:"SE"},
+  {id:"nba_chi",abbr:"CHI",espn:"chi",name:"Bulls",color:"#CE1141",div:"Central"},{id:"nba_cle",abbr:"CLE",espn:"cle",name:"Cavaliers",color:"#860038",div:"Central"},
+  {id:"nba_dal",abbr:"DAL",espn:"dal",name:"Mavericks",color:"#00538C",div:"SW"},{id:"nba_den",abbr:"DEN",espn:"den",name:"Nuggets",color:"#0E2240",div:"NW"},
+  {id:"nba_det",abbr:"DET",espn:"det",name:"Pistons",color:"#C8102E",div:"Central"},{id:"nba_gsw",abbr:"GSW",espn:"gs",name:"Warriors",color:"#1D428A",div:"Pacific"},
+  {id:"nba_hou",abbr:"HOU",espn:"hou",name:"Rockets",color:"#CE1141",div:"SW"},{id:"nba_ind",abbr:"IND",espn:"ind",name:"Pacers",color:"#002D62",div:"Central"},
+  {id:"nba_lac",abbr:"LAC",espn:"lac",name:"Clippers",color:"#C8102E",div:"Pacific"},{id:"nba_lal",abbr:"LAL",espn:"lal",name:"Lakers",color:"#552583",div:"Pacific"},
+  {id:"nba_mem",abbr:"MEM",espn:"mem",name:"Grizzlies",color:"#5D76A9",div:"SW"},{id:"nba_mia",abbr:"MIA",espn:"mia",name:"Heat",color:"#98002E",div:"SE"},
+  {id:"nba_mil",abbr:"MIL",espn:"mil",name:"Bucks",color:"#00471B",div:"Central"},{id:"nba_min",abbr:"MIN",espn:"min",name:"Timberwolves",color:"#0C2340",div:"NW"},
+  {id:"nba_nop",abbr:"NOP",espn:"no",name:"Pelicans",color:"#0C2340",div:"SW"},{id:"nba_nyk",abbr:"NYK",espn:"ny",name:"Knicks",color:"#006BB6",div:"Atlantic"},
+  {id:"nba_okc",abbr:"OKC",espn:"okc",name:"Thunder",color:"#007AC1",div:"NW"},{id:"nba_orl",abbr:"ORL",espn:"orl",name:"Magic",color:"#0077C0",div:"SE"},
+  {id:"nba_phi",abbr:"PHI",espn:"phi",name:"76ers",color:"#006BB6",div:"Atlantic"},{id:"nba_phx",abbr:"PHX",espn:"phx",name:"Suns",color:"#1D1160",div:"Pacific"},
+  {id:"nba_por",abbr:"POR",espn:"por",name:"Trail Blazers",color:"#E03A3E",div:"NW"},{id:"nba_sac",abbr:"SAC",espn:"sac",name:"Kings",color:"#5A2D81",div:"Pacific"},
+  {id:"nba_sas",abbr:"SAS",espn:"sa",name:"Spurs",color:"#C4CED4",div:"SW"},{id:"nba_tor",abbr:"TOR",espn:"tor",name:"Raptors",color:"#CE1141",div:"Atlantic"},
+  {id:"nba_uta",abbr:"UTA",espn:"utah",name:"Jazz",color:"#002B5C",div:"NW"},{id:"nba_was",abbr:"WAS",espn:"wsh",name:"Wizards",color:"#002B5C",div:"SE"},
 ];
+const NHL_TEAMS = [
+  {id:"nhl_ana",abbr:"ANA",espn:"ana",name:"Ducks",color:"#F47A38",div:"Pacific"},{id:"nhl_bos",abbr:"BOS",espn:"bos",name:"Bruins",color:"#FFB81C",div:"Atlantic"},
+  {id:"nhl_buf",abbr:"BUF",espn:"buf",name:"Sabres",color:"#003087",div:"Atlantic"},{id:"nhl_cgy",abbr:"CGY",espn:"cgy",name:"Flames",color:"#C8102E",div:"Pacific"},
+  {id:"nhl_car",abbr:"CAR",espn:"car",name:"Hurricanes",color:"#CC0000",div:"Metro"},{id:"nhl_chi",abbr:"CHI",espn:"chi",name:"Blackhawks",color:"#CF0A2C",div:"Central"},
+  {id:"nhl_col",abbr:"COL",espn:"col",name:"Avalanche",color:"#6F263D",div:"Central"},{id:"nhl_cbj",abbr:"CBJ",espn:"cbj",name:"Blue Jackets",color:"#002654",div:"Metro"},
+  {id:"nhl_dal",abbr:"DAL",espn:"dal",name:"Stars",color:"#006847",div:"Central"},{id:"nhl_det",abbr:"DET",espn:"det",name:"Red Wings",color:"#CE1126",div:"Atlantic"},
+  {id:"nhl_edm",abbr:"EDM",espn:"edm",name:"Oilers",color:"#FF4C00",div:"Pacific"},{id:"nhl_fla",abbr:"FLA",espn:"fla",name:"Panthers",color:"#041E42",div:"Atlantic"},
+  {id:"nhl_lak",abbr:"LAK",espn:"la",name:"Kings",color:"#111111",div:"Pacific"},{id:"nhl_min",abbr:"MIN",espn:"min",name:"Wild",color:"#154734",div:"Central"},
+  {id:"nhl_mtl",abbr:"MTL",espn:"mtl",name:"Canadiens",color:"#AF1E2D",div:"Atlantic"},{id:"nhl_nsh",abbr:"NSH",espn:"nsh",name:"Predators",color:"#FFB81C",div:"Central"},
+  {id:"nhl_njd",abbr:"NJD",espn:"nj",name:"Devils",color:"#CE1126",div:"Metro"},{id:"nhl_nyi",abbr:"NYI",espn:"nyi",name:"Islanders",color:"#00539B",div:"Metro"},
+  {id:"nhl_nyr",abbr:"NYR",espn:"nyr",name:"Rangers",color:"#0038A8",div:"Metro"},{id:"nhl_ott",abbr:"OTT",espn:"ott",name:"Senators",color:"#C2912C",div:"Atlantic"},
+  {id:"nhl_phi",abbr:"PHI",espn:"phi",name:"Flyers",color:"#F74902",div:"Metro"},{id:"nhl_pit",abbr:"PIT",espn:"pit",name:"Penguins",color:"#FCB514",div:"Metro"},
+  {id:"nhl_stl",abbr:"STL",espn:"stl",name:"Blues",color:"#002F87",div:"Central"},{id:"nhl_sjs",abbr:"SJS",espn:"sj",name:"Sharks",color:"#006D75",div:"Pacific"},
+  {id:"nhl_sea",abbr:"SEA",espn:"sea",name:"Kraken",color:"#001628",div:"Pacific"},{id:"nhl_tbl",abbr:"TBL",espn:"tb",name:"Lightning",color:"#002868",div:"Atlantic"},
+  {id:"nhl_tor",abbr:"TOR",espn:"tor",name:"Maple Leafs",color:"#00205B",div:"Atlantic"},{id:"nhl_van",abbr:"VAN",espn:"van",name:"Canucks",color:"#00205B",div:"Pacific"},
+  {id:"nhl_vgk",abbr:"VGK",espn:"vgs",name:"Golden Knights",color:"#B4975A",div:"Pacific"},{id:"nhl_was",abbr:"WSH",espn:"wsh",name:"Capitals",color:"#041E42",div:"Metro"},
+  {id:"nhl_wpg",abbr:"WPG",espn:"wpg",name:"Jets",color:"#041E42",div:"Central"},
+];
+
 const ALL_BADGES = [
   {id:"og",icon:"👑",label:"OG Member",color:"#F59E0B"},{id:"nova_star",icon:"💫",label:"Nova Star",color:"#00D4FF"},
   {id:"watchparty",icon:"🎬",label:"Watch Party Reg",color:"#A78BFA"},{id:"baseball",icon:"⚾",label:"Baseball Fan",color:"#34D399"},
@@ -148,67 +183,53 @@ function PredictPage({cu,users,setUsers}){
   const fetchGames=async s=>{
     setLoading(true);
     try{
-      const sport2=s==="mlb"?"baseball/mlb":"football/nfl";
-      const data=await(await fetch(`https://site.api.espn.com/apis/site/v2/sports/${sport2}/scoreboard`)).json();
+      const sportPath=s==="mlb"?"baseball/mlb":s==="nfl"?"football/nfl":s==="nba"?"basketball/nba":"hockey/nhl";
+      const data=await(await fetch(`https://site.api.espn.com/apis/site/v2/sports/${sportPath}/scoreboard`)).json();
       const evs=await Promise.all((data.events||[]).map(async e=>{
         const comp=e.competitions[0];
         const home=comp.competitors.find(c=>c.homeAway==="home");
         const away=comp.competitors.find(c=>c.homeAway==="away");
         const st=comp.status?.type;
+        const statusDetail=comp.status?.type?.shortDetail||"";
         const isMLB=s==="mlb";
         let detail=null;
-        if(isMLB) detail=await fetchMLBDetail(e.id);
+        if(isMLB)detail=await fetchMLBDetail(e.id);
         const situation=detail?.situation;
-        // Parse inning half from status detail string e.g. "Top 3rd", "Bot 5th", "Mid 7th"
-        const statusDetail=comp.status?.type?.shortDetail||"";
         const halfMatch=statusDetail.match(/^(Top|Bot|Mid|End)\s/i);
         const inningHalf=halfMatch?halfMatch[1].charAt(0).toUpperCase()+halfMatch[1].slice(1).toLowerCase():"Top";
-        // probables
         const probables=comp.probables||[];
         const awayProb=probables.find(p=>p.homeAway==="away");
         const homeProb=probables.find(p=>p.homeAway==="home");
-        // injuries
-        const injuries=detail?.injuries||[];
-        // win/loss/save
+        const injuries=detail?.injuries||comp.injuries||[];
         const winPitcher=detail?.winPitcher;
         const losePitcher=detail?.losePitcher;
         const savePitcher=detail?.savePitcher;
-        // leaders/top performers
         const leaders=detail?.leaders||comp.leaders||[];
-        // full boxscore
         const boxTeams=detail?.boxscore?.teams||[];
         const boxPlayers=detail?.boxscore?.players||[];
-        // linescore (runs by inning)
         const linescore=detail?.linescore||comp.linescore||null;
-        // scoring plays
         const scoringPlays=detail?.scoringPlays||[];
+        // Period/quarter/period info for NBA/NHL
+        const period=comp.status?.period??null;
+        const clock=comp.status?.displayClock||"";
         return{
-          id:e.id,date:e.date,
-          home:{name:home?.team?.displayName,abbr:home?.team?.abbreviation,logo:home?.team?.logo,score:home?.score},
-          away:{name:away?.team?.displayName,abbr:away?.team?.abbreviation,logo:away?.team?.logo,score:away?.score},
+          id:e.id,date:e.date,sport:s,
+          home:{name:home?.team?.displayName,abbr:home?.team?.abbreviation,logo:home?.team?.logo,score:home?.score,stats:home?.statistics||[]},
+          away:{name:away?.team?.displayName,abbr:away?.team?.abbreviation,logo:away?.team?.logo,score:away?.score,stats:away?.statistics||[]},
           status:statusDetail||"Scheduled",
           started:st?.completed||st?.name==="STATUS_IN_PROGRESS",
           completed:st?.completed||false,
           isMLB,
-          outs:situation?.outs??null,
-          balls:situation?.balls??null,
-          strikes:situation?.strikes??null,
-          inning:situation?.period??null,
-          inningHalf,
-          onFirst:!!situation?.onFirst,
-          onSecond:!!situation?.onSecond,
-          onThird:!!situation?.onThird,
+          outs:situation?.outs??null,balls:situation?.balls??null,strikes:situation?.strikes??null,
+          inning:situation?.period??null,inningHalf,
+          onFirst:!!situation?.onFirst,onSecond:!!situation?.onSecond,onThird:!!situation?.onThird,
+          period,clock,
           awayProb:{name:awayProb?.athlete?.displayName,era:awayProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value},
           homeProb:{name:homeProb?.athlete?.displayName,era:homeProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value},
-          injuries,
-          winPitcher:winPitcher?{name:winPitcher.athlete?.displayName,wins:winPitcher.stats?.find?.(s=>s.name==="wins")?.value,losses:winPitcher.stats?.find?.(s=>s.name==="losses")?.value}:null,
+          injuries,winPitcher:winPitcher?{name:winPitcher.athlete?.displayName,wins:winPitcher.stats?.find?.(s=>s.name==="wins")?.value,losses:winPitcher.stats?.find?.(s=>s.name==="losses")?.value}:null,
           losePitcher:losePitcher?{name:losePitcher.athlete?.displayName,wins:losePitcher.stats?.find?.(s=>s.name==="wins")?.value,losses:losePitcher.stats?.find?.(s=>s.name==="losses")?.value}:null,
           savePitcher:savePitcher?{name:savePitcher.athlete?.displayName,saves:savePitcher.stats?.find?.(s=>s.name==="saves")?.value}:null,
-          leaders,
-          boxTeams,
-          boxPlayers,
-          linescore,
-          scoringPlays,
+          leaders,boxTeams,boxPlayers,linescore,scoringPlays,
         };
       }));
       setGames(evs);
@@ -242,8 +263,8 @@ function PredictPage({cu,users,setUsers}){
       <div style={{textAlign:"center",marginBottom:32}}>
         <h1 style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?22:28,fontWeight:700,marginBottom:8,background:"linear-gradient(135deg,#fff,#00D4FF)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>🎯 Predictions</h1>
         <p style={{color:"#475569",fontSize:14,marginBottom:20}}>Pick winners before games start. Locks when game begins. Live scores auto-update every 30s.</p>
-        <div style={{display:"flex",gap:6,justifyContent:"center"}}>
-          {[["mlb","⚾ MLB"],["nfl","🏈 NFL"]].map(([s,l])=>(
+        <div style={{display:"flex",gap:6,justifyContent:"center",flexWrap:"wrap"}}>
+          {[["mlb","⚾ MLB"],["nfl","🏈 NFL"],["nba","🏀 NBA"],["nhl","🏒 NHL"]].map(([s,l])=>(
             <button key={s} onClick={()=>setSport(s)} style={{padding:"8px 20px",borderRadius:20,cursor:"pointer",fontSize:12,fontFamily:"'Rajdhani',sans-serif",fontWeight:700,border:`1px solid ${sport===s?"rgba(0,212,255,.5)":"rgba(255,255,255,.1)"}`,background:sport===s?"rgba(0,212,255,.12)":"rgba(255,255,255,.03)",color:sport===s?"#00D4FF":"#64748B",transition:"all .2s"}}>{l}</button>
           ))}
         </div>
@@ -251,7 +272,7 @@ function PredictPage({cu,users,setUsers}){
       {loading
         ?<div style={{textAlign:"center",padding:"60px 0",color:"#334155"}}><div className="spin" style={{fontSize:28,display:"inline-block",marginBottom:12}}>⚙️</div><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,letterSpacing:".15em"}}>FETCHING LIVE DATA...</div></div>
         :games.length===0
-          ?<Empty icon={sport==="mlb"?"⚾":"🏈"} msg={`No ${sport.toUpperCase()} games today. Check back tomorrow!`}/>
+          ?<Empty icon={sport==="mlb"?"⚾":sport==="nfl"?"🏈":sport==="nba"?"🏀":"🏒"} msg={`No ${sport.toUpperCase()} games today. Check back later!`}/>
           :<div style={{display:"flex",flexDirection:"column",gap:16}}>
             {games.map(g=>{
               const myPick=predictions[g.id];
@@ -262,7 +283,7 @@ function PredictPage({cu,users,setUsers}){
               const pa=users.filter(u=>u.predictions?.[g.id]==="away").length;
               const tot=ph+pa||1;
               const isExp=expanded[g.id];
-              const hasDetail=g.isMLB&&(g.winPitcher||g.awayProb?.name||g.injuries?.length||g.outs!==null);
+              const hasDetail=g.winPitcher||g.awayProb?.name||g.injuries?.length||g.outs!==null||g.leaders?.length>0||g.boxTeams?.length>0;
               return(
                 <Card key={g.id} style={{padding:"16px 18px"}} hover={false}>
                   {/* Status bar */}
@@ -275,7 +296,7 @@ function PredictPage({cu,users,setUsers}){
                   </div>
 
                   {/* Live MLB situation */}
-                  {g.isMLB&&g.started&&!g.completed&&g.outs!==null&&(
+                  {g.sport==="mlb"&&g.started&&!g.completed&&g.outs!==null&&(
                     <div style={{display:"flex",gap:10,justifyContent:"center",marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
                       <div style={{background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.25)",borderRadius:10,padding:"6px 16px",textAlign:"center"}}>
                         <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#22C55E",letterSpacing:".1em"}}>INNING</div>
@@ -301,6 +322,20 @@ function PredictPage({cu,users,setUsers}){
                           <div style={{position:"absolute",top:"50%",right:0,transform:"translateY(-50%) rotate(45deg)",width:13,height:13,background:g.onFirst?"#F59E0B":"rgba(255,255,255,.1)",border:`1px solid ${g.onFirst?"#F59E0B":"rgba(255,255,255,.15)"}`}}/>
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Live NBA/NHL situation */}
+                  {(g.sport==="nba"||g.sport==="nhl")&&g.started&&!g.completed&&g.period&&(
+                    <div style={{display:"flex",gap:10,justifyContent:"center",marginBottom:14,alignItems:"center"}}>
+                      <div style={{background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.25)",borderRadius:10,padding:"6px 20px",textAlign:"center"}}>
+                        <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#22C55E",letterSpacing:".1em"}}>{g.sport==="nba"?"QUARTER":"PERIOD"}</div>
+                        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:15,fontWeight:900,color:"#E2E8F0"}}>{g.period}</div>
+                      </div>
+                      {g.clock&&<div style={{background:"rgba(0,212,255,.08)",border:"1px solid rgba(0,212,255,.2)",borderRadius:10,padding:"6px 20px",textAlign:"center"}}>
+                        <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",letterSpacing:".1em"}}>CLOCK</div>
+                        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:15,fontWeight:900,color:"#E2E8F0"}}>{g.clock}</div>
+                      </div>}
                     </div>
                   )}
 
@@ -562,6 +597,19 @@ function LeaderboardPage({users,navigate}){
   const board=boards[tab];
   const sorted=[...users].sort((a,b)=>board.key(b)-board.key(a)).slice(0,20);
   const MEDALS=["🥇","🥈","🥉"];
+
+  // Collect all comments across all users for comment likes leaderboard
+  const[allComments,setAllComments]=useState([]);
+  const[cmtLoading,setCmtLoading]=useState(false);
+  useEffect(()=>{
+    if(tab!=="commentlikes")return;
+    setCmtLoading(true);
+    sb.get("nova_comments","?order=timestamp.desc&limit=500").then(rows=>{
+      setAllComments((rows||[]).filter(c=>(c.likes||[]).length>0).sort((a,b)=>(b.likes?.length||0)-(a.likes?.length||0)));
+      setCmtLoading(false);
+    });
+  },[tab]);
+
   return(
     <div style={{maxWidth:700,margin:"0 auto",padding:"44px 16px 80px"}}>
       <div style={{textAlign:"center",marginBottom:32}}>
@@ -572,27 +620,84 @@ function LeaderboardPage({users,navigate}){
         {Object.entries(boards).map(([k,v])=>(
           <button key={k} onClick={()=>setTab(k)} style={{padding:"8px 16px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===k?"rgba(0,212,255,.5)":"rgba(255,255,255,.1)"}`,background:tab===k?"rgba(0,212,255,.12)":"rgba(255,255,255,.03)",color:tab===k?"#00D4FF":"#64748B",transition:"all .2s"}}>{v.label}</button>
         ))}
+        <button onClick={()=>setTab("commentlikes")} style={{padding:"8px 16px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab==="commentlikes"?"rgba(239,68,68,.5)":"rgba(255,255,255,.1)"}`,background:tab==="commentlikes"?"rgba(239,68,68,.12)":"rgba(255,255,255,.03)",color:tab==="commentlikes"?"#EF4444":"#64748B",transition:"all .2s"}}>❤️ Top Comments</button>
       </div>
-      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {sorted.map((u,i)=>(
-          <div key={u.id} onClick={()=>navigate("profile",u.id)} style={{display:"flex",alignItems:"center",gap:mob?10:14,padding:mob?"12px 14px":"14px 18px",borderRadius:14,background:i===0?"linear-gradient(135deg,rgba(245,158,11,.12),rgba(251,191,36,.05))":i===1?"linear-gradient(135deg,rgba(148,163,184,.08),rgba(100,116,139,.04))":i===2?"linear-gradient(135deg,rgba(251,146,60,.1),rgba(234,88,12,.04))":"rgba(255,255,255,.03)",border:`1px solid ${i===0?"rgba(245,158,11,.3)":i===1?"rgba(148,163,184,.15)":i===2?"rgba(251,146,60,.2)":"rgba(255,255,255,.07)"}`,cursor:"pointer",transition:"all .2s"}} onMouseEnter={e=>e.currentTarget.style.transform="translateX(4px)"} onMouseLeave={e=>e.currentTarget.style.transform="translateX(0)"}>
-            <div style={{width:32,textAlign:"center",fontFamily:"'Orbitron',sans-serif",fontSize:i<3?20:13,fontWeight:900,color:i===0?"#F59E0B":i===1?"#94A3B8":i===2?"#FB923C":"#334155",flexShrink:0}}>{MEDALS[i]||`#${i+1}`}</div>
-            <Av user={u} size={mob?38:44}/>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?10:12,fontWeight:700,color:"#E2E8F0",marginBottom:2}}>{u.display_name}</div>
-              <div style={{fontSize:11,color:"#475569"}}>@{u.username}</div>
+
+      {tab==="commentlikes"?(
+        <div>
+          {cmtLoading&&<div style={{textAlign:"center",padding:40,color:"#334155"}}>Loading top comments...</div>}
+          {!cmtLoading&&allComments.length===0&&<Empty icon="❤️" msg="No liked comments yet!"/>}
+          {!cmtLoading&&allComments.length>0&&(()=>{
+            const top=allComments[0];
+            const topUser=users.find(x=>x.id===top.author_id);
+            return(<>
+              {/* Showcase top comment */}
+              <div style={{background:"linear-gradient(135deg,rgba(239,68,68,.15),rgba(245,158,11,.08))",border:"1px solid rgba(239,68,68,.3)",borderRadius:16,padding:"16px 20px",marginBottom:20}}>
+                <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#EF4444",letterSpacing:".12em",marginBottom:10}}>🏆 MOST LIKED COMMENT</div>
+                <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                  <Av user={topUser||{avatar:top.author_avatar,avatar_url:top.author_avatar_url,page_accent:"#EF4444"}} size={36}/>
+                  <div style={{flex:1}}>
+                    <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0",marginBottom:4,cursor:"pointer"}} onClick={()=>navigate("profile",top.author_id)}>{top.author_name}</div>
+                    {top.text?.startsWith("__IMG__")
+                      ?<img src={top.text.slice(7)} style={{maxWidth:200,maxHeight:140,borderRadius:8,objectFit:"contain"}}/>
+                      :<div style={{fontSize:14,color:"#94A3B8",lineHeight:1.6}}>{top.text}</div>
+                    }
+                    <div style={{marginTop:8,display:"flex",alignItems:"center",gap:6}}>
+                      <span style={{fontSize:20}}>❤️</span>
+                      <span style={{fontFamily:"'Orbitron',sans-serif",fontSize:18,fontWeight:900,color:"#EF4444"}}>{top.likes?.length||0}</span>
+                      <span style={{fontSize:11,color:"#475569"}}>likes</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* Rest of top comments */}
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {allComments.slice(0,25).map((c,i)=>{
+                  const au=users.find(x=>x.id===c.author_id);
+                  return(
+                    <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",borderRadius:12,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)"}}>
+                      <div style={{width:28,textAlign:"center",fontFamily:"'Orbitron',sans-serif",fontSize:i<3?18:12,fontWeight:900,color:i===0?"#F59E0B":i===1?"#94A3B8":i===2?"#FB923C":"#334155",flexShrink:0}}>{MEDALS[i]||`#${i+1}`}</div>
+                      <Av user={au||{avatar:c.author_avatar,avatar_url:c.author_avatar_url,page_accent:"#EF4444"}} size={32}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#E2E8F0",cursor:"pointer",marginBottom:2}} onClick={()=>navigate("profile",c.author_id)}>{c.author_name}</div>
+                        {c.text?.startsWith("__IMG__")
+                          ?<span style={{fontSize:11,color:"#475569"}}>📷 Image</span>
+                          :<div style={{fontSize:12,color:"#64748B",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.text}</div>
+                        }
+                      </div>
+                      <div style={{flexShrink:0,display:"flex",alignItems:"center",gap:4}}>
+                        <span>❤️</span><span style={{fontFamily:"'Orbitron',sans-serif",fontSize:16,fontWeight:900,color:"#EF4444"}}>{c.likes?.length||0}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>);
+          })()}
+        </div>
+      ):(
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {sorted.map((u,i)=>(
+            <div key={u.id} onClick={()=>navigate("profile",u.id)} style={{display:"flex",alignItems:"center",gap:mob?10:14,padding:mob?"12px 14px":"14px 18px",borderRadius:14,background:i===0?"linear-gradient(135deg,rgba(245,158,11,.12),rgba(251,191,36,.05))":i===1?"linear-gradient(135deg,rgba(148,163,184,.08),rgba(100,116,139,.04))":i===2?"linear-gradient(135deg,rgba(251,146,60,.1),rgba(234,88,12,.04))":"rgba(255,255,255,.03)",border:`1px solid ${i===0?"rgba(245,158,11,.3)":i===1?"rgba(148,163,184,.15)":i===2?"rgba(251,146,60,.2)":"rgba(255,255,255,.07)"}`,cursor:"pointer",transition:"all .2s"}} onMouseEnter={e=>e.currentTarget.style.transform="translateX(4px)"} onMouseLeave={e=>e.currentTarget.style.transform="translateX(0)"}>
+              <div style={{width:32,textAlign:"center",fontFamily:"'Orbitron',sans-serif",fontSize:i<3?20:13,fontWeight:900,color:i===0?"#F59E0B":i===1?"#94A3B8":i===2?"#FB923C":"#334155",flexShrink:0}}>{MEDALS[i]||`#${i+1}`}</div>
+              <Av user={u} size={mob?38:44}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?10:12,fontWeight:700,color:"#E2E8F0",marginBottom:2}}>{u.display_name}</div>
+                <div style={{fontSize:11,color:"#475569"}}>@{u.username}</div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?18:22,fontWeight:900,color:i===0?"#F59E0B":i===1?"#94A3B8":i===2?"#FB923C":"#00D4FF"}}>{board.key(u)}</div>
+                <div style={{fontSize:10,color:"#475569"}}>{board.suffix}</div>
+              </div>
             </div>
-            <div style={{textAlign:"right",flexShrink:0}}>
-              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?18:22,fontWeight:900,color:i===0?"#F59E0B":i===1?"#94A3B8":i===2?"#FB923C":"#00D4FF"}}>{board.key(u)}</div>
-              <div style={{fontSize:10,color:"#475569"}}>{board.suffix}</div>
-            </div>
-          </div>
-        ))}
-        {sorted.length===0&&<Empty icon="🏆" msg="No data yet!"/>}
-      </div>
+          ))}
+          {sorted.length===0&&<Empty icon="🏆" msg="No data yet!"/>}
+        </div>
+      )}
     </div>
   );
 }
+
 
 // ─── Feed ──────────────────────────────────────────────────────────────────────
 function FeedPage({users,cu,likes,onLike,navigate}){
@@ -752,7 +857,7 @@ function MembersPage({users,nav}){
             <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?10:11,fontWeight:700,color:"#E2E8F0",marginBottom:2}}>{u.display_name}</div>
             <div style={{fontSize:11,color:"#475569",marginBottom:5}}>@{u.username}</div>
             {u.staff_role&&<div style={{marginBottom:5}}><RoleBadge color={ROLE_COLOR[u.staff_role]||"#00D4FF"}>{u.staff_role}</RoleBadge></div>}
-            {(u.mlb_team||u.nfl_team)&&<div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:5}}>{u.mlb_team&&<TeamBadge teamId={u.mlb_team}/>}{u.nfl_team&&<TeamBadge teamId={u.nfl_team}/>}</div>}
+            {(u.mlb_team||u.nfl_team||u.nba_team||u.nhl_team)&&<div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:5}}>{u.mlb_team&&<TeamBadge teamId={u.mlb_team}/>}{u.nfl_team&&<TeamBadge teamId={u.nfl_team}/>}{u.nba_team&&<TeamBadge teamId={u.nba_team}/>}{u.nhl_team&&<TeamBadge teamId={u.nhl_team}/>}</div>}
             <div style={{display:"flex",gap:8,fontSize:11,color:"#475569"}}><span>{(u.followers||[]).length} followers</span><span>·</span><span>{(u.badges||[]).length} 🏅</span></div>
           </Card>
         ))}
@@ -811,8 +916,34 @@ function CommentImgUpload({onUpload}){
   const h=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>8*1024*1024){alert("Max 8MB");return;}setUp(true);await onUpload(f);setUp(false);e.target.value="";};
   return <><input type="file" ref={ref} accept="image/*" onChange={h} style={{display:"none"}}/><button onClick={()=>ref.current.click()} disabled={up} title="Attach photo" style={{background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.09)",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:12,color:"#64748B",display:"flex",alignItems:"center",gap:5,width:"fit-content"}}>{up?"⏳ Uploading...":"📷 Add Photo"}</button></>;
 }
-function TeamLogo({espn,sport,size=22}){const [err,setErr]=useState(false);if(err)return <span style={{fontSize:size*.65}}>{sport==="mlb"?"⚾":"🏈"}</span>;return <img src={`https://a.espncdn.com/i/teamlogos/${sport}/500/${espn}.png`} width={size} height={size} style={{objectFit:"contain",flexShrink:0}} onError={()=>setErr(true)}/>;}
-function TeamBadge({teamId}){const team=[...MLB_TEAMS,...NFL_TEAMS].find(t=>t.id===teamId);if(!team)return null;const sport=teamId.startsWith("nfl_")?"nfl":"mlb";return <div style={{display:"inline-flex",alignItems:"center",gap:5,background:team.color+"22",border:`1.5px solid ${team.color}66`,borderRadius:20,padding:"3px 10px"}}><TeamLogo espn={team.espn} sport={sport} size={18}/><span style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",fontWeight:700,color:team.color,letterSpacing:".06em"}}>{team.abbr}</span><span style={{fontSize:9,color:team.color+"cc",fontWeight:600}}>{team.name}</span></div>;}
+function TeamLogo({espn,sport,size=22}){const [err,setErr]=useState(false);if(err)return <span style={{fontSize:size*.65}}>{sport==="mlb"?"⚾":sport==="nfl"?"🏈":sport==="nba"?"🏀":"🏒"}</span>;return <img src={`https://a.espncdn.com/i/teamlogos/${sport}/500/${espn}.png`} width={size} height={size} style={{objectFit:"contain",flexShrink:0}} onError={()=>setErr(true)}/>;}
+function TeamBadge({teamId}){
+  const allTeams=[...MLB_TEAMS,...NFL_TEAMS,...NBA_TEAMS,...NHL_TEAMS];
+  const team=allTeams.find(t=>t.id===teamId);if(!team)return null;
+  const sport=teamId.startsWith("nfl_")?"nfl":teamId.startsWith("nba_")?"nba":teamId.startsWith("nhl_")?"nhl":"mlb";
+  return <div style={{display:"inline-flex",alignItems:"center",gap:5,background:team.color+"22",border:`1.5px solid ${team.color}66`,borderRadius:20,padding:"3px 10px"}}><TeamLogo espn={team.espn} sport={sport} size={18}/><span style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",fontWeight:700,color:team.color,letterSpacing:".06em"}}>{team.abbr}</span><span style={{fontSize:9,color:team.color+"cc",fontWeight:600}}>{team.name}</span></div>;
+}
+function TeamPicker({sport,teams,value,onChange}){
+  const byDiv={};
+  teams.forEach(t=>{if(!byDiv[t.div])byDiv[t.div]=[];byDiv[t.div].push(t);});
+  return(
+    <div style={{maxHeight:320,overflowY:"auto",display:"flex",flexDirection:"column",gap:10}}>
+      {Object.entries(byDiv).map(([div,ts])=>(
+        <div key={div}>
+          <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#475569",letterSpacing:".12em",marginBottom:6}}>{div}</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+            {ts.map(t=>(
+              <button key={t.id} onClick={()=>onChange(value===t.id?"":t.id)} style={{display:"flex",alignItems:"center",gap:5,padding:"5px 10px",borderRadius:20,cursor:"pointer",border:`1.5px solid ${value===t.id?t.color+"aa":"rgba(255,255,255,.1)"}`,background:value===t.id?t.color+"22":"rgba(255,255,255,.03)",transition:"all .15s"}}>
+                <TeamLogo espn={t.espn} sport={sport} size={16}/>
+                <span style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700,color:value===t.id?t.color:"#94A3B8"}}>{t.abbr}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function SocialLinks({user}){
   const platforms=Object.keys(SOCIAL_ICONS).filter(k=>user[`social_${k}`]);
@@ -1361,7 +1492,7 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
             </div>
             <div style={{fontSize:12,color:"#334155",marginBottom:8}}>@{u.username} · Joined {u.joined||"Nova"}</div>
             {u.bio&&<p style={{color:"#94A3B8",fontSize:14,lineHeight:1.6,marginBottom:8}}>{u.bio}</p>}
-            {(u.mlb_team||u.nfl_team)&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>{u.mlb_team&&<TeamBadge teamId={u.mlb_team}/>}{u.nfl_team&&<TeamBadge teamId={u.nfl_team}/>}</div>}
+            {(u.mlb_team||u.nfl_team||u.nba_team||u.nhl_team)&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>{u.mlb_team&&<TeamBadge teamId={u.mlb_team}/>}{u.nfl_team&&<TeamBadge teamId={u.nfl_team}/>}{u.nba_team&&<TeamBadge teamId={u.nba_team}/>}{u.nhl_team&&<TeamBadge teamId={u.nhl_team}/>}</div>}
             <SocialLinks user={u}/>
             <div style={{display:"flex",gap:14,flexWrap:"wrap",alignItems:"center",marginTop:10}}>
               <button onClick={()=>setShowFL("followers")} style={{background:"none",border:"none",cursor:"pointer",color:"#E2E8F0",fontFamily:"'Orbitron',sans-serif",fontSize:10}}><span style={{fontSize:14,fontWeight:900}}>{(u.followers||[]).length}</span> followers</button>
@@ -1390,9 +1521,9 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
       {/* Side banners + content */}
       <div style={{display:"flex",gap:16}}>
         {!mob&&hasSideBanners&&(
-          <div style={{width:90,flexShrink:0,display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{width:130,flexShrink:0,display:"flex",flexDirection:"column",gap:8}}>
             {u.banner_left_url
-              ?<div style={{position:"relative"}}><img src={u.banner_left_url} style={{width:90,borderRadius:10,objectFit:"cover",maxHeight:320}}/>{(isMe||isOwner)&&<XBtn onClick={()=>patchUser({banner_left_url:""})} style={{position:"absolute",top:4,right:4}}/>}</div>
+              ?<div style={{position:"relative"}}><img src={u.banner_left_url} style={{width:130,borderRadius:12,objectFit:"cover",maxHeight:480}}/>{(isMe||isOwner)&&<XBtn onClick={()=>patchUser({banner_left_url:""})} style={{position:"absolute",top:4,right:4}}/>}</div>
               :(isMe||isOwner)&&<BannerBtn label="+ Left" onUpload={f=>handleBannerUpload(f,"left")}/>
             }
           </div>
@@ -1423,7 +1554,7 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
             </Sec>
           )}
 
-          {/* Comments */}
+          {/* Comments with likes */}
           <Sec title="💬 Comments">
             {cu&&(
               <div style={{display:"flex",gap:10,marginBottom:16,alignItems:"flex-start"}}>
@@ -1446,14 +1577,31 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
               {comments.map(c=>{
                 const author=users.find(x=>x.id===c.author_id);const canDel=cu&&(cu.id===c.author_id||cu.id===u.id||cu.is_owner);
                 const isImg=c.text?.startsWith("__IMG__");
+                const likeCount=c.likes?.length||0;
+                const iLiked=cu&&(c.likes||[]).includes(cu.id);
+                const toggleLike=()=>{
+                  if(!cu)return;
+                  const newLikes=iLiked?(c.likes||[]).filter(id=>id!==cu.id):[...(c.likes||[]),cu.id];
+                  setComments(prev=>prev.map(x=>x.id===c.id?{...x,likes:newLikes}:x));
+                  // Persist likes in nova_comments
+                  sb.patch("nova_comments",`?id=eq.${c.id}`,{likes:newLikes});
+                };
                 return(
                   <div key={c.id} className="comment-row" style={{display:"flex",gap:10,padding:"10px 12px",borderRadius:10,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",position:"relative"}}>
                     <Av user={author||{avatar:c.author_avatar,avatar_url:c.author_avatar_url,page_accent:"#00D4FF"}} size={30} onClick={()=>navigate("profile",c.author_id)}/>
-                    <div style={{flex:1}}><div style={{display:"flex",gap:8,alignItems:"center",marginBottom:3}}><span style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#E2E8F0",cursor:"pointer"}} onClick={()=>navigate("profile",c.author_id)}>{c.author_name}</span><span style={{fontSize:10,color:"#334155"}}>{fmtAgo(c.timestamp)}</span></div>
-                    {isImg
-                      ?<img src={c.text.slice(7)} style={{maxWidth:220,maxHeight:260,borderRadius:10,display:"block",marginTop:4,objectFit:"contain",cursor:"pointer"}} onClick={()=>window.open(c.text.slice(7),"_blank")}/>
-                      :<div style={{fontSize:13,color:"#94A3B8",lineHeight:1.5}}>{c.text}</div>
-                    }
+                    <div style={{flex:1}}>
+                      <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:3}}>
+                        <span style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#E2E8F0",cursor:"pointer"}} onClick={()=>navigate("profile",c.author_id)}>{c.author_name}</span>
+                        <span style={{fontSize:10,color:"#334155"}}>{fmtAgo(c.timestamp)}</span>
+                      </div>
+                      {isImg
+                        ?<img src={c.text.slice(7)} style={{maxWidth:220,maxHeight:260,borderRadius:10,display:"block",marginTop:4,objectFit:"contain",cursor:"pointer"}} onClick={()=>window.open(c.text.slice(7),"_blank")}/>
+                        :<div style={{fontSize:13,color:"#94A3B8",lineHeight:1.5}}>{c.text}</div>
+                      }
+                      <button onClick={toggleLike} style={{marginTop:6,display:"flex",alignItems:"center",gap:4,background:"none",border:"none",cursor:cu?"pointer":"default",padding:0}}>
+                        <span style={{fontSize:13,filter:iLiked?"none":"grayscale(1)",opacity:iLiked?1:.5}}>❤️</span>
+                        {likeCount>0&&<span style={{fontSize:10,color:iLiked?"#EF4444":"#475569",fontWeight:700}}>{likeCount}</span>}
+                      </button>
                     </div>
                     {canDel&&<XBtn className="del-btn" onClick={()=>deleteComment(c.id)} style={{opacity:0,position:"absolute",top:8,right:8}}/>}
                   </div>
@@ -1463,9 +1611,9 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
           </Sec>
         </div>
         {!mob&&hasSideBanners&&(
-          <div style={{width:90,flexShrink:0,display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{width:130,flexShrink:0,display:"flex",flexDirection:"column",gap:8}}>
             {u.banner_right_url
-              ?<div style={{position:"relative"}}><img src={u.banner_right_url} style={{width:90,borderRadius:10,objectFit:"cover",maxHeight:320}}/>{(isMe||isOwner)&&<XBtn onClick={()=>patchUser({banner_right_url:""})} style={{position:"absolute",top:4,right:4}}/>}</div>
+              ?<div style={{position:"relative"}}><img src={u.banner_right_url} style={{width:130,borderRadius:12,objectFit:"cover",maxHeight:480}}/>{(isMe||isOwner)&&<XBtn onClick={()=>patchUser({banner_right_url:""})} style={{position:"absolute",top:4,right:4}}/>}</div>
               :(isMe||isOwner)&&<BannerBtn label="+ Right" onUpload={f=>handleBannerUpload(f,"right")}/>
           }
           </div>
@@ -1475,8 +1623,9 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
       {/* Edit Modals */}
       {editModal==="profile"&&<EditProfileModal u={u} cu={cu} onSave={async p=>{await patchUser(p);setEditModal(null);setUsers(prev=>prev.map(x=>x.id===u.id?{...x,...p}:x));}} onClose={()=>setEditModal(null)}/>}
       {editModal==="music"&&<Modal title="🎵 Set Music" onClose={()=>setEditModal(null)}><EditMusicModal u={u} onSave={async p=>{await patchUser(p);setEditModal(null);}}/></Modal>}
-      {editModal==="team"&&<Modal title="⚽ Favorite Teams" onClose={()=>setEditModal(null)} width={540}><EditTeamsModal u={u} onSave={async p=>{await patchUser(p);setEditModal(null);}}/></Modal>}
+      {editModal==="team"&&<Modal title="🏆 Favorite Teams" onClose={()=>setEditModal(null)} width={580}><EditTeamsModal u={u} onSave={async p=>{await patchUser(p);setEditModal(null);}}/></Modal>}
       {editModal==="socials"&&<Modal title="🔗 Social Links" onClose={()=>setEditModal(null)}><EditSocialsModal u={u} onSave={async p=>{await patchUser(p);setEditModal(null);}}/></Modal>}
+
       {showAddClip&&<AddClipModal uid={u.id} onAdd={addClip} onClose={()=>setShowAddClip(false)}/>}
       {showAddSocial&&<Modal title="📱 Add Social Clip" onClose={()=>setShowAddSocial(false)}><AddLinkClipModal onAdd={addSocial} onClose={()=>setShowAddSocial(false)}/></Modal>}
     </div>
@@ -1524,13 +1673,20 @@ function EditMusicModal({u,onSave}){
 function EditTeamsModal({u,onSave}){
   const[mlb,setMlb]=useState(u.mlb_team||"");
   const[nfl,setNfl]=useState(u.nfl_team||"");
+  const[nba,setNba]=useState(u.nba_team||"");
+  const[nhl,setNhl]=useState(u.nhl_team||"");
   const[tab,setTab]=useState("mlb");
+  const tabs=[["mlb","⚾ MLB"],["nfl","🏈 NFL"],["nba","🏀 NBA"],["nhl","🏒 NHL"]];
   return(
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
-      <div style={{display:"flex",gap:8}}>{[["mlb","⚾ MLB"],["nfl","🏈 NFL"]].map(([t,l])=><button key={t} onClick={()=>setTab(t)} style={{flex:1,padding:"8px",borderRadius:8,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"#00D4FF":"rgba(255,255,255,.1)"}`,background:tab===t?"rgba(0,212,255,.1)":"rgba(255,255,255,.04)",color:tab===t?"#00D4FF":"#94A3B8"}}>{l}</button>)}</div>
-      {tab==="mlb"&&<TeamPicker sport="mlb" teams={MLB} value={mlb} onChange={setMlb}/>}
-      {tab==="nfl"&&<TeamPicker sport="nfl" teams={NFL} value={nfl} onChange={setNfl}/>}
-      <Btn onClick={()=>onSave({mlb_team:mlb,nfl_team:nfl})}>Save Teams</Btn>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+        {tabs.map(([t,l])=><button key={t} onClick={()=>setTab(t)} style={{flex:1,minWidth:70,padding:"7px",borderRadius:8,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"#00D4FF":"rgba(255,255,255,.1)"}`,background:tab===t?"rgba(0,212,255,.1)":"rgba(255,255,255,.04)",color:tab===t?"#00D4FF":"#94A3B8"}}>{l}</button>)}
+      </div>
+      {tab==="mlb"&&<TeamPicker sport="mlb" teams={MLB_TEAMS} value={mlb} onChange={setMlb}/>}
+      {tab==="nfl"&&<TeamPicker sport="nfl" teams={NFL_TEAMS} value={nfl} onChange={setNfl}/>}
+      {tab==="nba"&&<TeamPicker sport="nba" teams={NBA_TEAMS} value={nba} onChange={setNba}/>}
+      {tab==="nhl"&&<TeamPicker sport="nhl" teams={NHL_TEAMS} value={nhl} onChange={setNhl}/>}
+      <Btn onClick={()=>onSave({mlb_team:mlb,nfl_team:nfl,nba_team:nba,nhl_team:nhl})}>Save Teams</Btn>
     </div>
   );
 }
@@ -1926,7 +2082,7 @@ function NewsPage({cu,users,addNotif}){
     if(!quiet)setLoading(false);
     // Notify cu if news matches their teams
     if(cu&&items.length){
-      const cuTeams=[cu.mlb_team,cu.nfl_team].filter(Boolean).map(t=>t.toLowerCase());
+      const cuTeams=[cu.mlb_team,cu.nfl_team,cu.nba_team,cu.nhl_team].filter(Boolean).map(t=>t.toLowerCase());
       items.forEach(item=>{
         if(notifiedRef.current.has(item.id))return;
         const match=item.teams.some(t=>cuTeams.some(ct=>ct.includes(t.toLowerCase())||t.toLowerCase().includes(ct)));
@@ -2101,7 +2257,7 @@ function RegisterModal({onRegister,onClose}){
     setLoading(true);setErr("");
     const exists=await sb.get("nova_users",`?username=eq.${un}`);
     if(exists&&exists.length>0){setErr("Username taken");setLoading(false);return;}
-    const newUser={id:gid(),username:un,password:pw,display_name:dn,avatar:av,bio:"",is_owner:false,staff_role:null,joined:new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}),badges:[],status_type:"online",status_activity:"",followers:[],following:[],page_accent:"#00D4FF",page_music:{},page_clips:[],page_social:[],page_social_links:{},banner_top_url:"",banner_left_url:"",banner_right_url:"",social_roblox:"",social_instagram:"",social_twitter:"",social_youtube:"",social_discord:"",mlb_team:"",nfl_team:"",dob:"",predictions:{},correct_predictions:0,avatar_url:""};
+    const newUser={id:gid(),username:un,password:pw,display_name:dn,avatar:av,bio:"",is_owner:false,staff_role:null,joined:new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}),badges:[],status_type:"online",status_activity:"",followers:[],following:[],page_accent:"#00D4FF",page_music:{},page_clips:[],page_social:[],page_social_links:{},banner_top_url:"",banner_left_url:"",banner_right_url:"",social_roblox:"",social_instagram:"",social_twitter:"",social_youtube:"",social_discord:"",mlb_team:"",nfl_team:"",nba_team:"",nhl_team:"",dob:"",predictions:{},correct_predictions:0,avatar_url:""};
     const res=await sb.post("nova_users",newUser);
     if(res){const u=Array.isArray(res)?res[0]:res;saveSess(u);onRegister(u);}else setErr("Registration failed. Try again.");
     setLoading(false);
@@ -2223,7 +2379,7 @@ export default function App(){
   const mob=useIsMobile();
 
   const content=()=>{
-    if(page==="profile"&&profileId)return <ProfilePage userId={profileId} cu={cu} users={users} setUsers={us=>{setUsers(us);if(cu){const up=us.find(x=>x.id===cu.id);if(up)setCu(up);}}} navigate={nav} addNotif={addNotif}/>;
+    if(page==="profile"&&profileId)return <ProfilePage userId={profileId} cu={cu} users={users} setUsers={updater=>{const next=typeof updater==="function"?updater(users):updater;setUsers(next);if(cu){const up=next.find(x=>x.id===cu.id);if(up)setCu(up);}}} navigate={nav} addNotif={addNotif}/>;
     if(page==="news")return <NewsPage cu={cu} users={users} addNotif={addNotif}/>;
     if(page==="members")return <MembersPage users={users} nav={nav}/>;
     if(page==="feed")return <FeedPage users={users} cu={cu} likes={likes} onLike={handleLike} navigate={nav}/>;
