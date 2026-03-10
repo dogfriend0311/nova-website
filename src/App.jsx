@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 
 const SUPABASE_URL = "https://expzaiduzjehvyfclnnj.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4cHphaWR1emplaHZ5ZmNsbm5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2OTUwNTQsImV4cCI6MjA4ODI3MTA1NH0.ZZrWRASkBWha6XDuw23bazoXK224diM0HTlgPkdLCy0";
@@ -1166,10 +1166,10 @@ function Btn({children,onClick,variant="primary",size="md",style:ext={},disabled
   return <button style={{...base,...v[variant],...ext}} onClick={onClick} disabled={disabled} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)}>{children}</button>;
 }
 function RoleBadge({children,color="#00D4FF"}){return <span style={{display:"inline-block",fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",padding:"2px 8px",borderRadius:20,background:color+"22",border:`1px solid ${color}55`,color}}>{children}</span>;}
-function Card({children,style:ext={},hover=true,onClick}){
+const Card=React.forwardRef(function Card({children,style:ext={},hover=true,onClick},ref){
   const [h,setH]=useState(false);
-  return <div onClick={onClick} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} style={{background:"rgba(255,255,255,.03)",backdropFilter:"blur(14px)",border:`1px solid ${h&&hover?"rgba(0,212,255,.28)":"rgba(255,255,255,.07)"}`,borderRadius:14,transition:"all .28s",transform:h&&hover?"translateY(-2px)":"",boxShadow:h&&hover?"0 12px 40px rgba(0,0,0,.3)":"none",cursor:onClick?"pointer":"default",...ext}}>{children}</div>;
-}
+  return <div ref={ref} onClick={onClick} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} style={{background:"rgba(255,255,255,.03)",backdropFilter:"blur(14px)",border:`1px solid ${h&&hover?"rgba(0,212,255,.28)":"rgba(255,255,255,.07)"}`,borderRadius:14,transition:"all .28s",transform:h&&hover?"translateY(-2px)":"",boxShadow:h&&hover?"0 12px 40px rgba(0,0,0,.3)":"none",cursor:onClick?"pointer":"default",...ext}}>{children}</div>;
+});
 function Modal({children,onClose,title,width=480}){
   const mob=useIsMobile();
   return (
@@ -1633,6 +1633,69 @@ function VoiceCall({cu,conv,users,onEnd}){
 
 // ─── Watch Party Component ───────────────────────────────────────────────────────
 // ─── Watch Party (Hyperbeam) ─────────────────────────────────────────────────────
+// ─── GIF Picker (Tenor) ─────────────────────────────────────────────────────────
+const TENOR_KEY = "AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCZQ"; // free public Tenor API key
+
+function GifPicker({onSelect,onClose}){
+  const [query,setQuery]=useState("");
+  const [gifs,setGifs]=useState([]);
+  const [loading,setLoading]=useState(false);
+  const searchRef=useRef(null);
+
+  useEffect(()=>{
+    searchRef.current?.focus();
+    fetchTrending();
+  },[]);
+
+  const fetchTrending=async()=>{
+    setLoading(true);
+    try{
+      const r=await fetch(`https://tenor.googleapis.com/v2/featured?key=${TENOR_KEY}&limit=24&media_filter=gif`);
+      const d=await r.json();
+      setGifs(d.results||[]);
+    }catch{}
+    setLoading(false);
+  };
+
+  const search=async(q)=>{
+    if(!q.trim()){fetchTrending();return;}
+    setLoading(true);
+    try{
+      const r=await fetch(`https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=${TENOR_KEY}&limit=24&media_filter=gif`);
+      const d=await r.json();
+      setGifs(d.results||[]);
+    }catch{}
+    setLoading(false);
+  };
+
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.7)"}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{width:420,maxHeight:520,background:"#0c1220",border:"1px solid rgba(255,255,255,.12)",borderRadius:16,display:"flex",flexDirection:"column",overflow:"hidden",boxShadow:"0 20px 60px rgba(0,0,0,.8)"}}>
+        <div style={{padding:"12px 14px",borderBottom:"1px solid rgba(255,255,255,.07)",display:"flex",gap:10,alignItems:"center"}}>
+          <span style={{fontSize:18}}>🎭</span>
+          <input ref={searchRef} placeholder="Search GIFs..." value={query} onChange={e=>{setQuery(e.target.value);}} onKeyDown={e=>{if(e.key==="Enter")search(query);}} style={{flex:1,padding:"7px 12px",borderRadius:20,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.12)",color:"#E2E8F0",fontSize:13,outline:"none"}}/>
+          <button onClick={()=>search(query)} style={{background:"rgba(0,212,255,.15)",border:"1px solid rgba(0,212,255,.3)",borderRadius:8,padding:"6px 12px",cursor:"pointer",color:"#00D4FF",fontSize:12}}>Search</button>
+          <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",color:"#475569",fontSize:18}}>✕</button>
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:10,display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+          {loading&&<div style={{gridColumn:"1/-1",textAlign:"center",padding:30,color:"#475569"}}>Loading...</div>}
+          {!loading&&gifs.length===0&&<div style={{gridColumn:"1/-1",textAlign:"center",padding:30,color:"#475569"}}>No GIFs found</div>}
+          {gifs.map(g=>{
+            const med=g.media_formats?.gif||g.media_formats?.tinygif||Object.values(g.media_formats||{})[0];
+            if(!med)return null;
+            return(
+              <div key={g.id} onClick={()=>{onSelect(med.url);onClose();}} style={{cursor:"pointer",borderRadius:8,overflow:"hidden",aspectRatio:"1",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.06)"}}>
+                <img src={med.url} style={{width:"100%",height:"100%",objectFit:"cover"}} loading="lazy"/>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{padding:"6px 10px",borderTop:"1px solid rgba(255,255,255,.07)",fontSize:9,color:"#334155",textAlign:"right",fontFamily:"'Orbitron',sans-serif",letterSpacing:".05em"}}>POWERED BY TENOR</div>
+      </div>
+    </div>
+  );
+}
+
 const HB_KEY = "sk_test_vUEKzTF26D0FfDCFTJZpUXGrQlpzs8P7ET95_q9CRyI";
 
 async function createHBSession(){
@@ -1653,6 +1716,7 @@ function WatchParty({cu,conv,users,onEnd}){
   const [chatMsgs,setChatMsgs]=useState([]);
   const [chatInput,setChatInput]=useState("");
   const [members,setMembers]=useState([cu.display_name]);
+  const [wpGifPicker,setWpGifPicker]=useState(false);
   const [err,setErr]=useState(null);
   const chatPollRef=useRef(null);
   const chatTsRef=useRef(Date.now()-500);
@@ -1716,6 +1780,11 @@ function WatchParty({cu,conv,users,onEnd}){
     onEnd();
   };
 
+  const sendGif=async(url)=>{
+    const msg={name:cu.display_name,text:`__IMG__${url}`,ts:Date.now()};
+    await sb.post("nova_signaling",{id:gid(),conv_id:conv.id+"_hbchat",from_id:cu.id,type:"hb-chat",data:JSON.stringify(msg),ts:Date.now()});
+    setChatMsgs(prev=>[...prev,{...msg,id:gid()}]);
+  };
   const sendChat=async()=>{
     if(!chatInput.trim())return;
     const msg={name:cu.display_name,text:chatInput.trim(),ts:Date.now()};
@@ -1782,16 +1851,26 @@ function WatchParty({cu,conv,users,onEnd}){
             <div style={{padding:"8px 12px",fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#475569",borderBottom:"1px solid rgba(255,255,255,.05)",letterSpacing:".1em"}}>PARTY CHAT</div>
             <div style={{flex:1,overflowY:"auto",padding:"10px",display:"flex",flexDirection:"column",gap:7}}>
               {chatMsgs.length===0&&<div style={{fontSize:11,color:"#334155",textAlign:"center",padding:"20px 0"}}>Chat while you watch!</div>}
-              {chatMsgs.map((m,i)=>(
-                <div key={m.id||i}>
-                  <span style={{color:m.name===cu.display_name?"#00D4FF":"#8B5CF6",fontWeight:700,fontSize:10}}>{m.name}: </span>
-                  <span style={{fontSize:12,color:"#94A3B8"}}>{m.text}</span>
-                </div>
-              ))}
+              {chatMsgs.map((m,i)=>{
+                const isGif=m.text?.startsWith("__IMG__");
+                return(
+                  <div key={m.id||i}>
+                    <span style={{color:m.name===cu.display_name?"#00D4FF":"#8B5CF6",fontWeight:700,fontSize:10}}>{m.name}</span>
+                    {isGif
+                      ?<img src={m.text.slice(7)} style={{display:"block",maxWidth:"100%",borderRadius:6,marginTop:3}} loading="lazy"/>
+                      :<span style={{fontSize:12,color:"#94A3B8"}}> {m.text}</span>
+                    }
+                  </div>
+                );
+              })}
             </div>
-            <div style={{padding:"8px",borderTop:"1px solid rgba(255,255,255,.07)",display:"flex",gap:4}}>
-              <input value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")sendChat();}} placeholder="Say something..." style={{flex:1,fontSize:11,padding:"6px 10px",borderRadius:8,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#E2E8F0",outline:"none"}}/>
-              <button onClick={sendChat} style={{background:"rgba(0,212,255,.15)",border:"1px solid rgba(0,212,255,.3)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"#00D4FF",fontSize:14}}>→</button>
+            {wpGifPicker&&<GifPicker onSelect={url=>{sendGif(url);setWpGifPicker(false);}} onClose={()=>setWpGifPicker(false)}/>}
+            <div style={{padding:"8px",borderTop:"1px solid rgba(255,255,255,.07)",display:"flex",gap:4,flexDirection:"column"}}>
+              <div style={{display:"flex",gap:4}}>
+                <input value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")sendChat();}} placeholder="Say something..." style={{flex:1,fontSize:11,padding:"6px 10px",borderRadius:8,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#E2E8F0",outline:"none"}}/>
+                <button onClick={()=>setWpGifPicker(true)} style={{background:"rgba(139,92,246,.15)",border:"1px solid rgba(139,92,246,.3)",borderRadius:6,padding:"6px 8px",cursor:"pointer",color:"#A78BFA",fontSize:10,fontWeight:700}}>GIF</button>
+                <button onClick={sendChat} style={{background:"rgba(0,212,255,.15)",border:"1px solid rgba(0,212,255,.3)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"#00D4FF",fontSize:14}}>→</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1969,13 +2048,8 @@ function MessagesPage({cu,users,conversations,setConversations,messages,setMessa
                   <VoiceCall cu={cu} conv={activeConv} users={users} onEnd={()=>setInCall(false)}/>
                 </div>
               )}
-              {/* Watch Party panel */}
-              {inWatchParty&&cu&&activeConv&&(
-                <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
-                  <WatchParty cu={cu} conv={activeConv} users={users} onEnd={()=>setInWatchParty(false)}/>
-                </div>
-              )}
-              {!inWatchParty&&<div style={{flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:8}}>
+              {/* Watch Party — rendered as fullscreen modal below */}
+              <div style={{flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:8}}>
                 {convMsgs.length===0&&(
                   <div style={{textAlign:"center",padding:"60px 20px",color:"#334155"}}>
                     <div style={{fontSize:32,marginBottom:8}}>👋</div>
@@ -2010,7 +2084,7 @@ function MessagesPage({cu,users,conversations,setConversations,messages,setMessa
                 <button onClick={()=>dmImgRef.current.click()} disabled={dmUploading} title="Send photo" style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,width:38,height:38,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{dmUploading?"⏳":"📷"}</button>
                 <input value={newMsg} onChange={e=>setNewMsg(e.target.value)} placeholder="Type a message..." onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMsg();}}} style={{flex:1,borderRadius:24,padding:"10px 18px"}}/>
                 <Btn onClick={sendMsg} disabled={!newMsg.trim()}>Send ➤</Btn>
-              </div>}
+              </div>
             </>
           ) : (
             <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:"#334155"}}>
@@ -2019,6 +2093,13 @@ function MessagesPage({cu,users,conversations,setConversations,messages,setMessa
               <Btn variant="ghost" size="sm" onClick={()=>setShowNew(true)}>＋ Start New Chat</Btn>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Watch Party fullscreen modal */}
+      {inWatchParty&&cu&&activeConv&&(
+        <div style={{position:"fixed",inset:0,zIndex:400,background:"rgba(3,7,18,.97)",display:"flex",flexDirection:"column"}}>
+          <WatchParty cu={cu} conv={activeConv} users={users} onEnd={()=>setInWatchParty(false)}/>
         </div>
       )}
 
@@ -2058,7 +2139,7 @@ function MessagesPage({cu,users,conversations,setConversations,messages,setMessa
 }
 
 // ─── Profile ───────────────────────────────────────────────────────────────────
-function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
+function ProfilePage({userId,cu,users,setUsers,navigate,addNotif,navOpts={}}){
   const mob=useIsMobile();
   const u=users.find(x=>x.id===userId);
   const isMe=cu?.id===userId;
@@ -2072,8 +2153,16 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
   const[showTeamPicker,setShowTeamPicker]=useState(null);
   const[replyTo,setReplyTo]=useState(null); // {id, author_name, author_id}
   const[profileTab,setProfileTab]=useState("posts"); // posts | activity
+  const commentsSectionRef=useRef(null);
+  useEffect(()=>{
+    if(navOpts.scrollToComments){
+      setProfileTab("posts");
+      setTimeout(()=>commentsSectionRef.current?.scrollIntoView({behavior:"smooth",block:"start"}),400);
+    }
+  },[navOpts]);
   const[userActivity,setUserActivity]=useState([]); // comments made by this user elsewhere
   const[activityLoading,setActivityLoading]=useState(false);
+  const[showGifPicker,setShowGifPicker]=useState(false);
 
   useEffect(()=>{if(u)loadComments();},[userId]);
   useEffect(()=>{
@@ -2271,6 +2360,7 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
           )}
 
           {/* Comments with likes + replies + activity tab */}
+          <div ref={commentsSectionRef}/>
           <Sec title="💬 Comments">
             {/* Tabs */}
             <div style={{display:"flex",gap:6,marginBottom:14}}>
@@ -2287,13 +2377,21 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
                   const isNews=ac.profile_user_id?.startsWith("news_");
                   const targetUser=!isNews&&users.find(x=>x.id===ac.profile_user_id);
                   const isImg=ac.text?.startsWith("__IMG__");
+                  const newsId=isNews?ac.profile_user_id.replace("news_",""):null;
+                  const handleActivityClick=()=>{
+                    if(isNews){
+                      navigate("news",null,{expandId:newsId});
+                    } else {
+                      navigate("profile",ac.profile_user_id,{scrollToComments:true});
+                    }
+                  };
                   return(
-                    <div key={ac.id} style={{display:"flex",gap:10,padding:"10px 12px",borderRadius:10,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",marginBottom:8,cursor:isNews?"default":"pointer"}} onClick={()=>!isNews&&navigate("profile",ac.profile_user_id)}>
+                    <div key={ac.id} onClick={handleActivityClick} style={{display:"flex",gap:10,padding:"10px 12px",borderRadius:10,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",marginBottom:8,cursor:"pointer",transition:"border-color .15s"}} onMouseEnter={e=>e.currentTarget.style.borderColor="rgba(0,212,255,.3)"} onMouseLeave={e=>e.currentTarget.style.borderColor="rgba(255,255,255,.06)"}>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontSize:10,color:"#475569",marginBottom:4}}>
                           {isNews
-                            ?<span style={{color:"#8B5CF6",fontWeight:700}}>📰 News Discussion</span>
-                            :<>commented on <span style={{color:"#00D4FF",fontWeight:700}}>{targetUser?.display_name||"someone"}'s profile</span></>
+                            ?<><span style={{color:"#8B5CF6",fontWeight:700}}>📰 News</span> · <span style={{color:"#94A3B8"}}>click to view discussion</span></>
+                            :<>💬 commented on <span style={{color:"#00D4FF",fontWeight:700}}>{targetUser?.display_name||"someone"}'s profile</span></>
                           }
                           <span style={{marginLeft:8}}>{fmtAgo(ac.timestamp)}</span>
                         </div>
@@ -2304,7 +2402,7 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
                         }
                         {(ac.likes?.length>0)&&<div style={{fontSize:10,color:"#EF4444",marginTop:3}}>❤️ {ac.likes.length}</div>}
                       </div>
-                      {!isNews&&<span style={{fontSize:11,color:"#334155",flexShrink:0}}>→</span>}
+                      <span style={{fontSize:14,color:"#334155",flexShrink:0,alignSelf:"center"}}>→</span>
                     </div>
                   );
                 })}
@@ -2325,11 +2423,15 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif}){
                     <input value={commentText} onChange={e=>setCommentText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();submitComment();}}} placeholder={replyTo?`Reply to ${replyTo.author_name}...`:"Leave a comment..."} style={{flex:1}}/>
                     <Btn size="sm" onClick={()=>submitComment()} disabled={!commentText.trim()}>Post</Btn>
                   </div>
-                  <CommentImgUpload onUpload={async f=>{
-                    const ext=f.name.split(".").pop();
-                    const url=await sbUp("nova-banners",`cmt-${gid()}.${ext}`,f);
-                    if(url)submitComment(url);
-                  }}/>
+                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                    <CommentImgUpload onUpload={async f=>{
+                      const ext=f.name.split(".").pop();
+                      const url=await sbUp("nova-banners",`cmt-${gid()}.${ext}`,f);
+                      if(url)submitComment(url);
+                    }}/>
+                    <button onClick={()=>setShowGifPicker(true)} style={{background:"rgba(139,92,246,.15)",border:"1px solid rgba(139,92,246,.3)",borderRadius:8,padding:"4px 10px",cursor:"pointer",color:"#A78BFA",fontSize:12,fontWeight:700}}>GIF</button>
+                  </div>
+                  {showGifPicker&&<GifPicker onSelect={url=>submitComment(`__IMG__${url}`)} onClose={()=>setShowGifPicker(false)}/>}
                 </div>
               </div>
             )}
@@ -2840,12 +2942,20 @@ async function fetchESPNNews(){
             .sort((a,b)=>b.pubDate-a.pubDate);
 }
 
-function NewsPage({cu,users,addNotif}){
+function NewsPage({cu,users,addNotif,navOpts={}}){
   const mob=useIsMobile();
   const[feed,setFeed]=useState([]);
   const[loading,setLoading]=useState(true);
   const[filter,setFilter]=useState("all");
-  const[expandedId,setExpandedId]=useState(null);
+  const[expandedId,setExpandedId]=useState(navOpts.expandId||null);
+  const expandedRef=useRef(null);
+  useEffect(()=>{
+    if(navOpts.expandId){
+      setExpandedId(navOpts.expandId);
+      loadNewsComments(navOpts.expandId);
+      setTimeout(()=>expandedRef.current?.scrollIntoView({behavior:"smooth",block:"start"}),600);
+    }
+  },[navOpts.expandId]);
   const[comments,setComments]=useState({});
   const[commentTexts,setCommentTexts]=useState({});
   const notifiedRef=useRef(new Set());
@@ -2963,7 +3073,7 @@ function NewsPage({cu,users,addNotif}){
           const itemComments=comments[item.id]||[];
           const cmtText=commentTexts[item.id]||"";
           return(
-            <Card key={item.id} style={{padding:"14px 16px"}} hover={false}>
+            <Card key={item.id} ref={isExp?expandedRef:null} style={{padding:"14px 16px"}} hover={false}>
               {/* Source + timestamp */}
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
                 <div style={{width:30,height:30,borderRadius:"50%",background:item.source.color+"33",border:`1px solid ${item.source.color}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0}}>{item.source.sport}</div>
@@ -3011,11 +3121,15 @@ function NewsPage({cu,users,addNotif}){
                         <input value={cmtText} onChange={e=>setCommentTexts(prev=>({...prev,[item.id]:e.target.value}))} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();postComment(item.id);}}} placeholder="Discuss this story..." style={{flex:1,fontSize:13}}/>
                         <Btn size="sm" onClick={()=>postComment(item.id)} disabled={!cmtText.trim()}>Post</Btn>
                       </div>
-                      <CommentImgUpload onUpload={async f=>{
-                        const ext=f.name.split(".").pop();
-                        const url=await sbUp("nova-banners",`news-${gid()}.${ext}`,f);
-                        if(url)postComment(item.id,url);
-                      }}/>
+                      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                        <CommentImgUpload onUpload={async f=>{
+                          const ext=f.name.split(".").pop();
+                          const url=await sbUp("nova-banners",`news-${gid()}.${ext}`,f);
+                          if(url)postComment(item.id,url);
+                        }}/>
+                        <button onClick={()=>setNewsGifPicker(item.id)} style={{background:"rgba(139,92,246,.15)",border:"1px solid rgba(139,92,246,.3)",borderRadius:8,padding:"4px 10px",cursor:"pointer",color:"#A78BFA",fontSize:12,fontWeight:700}}>GIF</button>
+                      </div>
+                      {newsGifPicker===item.id&&<GifPicker onSelect={url=>postComment(item.id,`__IMG__${url}`)} onClose={()=>setNewsGifPicker(null)}/>}
                     </div>
                   )}
                   {!cu&&<div style={{fontSize:12,color:"#475569",marginBottom:10,padding:"8px 12px",background:"rgba(255,255,255,.03)",borderRadius:8}}>Sign in to join the discussion</div>}
@@ -3160,9 +3274,11 @@ export default function App(){
     setMsgUnread(unread);
   },[conversations,messages,cu?.id]);
 
-  const nav=(p,id)=>{
+  const [navOpts,setNavOpts]=useState({});
+  const nav=(p,id,opts={})=>{
     if(p==="profile"&&id){setProfileId(id);}
     if(p==="game"&&id){setGameRef(id);} // id = {id, sport}
+    setNavOpts(opts||{});
     setPage(p);
   };
 
@@ -3207,8 +3323,8 @@ export default function App(){
   const mob=useIsMobile();
 
   const content=()=>{
-    if(page==="profile"&&profileId)return <ProfilePage userId={profileId} cu={cu} users={users} setUsers={updater=>{const next=typeof updater==="function"?updater(users):updater;setUsers(next);if(cu){const up=next.find(x=>x.id===cu.id);if(up)setCu(up);}}} navigate={nav} addNotif={addNotif}/>;
-    if(page==="news")return <NewsPage cu={cu} users={users} addNotif={addNotif}/>;
+    if(page==="profile"&&profileId)return <ProfilePage userId={profileId} cu={cu} users={users} setUsers={updater=>{const next=typeof updater==="function"?updater(users):updater;setUsers(next);if(cu){const up=next.find(x=>x.id===cu.id);if(up)setCu(up);}}} navigate={nav} addNotif={addNotif} navOpts={navOpts}/>;
+    if(page==="news")return <NewsPage cu={cu} users={users} addNotif={addNotif} navOpts={navOpts}/>;
     if(page==="members")return <MembersPage users={users} nav={nav}/>;
     if(page==="feed")return <FeedPage users={users} cu={cu} likes={likes} onLike={handleLike} navigate={nav}/>;
     if(page==="game"&&gameRef)return <GameDetailPage gameId={gameRef.id} sport={gameRef.sport} navigate={nav}/>;
