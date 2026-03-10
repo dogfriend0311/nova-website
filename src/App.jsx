@@ -1451,7 +1451,355 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
 }
 
 // ── Messages ──────────────────────────────────────────────────────────────────
-function MessagesPage({cu,users,conversations,setConversations,messages,setMessages}){
+
+// ─── WebRTC helpers ─────────────────────────────────────────────────────────────
+const ICE_SERVERS={iceServers:[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}]};
+
+// Supabase-based signaling: store offer/answer/candidates in nova_signaling
+const sig={
+  send:async(convId,fromId,type,data)=>{
+    await sb.post("nova_signaling",{id:gid(),conv_id:convId,from_id:fromId,type,data:JSON.stringify(data),ts:Date.now()});
+  },
+  poll:async(convId,afterTs,excludeId)=>{
+    return await sb.get("nova_signaling",`?conv_id=eq.${convId}&ts=gt.${afterTs}&from_id=neq.${excludeId}&order=ts.asc`)||[];
+  },
+  clear:async(convId)=>{
+    await sb.del("nova_signaling",`?conv_id=eq.${convId}`);
+  },
+};
+
+// ─── Voice Call Component ────────────────────────────────────────────────────────
+function VoiceCall({cu,conv,users,onEnd}){
+  const [status,setStatus]=useState("connecting"); // connecting | active | ended
+  const [muted,setMuted]=useState(false);
+  const [speaking,setSpeaking]=useState({}); // userId -> bool
+  const [remoteNames,setRemoteNames]=useState([]);
+  const pcRefs=useRef({});   // peerId -> RTCPeerConnection
+  const streamRef=useRef(null);
+  const pollRef=useRef(null);
+  const tsRef=useRef(Date.now()-500);
+  const isHost=useRef(false);
+
+  useEffect(()=>{start();return()=>cleanup();},[]);
+
+  const cleanup=()=>{
+    clearInterval(pollRef.current);
+    Object.values(pcRefs.current).forEach(pc=>{try{pc.close();}catch{}});
+    pcRefs.current={};
+    if(streamRef.current)streamRef.current.getTracks().forEach(t=>t.stop());
+  };
+
+  const start=async()=>{
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+      streamRef.current=stream;
+      // Check if there's already a call active in this conv
+      const existing=await sb.get("nova_signaling",`?conv_id=eq.${conv.id}&type=eq.call-offer&order=ts.desc&limit=1`);
+      if(existing&&existing.length>0){
+        // Join existing call as answerer
+        await joinCall(existing[0]);
+      } else {
+        // Start new call as host
+        isHost.current=true;
+        await sig.send(conv.id,cu.id,"call-offer",{callerId:cu.id,callerName:cu.display_name,ts:Date.now()});
+      }
+      setStatus("active");
+      // Poll for signaling messages
+      pollRef.current=setInterval(()=>pollSignals(),1200);
+    }catch(e){
+      console.error("Voice error:",e);
+      setStatus("ended");
+    }
+  };
+
+  const createPC=async(peerId)=>{
+    const pc=new RTCPeerConnection(ICE_SERVERS);
+    pcRefs.current[peerId]=pc;
+    // Add local tracks
+    streamRef.current?.getTracks().forEach(t=>pc.addTrack(t,streamRef.current));
+    // Play remote audio
+    pc.ontrack=e=>{
+      const audio=new Audio();
+      audio.srcObject=e.streams[0];
+      audio.autoplay=true;
+      // Speaking detection
+      const ctx=new AudioContext();
+      const src=ctx.createMediaStreamSource(e.streams[0]);
+      const analyser=ctx.createAnalyser();
+      analyser.fftSize=512;
+      src.connect(analyser);
+      const check=()=>{
+        const d=new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(d);
+        const vol=d.reduce((a,b)=>a+b,0)/d.length;
+        setSpeaking(prev=>({...prev,[peerId]:vol>15}));
+        if(pcRefs.current[peerId])requestAnimationFrame(check);
+      };
+      check();
+    };
+    pc.onicecandidate=e=>{
+      if(e.candidate)sig.send(conv.id,cu.id,"ice-candidate",{to:peerId,candidate:e.candidate});
+    };
+    return pc;
+  };
+
+  const joinCall=async(offerMsg)=>{
+    const {callerId}=JSON.parse(offerMsg.data||"{}");
+    if(callerId===cu.id)return;
+    const pc=await createPC(callerId);
+    // Send our join signal
+    await sig.send(conv.id,cu.id,"call-join",{joinerId:cu.id,joinerName:cu.display_name});
+    setRemoteNames(prev=>[...new Set([...prev,users.find(u=>u.id===callerId)?.display_name||"Someone"])]);
+  };
+
+  const pollSignals=async()=>{
+    const msgs=await sig.poll(conv.id,tsRef.current,cu.id);
+    if(!msgs.length)return;
+    tsRef.current=Math.max(...msgs.map(m=>m.ts));
+    for(const m of msgs){
+      const data=JSON.parse(m.data||"{}");
+      if(m.type==="call-join"&&isHost.current){
+        // Host creates offer for new joiner
+        const {joinerId,joinerName}=data;
+        if(joinerId===cu.id)continue;
+        setRemoteNames(prev=>[...new Set([...prev,joinerName||"Someone"])]);
+        const pc=await createPC(joinerId);
+        const offer=await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await sig.send(conv.id,cu.id,"sdp-offer",{to:joinerId,sdp:offer});
+      } else if(m.type==="sdp-offer"&&data.to===cu.id){
+        const pc=pcRefs.current[m.from_id]||await createPC(m.from_id);
+        await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+        const answer=await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await sig.send(conv.id,cu.id,"sdp-answer",{to:m.from_id,sdp:answer});
+        setRemoteNames(prev=>[...new Set([...prev,users.find(u=>u.id===m.from_id)?.display_name||"Someone"])]);
+      } else if(m.type==="sdp-answer"&&data.to===cu.id){
+        const pc=pcRefs.current[m.from_id];
+        if(pc&&pc.signalingState!=="stable")await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      } else if(m.type==="ice-candidate"&&data.to===cu.id){
+        const pc=pcRefs.current[m.from_id];
+        if(pc)try{await pc.addIceCandidate(new RTCIceCandidate(data.candidate));}catch{}
+      } else if(m.type==="call-end"){
+        endCall();
+      }
+    }
+  };
+
+  const endCall=async()=>{
+    await sig.send(conv.id,cu.id,"call-end",{});
+    await sig.clear(conv.id);
+    cleanup();
+    setStatus("ended");
+    setTimeout(onEnd,800);
+  };
+
+  const toggleMute=()=>{
+    const enabled=!muted;
+    streamRef.current?.getAudioTracks().forEach(t=>t.enabled=enabled);
+    setMuted(!muted);
+  };
+
+  if(status==="ended")return null;
+
+  return(
+    <div style={{position:"fixed",bottom:80,right:20,zIndex:500,background:"linear-gradient(135deg,#0c1220,#0f1929)",border:"1px solid rgba(34,197,94,.3)",borderRadius:16,padding:"14px 18px",minWidth:220,boxShadow:"0 8px 32px rgba(0,0,0,.6)"}}>
+      <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:"#22C55E",letterSpacing:".12em",marginBottom:10}}>
+        {status==="connecting"?"⏳ CONNECTING...":"🔴 VOICE CALL · LIVE"}
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{width:8,height:8,borderRadius:"50%",background:speaking[cu.id]?"#22C55E":"#334155",flexShrink:0}}/>
+          <span style={{fontSize:12,color:"#E2E8F0",fontWeight:700}}>{cu.display_name} {muted?"🔇":""}</span>
+        </div>
+        {remoteNames.map((n,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:speaking[i]?"#22C55E":"#334155",flexShrink:0}}/>
+            <span style={{fontSize:12,color:"#94A3B8"}}>{n}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={toggleMute} style={{flex:1,padding:"7px 0",borderRadius:10,border:`1px solid ${muted?"rgba(245,158,11,.4)":"rgba(255,255,255,.1)"}`,background:muted?"rgba(245,158,11,.15)":"rgba(255,255,255,.05)",cursor:"pointer",fontSize:13,color:muted?"#F59E0B":"#94A3B8"}}>
+          {muted?"🔇 Unmute":"🎤 Mute"}
+        </button>
+        <button onClick={endCall} style={{flex:1,padding:"7px 0",borderRadius:10,border:"1px solid rgba(239,68,68,.4)",background:"rgba(239,68,68,.15)",cursor:"pointer",fontSize:13,color:"#EF4444"}}>
+          📵 End
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Watch Party Component ───────────────────────────────────────────────────────
+// ─── Watch Party (Hyperbeam) ─────────────────────────────────────────────────────
+const HB_KEY = "sk_test_vUEKzTF26D0FfDCFTJZpUXGrQlpzs8P7ET95_q9CRyI";
+
+async function createHBSession(){
+  const r = await fetch("https://engine.hyperbeam.com/v0/vm", {
+    method:"POST",
+    headers:{"Authorization":`Bearer ${HB_KEY}`,"Content-Type":"application/json"},
+    body:JSON.stringify({start_url:"https://www.google.com", ublock_origin:true})
+  });
+  if(!r.ok){ const t=await r.text(); throw new Error(t); }
+  return r.json(); // { session_id, embed_url, admin_token }
+}
+
+function WatchParty({cu,conv,users,onEnd}){
+  const [phase,setPhase]=useState("idle"); // idle | loading | active
+  const [embedUrl,setEmbedUrl]=useState(null);
+  const [sessionId,setSessionId]=useState(null);
+  const [chatMsgs,setChatMsgs]=useState([]);
+  const [chatInput,setChatInput]=useState("");
+  const [members,setMembers]=useState([cu.display_name]);
+  const [err,setErr]=useState(null);
+  const chatPollRef=useRef(null);
+  const chatTsRef=useRef(Date.now()-500);
+  const memberPollRef=useRef(null);
+  const isHost=useRef(false);
+
+  useEffect(()=>{
+    // Check if session already exists for this conv
+    sb.get("nova_signaling",`?conv_id=eq.${conv.id}_hb&type=eq.hb-session&order=ts.desc&limit=1`).then(rows=>{
+      if(rows&&rows.length>0){
+        const d=JSON.parse(rows[0].data||"{}");
+        if(d.embed_url){ setEmbedUrl(d.embed_url); setSessionId(d.session_id); setPhase("active"); }
+      }
+    });
+    chatPollRef.current=setInterval(pollChat,2500);
+    memberPollRef.current=setInterval(pollMembers,3000);
+    return()=>{ clearInterval(chatPollRef.current); clearInterval(memberPollRef.current); };
+  },[]);
+
+  const pollChat=async()=>{
+    const msgs=await sb.get("nova_signaling",`?conv_id=eq.${conv.id}_hbchat&ts=gt.${chatTsRef.current}&order=ts.asc`)||[];
+    if(!msgs.length)return;
+    chatTsRef.current=Math.max(...msgs.map(m=>m.ts));
+    setChatMsgs(prev=>[...prev,...msgs.map(m=>({...JSON.parse(m.data||"{}"),id:m.id}))]);
+  };
+
+  const pollMembers=async()=>{
+    const rows=await sb.get("nova_signaling",`?conv_id=eq.${conv.id}_hb&type=eq.hb-join&order=ts.asc`)||[];
+    const names=[...new Set([cu.display_name,...rows.map(r=>JSON.parse(r.data||"{}").name||"?").filter(Boolean)])];
+    setMembers(names);
+  };
+
+  const hostParty=async()=>{
+    setPhase("loading"); setErr(null);
+    try{
+      const sess=await createHBSession();
+      // Save session to signaling so others can join
+      await sb.post("nova_signaling",{id:gid(),conv_id:conv.id+"_hb",from_id:cu.id,type:"hb-session",data:JSON.stringify({embed_url:sess.embed_url,session_id:sess.session_id}),ts:Date.now()});
+      isHost.current=true;
+      setEmbedUrl(sess.embed_url); setSessionId(sess.session_id); setPhase("active");
+    }catch(e){ setErr("Failed to start: "+e.message); setPhase("idle"); }
+  };
+
+  const joinParty=async()=>{
+    const rows=await sb.get("nova_signaling",`?conv_id=eq.${conv.id}_hb&type=eq.hb-session&order=ts.desc&limit=1`);
+    if(!rows||!rows.length){ setErr("No active party found. Ask someone to host first."); return; }
+    const d=JSON.parse(rows[0].data||"{}");
+    if(!d.embed_url){ setErr("Session URL missing."); return; }
+    await sb.post("nova_signaling",{id:gid(),conv_id:conv.id+"_hb",from_id:cu.id,type:"hb-join",data:JSON.stringify({name:cu.display_name}),ts:Date.now()});
+    setEmbedUrl(d.embed_url); setSessionId(d.session_id); setPhase("active");
+  };
+
+  const endParty=async()=>{
+    if(isHost.current&&sessionId){
+      try{
+        await fetch(`https://engine.hyperbeam.com/v0/vm/${sessionId}`,{method:"DELETE",headers:{"Authorization":`Bearer ${HB_KEY}`}});
+      }catch{}
+      await sb.del("nova_signaling",`?conv_id=eq.${conv.id}_hb`);
+      await sb.del("nova_signaling",`?conv_id=eq.${conv.id}_hbchat`);
+    }
+    onEnd();
+  };
+
+  const sendChat=async()=>{
+    if(!chatInput.trim())return;
+    const msg={name:cu.display_name,text:chatInput.trim(),ts:Date.now()};
+    await sb.post("nova_signaling",{id:gid(),conv_id:conv.id+"_hbchat",from_id:cu.id,type:"hb-chat",data:JSON.stringify(msg),ts:Date.now()});
+    setChatMsgs(prev=>[...prev,{...msg,id:gid()}]);
+    setChatInput("");
+  };
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#000"}}>
+      {/* Header */}
+      <div style={{padding:"10px 16px",borderBottom:"1px solid rgba(255,255,255,.07)",display:"flex",alignItems:"center",gap:10,background:"rgba(0,0,0,.4)",flexShrink:0}}>
+        <span style={{fontSize:18}}>🎬</span>
+        <span style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:"#E2E8F0",flex:1}}>WATCH PARTY</span>
+        {phase==="active"&&(
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            {members.slice(0,4).map((n,i)=>(
+              <div key={i} style={{fontSize:10,color:"#22C55E",background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.3)",borderRadius:20,padding:"2px 8px"}}>
+                {n===cu.display_name?"● You":n}
+              </div>
+            ))}
+            {members.length>4&&<div style={{fontSize:10,color:"#475569"}}>+{members.length-4}</div>}
+          </div>
+        )}
+        <button onClick={endParty} style={{background:"rgba(239,68,68,.15)",border:"1px solid rgba(239,68,68,.3)",borderRadius:8,padding:"4px 10px",cursor:"pointer",color:"#EF4444",fontSize:11,fontFamily:"'Orbitron',sans-serif"}}>
+          {isHost.current?"END":"LEAVE"}
+        </button>
+      </div>
+
+      {phase==="idle"&&(
+        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,padding:24}}>
+          <div style={{fontSize:52}}>🎬</div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:15,fontWeight:700,color:"#E2E8F0"}}>Watch Party</div>
+          <div style={{fontSize:13,color:"#64748B",textAlign:"center",maxWidth:320,lineHeight:1.7}}>
+            Browse any website together in real-time — Netflix, ESPN+, YouTube, Twitch, anything. Everyone sees the same browser.
+          </div>
+          {err&&<div style={{fontSize:12,color:"#EF4444",background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.3)",borderRadius:8,padding:"8px 14px"}}>{err}</div>}
+          <div style={{display:"flex",gap:12,flexWrap:"wrap",justifyContent:"center"}}>
+            <Btn onClick={hostParty}>🖥 Host Party</Btn>
+            <Btn variant="ghost" onClick={joinParty}>👁 Join Party</Btn>
+          </div>
+          <div style={{fontSize:11,color:"#334155",textAlign:"center"}}>Host creates a shared virtual browser · Everyone can browse and control it together</div>
+        </div>
+      )}
+
+      {phase==="loading"&&(
+        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:14}}>
+          <div style={{fontSize:36}}>⏳</div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,color:"#00D4FF"}}>STARTING SESSION...</div>
+          <div style={{fontSize:11,color:"#475569"}}>Creating virtual browser, please wait</div>
+        </div>
+      )}
+
+      {phase==="active"&&embedUrl&&(
+        <div style={{flex:1,display:"flex",overflow:"hidden"}}>
+          {/* Hyperbeam iframe */}
+          <iframe
+            src={embedUrl}
+            allow="microphone; camera; fullscreen; clipboard-read; clipboard-write; autoplay"
+            style={{flex:1,border:"none",background:"#000"}}
+          />
+          {/* Party chat sidebar */}
+          <div style={{width:220,flexShrink:0,display:"flex",flexDirection:"column",borderLeft:"1px solid rgba(255,255,255,.07)",background:"rgba(0,0,0,.4)"}}>
+            <div style={{padding:"8px 12px",fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#475569",borderBottom:"1px solid rgba(255,255,255,.05)",letterSpacing:".1em"}}>PARTY CHAT</div>
+            <div style={{flex:1,overflowY:"auto",padding:"10px",display:"flex",flexDirection:"column",gap:7}}>
+              {chatMsgs.length===0&&<div style={{fontSize:11,color:"#334155",textAlign:"center",padding:"20px 0"}}>Chat while you watch!</div>}
+              {chatMsgs.map((m,i)=>(
+                <div key={m.id||i}>
+                  <span style={{color:m.name===cu.display_name?"#00D4FF":"#8B5CF6",fontWeight:700,fontSize:10}}>{m.name}: </span>
+                  <span style={{fontSize:12,color:"#94A3B8"}}>{m.text}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{padding:"8px",borderTop:"1px solid rgba(255,255,255,.07)",display:"flex",gap:4}}>
+              <input value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")sendChat();}} placeholder="Say something..." style={{flex:1,fontSize:11,padding:"6px 10px",borderRadius:8,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#E2E8F0",outline:"none"}}/>
+              <button onClick={sendChat} style={{background:"rgba(0,212,255,.15)",border:"1px solid rgba(0,212,255,.3)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"#00D4FF",fontSize:14}}>→</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MessagesPage({cu,users,conversations,setConversations,messages,setMessages}){\n
   const mob=useIsMobile();
   const [activeConv,setActiveConv]=useState(null);
   const [newMsg,setNewMsg]=useState("");
@@ -1465,6 +1813,8 @@ function MessagesPage({cu,users,conversations,setConversations,messages,setMessa
   const groupAvatarRef=useRef(null);
   const dmImgRef=useRef(null);
   const [dmUploading,setDmUploading]=useState(false);
+  const [inCall,setInCall]=useState(false);
+  const [inWatchParty,setInWatchParty]=useState(false);
 
   const sendImage=async(file)=>{
     if(!file||!activeConv||!cu)return;
@@ -1603,12 +1953,28 @@ function MessagesPage({cu,users,conversations,setConversations,messages,setMessa
                     </div>
                   : <AvatarCircle user={getConvAvatar(activeConv)} size={36}/>
                 }
-                <div>
+                <div style={{flex:1}}>
                   <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,fontWeight:700,color:"#E2E8F0"}}>{getConvName(activeConv)}</div>
                   {activeConv.is_group&&<div style={{fontSize:11,color:"#475569"}}>{activeConv.members.length} members · max 50</div>}
                 </div>
+                {/* Voice call button */}
+                <button onClick={()=>{setInWatchParty(false);setInCall(v=>!v);}} title="Voice Call" style={{background:inCall?"rgba(34,197,94,.2)":"rgba(255,255,255,.05)",border:`1px solid ${inCall?"rgba(34,197,94,.4)":"rgba(255,255,255,.1)"}`,borderRadius:10,width:36,height:36,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:inCall?"#22C55E":"#94A3B8"}}>📞</button>
+                {/* Watch party button */}
+                <button onClick={()=>{setInCall(false);setInWatchParty(v=>!v);}} title="Watch Party" style={{background:inWatchParty?"rgba(139,92,246,.2)":"rgba(255,255,255,.05)",border:`1px solid ${inWatchParty?"rgba(139,92,246,.4)":"rgba(255,255,255,.1)"}`,borderRadius:10,width:36,height:36,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:inWatchParty?"#8B5CF6":"#94A3B8"}}>🎬</button>
               </div>
-              <div style={{flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:8}}>
+              {/* Voice Call panel */}
+              {inCall&&cu&&activeConv&&(
+                <div style={{borderBottom:"1px solid rgba(34,197,94,.2)",flexShrink:0}}>
+                  <VoiceCall cu={cu} conv={activeConv} users={users} onEnd={()=>setInCall(false)}/>
+                </div>
+              )}
+              {/* Watch Party panel */}
+              {inWatchParty&&cu&&activeConv&&(
+                <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
+                  <WatchParty cu={cu} conv={activeConv} users={users} onEnd={()=>setInWatchParty(false)}/>
+                </div>
+              )}
+              {!inWatchParty&&<div style={{flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:8}}>
                 {convMsgs.length===0&&(
                   <div style={{textAlign:"center",padding:"60px 20px",color:"#334155"}}>
                     <div style={{fontSize:32,marginBottom:8}}>👋</div>
@@ -1637,13 +2003,13 @@ function MessagesPage({cu,users,conversations,setConversations,messages,setMessa
                   );
                 })}
                 <div ref={msgEndRef}/>
-              </div>
-              <div style={{padding:"12px 16px",borderTop:"1px solid rgba(255,255,255,.07)",display:"flex",gap:8,flexShrink:0,alignItems:"center"}}>
+              </div>}{/* end !inWatchParty */}
+              {!inWatchParty&&<div style={{padding:"12px 16px",borderTop:"1px solid rgba(255,255,255,.07)",display:"flex",gap:8,flexShrink:0,alignItems:"center"}}>
                 <input type="file" ref={dmImgRef} accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files[0];if(f)sendImage(f);e.target.value="";}}/>
                 <button onClick={()=>dmImgRef.current.click()} disabled={dmUploading} title="Send photo" style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,width:38,height:38,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{dmUploading?"⏳":"📷"}</button>
                 <input value={newMsg} onChange={e=>setNewMsg(e.target.value)} placeholder="Type a message..." onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMsg();}}} style={{flex:1,borderRadius:24,padding:"10px 18px"}}/>
                 <Btn onClick={sendMsg} disabled={!newMsg.trim()}>Send ➤</Btn>
-              </div>
+              </div>}
             </>
           ) : (
             <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:"#334155"}}>
