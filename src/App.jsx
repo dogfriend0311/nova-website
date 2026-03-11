@@ -1047,9 +1047,20 @@ function ImmaculateGridPage({cu,navigate}){
     setSuggLoading(true);
     try{
       const r=await fetch(`/api/hyperbeam?search=${encodeURIComponent(q)}&sport=${sport}`);
+      if(!r.ok)throw new Error(`status ${r.status}`);
       const d=await r.json();
-      setSuggestions(d.athletes||[]);
-    }catch{setSuggestions([]);}
+      const athletes=d.athletes||[];
+      if(athletes.length>0){
+        setSuggestions(athletes);
+      } else {
+        // ESPN returned nothing — allow free entry but warn
+        setSuggestions([{id:"__free__",name:q,team:"",position:"Not verified — submit at your own risk"}]);
+      }
+    }catch(e){
+      console.warn("Player search failed:",e.message);
+      // On total failure, allow the user to submit unverified
+      setSuggestions([{id:"__free__",name:q,team:"",position:"⚠️ Could not verify — use honor system"}]);
+    }
     setSuggLoading(false);
   };
 
@@ -1108,7 +1119,7 @@ function ImmaculateGridPage({cu,navigate}){
       setValidating(false);
     }
     setSubmitting(true);
-    const playerName=selectedPlayer?.name||inputVal.trim();
+    const playerName=(selectedPlayer&&selectedPlayer.id!=="__free__")?selectedPlayer.name:inputVal.trim();
     const [r,c]=activeCell.split(",").map(Number);
     try{
       await sb.post("nova_grid_guesses",{
