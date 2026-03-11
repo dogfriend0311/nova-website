@@ -7,6 +7,72 @@ const SPORT_PATHS = {
   nhl: "hockey/nhl",
 };
 
+// Normalize team abbr for fuzzy matching (ESPN uses different abbrs sometimes)
+function normalizeAbbr(s) {
+  return (s || "").toUpperCase().replace(/[^A-Z]/g, "");
+}
+
+// Pull all team abbreviations/names from an athlete ESPN object
+function getTeamsFromAthlete(athlete) {
+  const teams = new Set();
+  const addTeam = (t) => {
+    if (!t) return;
+    if (t.abbreviation) teams.add(normalizeAbbr(t.abbreviation));
+    if (t.shortDisplayName) teams.add(normalizeAbbr(t.shortDisplayName));
+    if (t.displayName) teams.add(normalizeAbbr(t.displayName));
+    if (t.name) teams.add(normalizeAbbr(t.name));
+    if (t.nickname) teams.add(normalizeAbbr(t.nickname));
+  };
+  addTeam(athlete.team);
+  (athlete.previousTeams || []).forEach(pt => addTeam(pt.team || pt));
+  (athlete.teams || []).forEach(t => addTeam(t.team || t));
+  // Also check stats seasons for teams
+  (athlete.statsSummary?.teamHistory || []).forEach(t => addTeam(t));
+  return teams;
+}
+
+// Extra team nickname aliases ESPN uses differently
+const ALIASES = {
+  // NFL
+  "WSH":"WAS","WAS":"WSH","COMMANDERS":"WAS","REDSKINS":"WAS",
+  "LV":"OAK","OAK":"LV","RAIDERS":"LV",
+  "LAR":"STL","STL":"LAR","RAMS":"LAR",
+  "LAC":"SD","SD":"LAC","CHARGERS":"LAC",
+  "JAX":"JAC","JAC":"JAX",
+  "ARI":"AZ","AZ":"ARI",
+  // MLB
+  "MIA":"FLA","FLA":"MIA",
+  "WSH":"WAS","WAS":"WSH","NATS":"WAS",
+  "CLES":"CLE","GUARDIANS":"CLE","INDIANS":"CLE",
+  "SFG":"SF","SF":"SFG",
+  "SDG":"SD","SD":"SDG",
+  "TBR":"TB","TB":"TBR","RAYS":"TB",
+  "KCR":"KC","KC":"KCR",
+  "SDP":"SD",
+  // NBA
+  "BKN":"NJ","NJ":"BKN","NETS":"BKN",
+  "NOH":"NO","NOK":"NO","NOP":"NO",
+  "SEA":"OKC","SUPERSONICS":"OKC",
+  "NJN":"BKN",
+  // NHL
+  "VGK":"VGS","VGS":"VGK",
+  "CBJ":"CLS","CLS":"CBJ",
+  "PHX":"ARI","COYOTES":"ARI",
+};
+
+function teamMatches(espnTeams, targetAbbr) {
+  const t = normalizeAbbr(targetAbbr);
+  if (espnTeams.has(t)) return true;
+  // Check alias
+  const alias = ALIASES[t];
+  if (alias && espnTeams.has(normalizeAbbr(alias))) return true;
+  // Reverse alias check
+  for (const [k, v] of Object.entries(ALIASES)) {
+    if (v === t && espnTeams.has(normalizeAbbr(k))) return true;
+  }
+  return false;
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
@@ -15,7 +81,8 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      // ── ESPN athlete name lookup ──
+
+      // ── Athlete name lookup by ID ──
       if (req.query.athlete) {
         const r = await fetch(
           `https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/athletes/${req.query.athlete}`
@@ -24,32 +91,62 @@ module.exports = async function handler(req, res) {
         return res.status(200).json({ name: d.athlete?.displayName || d.athlete?.shortName || null });
       }
 
-      // ── Player autocomplete via ESPN athletes endpoint ──
-      if (req.query.search && req.query.sport) {
+      // ── Player autocomplete ──
+      if (req.query.search && req.query.sport && !req.query.validate) {
         const q = req.query.search.trim();
         const sportPath = SPORT_PATHS[req.query.sport] || "baseball/mlb";
-
-        // ESPN athletes endpoint supports searchTerm param
         const url = `https://site.api.espn.com/apis/site/v2/sports/${sportPath}/athletes?limit=10&active=false&searchTerm=${encodeURIComponent(q)}`;
-        const r = await fetch(url, {
-          headers: { "User-Agent": "Mozilla/5.0 (compatible)" }
-        });
-
-        if (!r.ok) {
-          return res.status(200).json({ athletes: [] });
-        }
-
+        const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+        if (!r.ok) return res.status(200).json({ athletes: [] });
         const d = await r.json();
         const items = d.items || d.athletes || [];
-
         const athletes = items.slice(0, 8).map(a => ({
           id: a.id || "",
           name: a.displayName || a.fullName || a.shortName || "",
           team: a.team?.displayName || a.teamName || "",
           position: a.position?.displayName || a.position?.name || a.position || "",
         })).filter(a => a.name.length > 1);
-
         return res.status(200).json({ athletes });
+      }
+
+      // ── Validate player played for BOTH teams ──
+      // /api/hyperbeam?validate=1&playerId=3916387&team1=BAL&team2=CLE&sport=nfl
+      if (req.query.validate && req.query.playerId && req.query.team1 && req.query.team2 && req.query.sport) {
+        const { playerId, team1, team2, sport } = req.query;
+        const sportPath = SPORT_PATHS[sport] || "baseball/mlb";
+
+        // Fetch full athlete profile — includes previousTeams
+        const url = `https://site.api.espn.com/apis/site/v2/sports/${sportPath}/athletes/${playerId}`;
+        const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+        if (!r.ok) {
+          // If ESPN can't find them, fail open (honor system)
+          return res.status(200).json({ valid: false, reason: "Player not found in ESPN database.", failOpen: true });
+        }
+        const d = await r.json();
+        const athlete = d.athlete || d;
+        if (!athlete || !athlete.displayName) {
+          return res.status(200).json({ valid: false, reason: "Player not found.", failOpen: true });
+        }
+
+        const espnTeams = getTeamsFromAthlete(athlete);
+
+        const hasTeam1 = teamMatches(espnTeams, team1);
+        const hasTeam2 = teamMatches(espnTeams, team2);
+
+        return res.status(200).json({
+          valid: hasTeam1 && hasTeam2,
+          hasTeam1,
+          hasTeam2,
+          playerName: athlete.displayName,
+          teamsFound: Array.from(espnTeams),
+          reason: !hasTeam1 && !hasTeam2
+            ? `${athlete.displayName} doesn't appear to have played for either team.`
+            : !hasTeam1
+              ? `${athlete.displayName} doesn't appear to have played for ${team1}.`
+              : !hasTeam2
+                ? `${athlete.displayName} doesn't appear to have played for ${team2}.`
+                : "Valid!",
+        });
       }
 
       return res.status(400).json({ error: "Missing params" });

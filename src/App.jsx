@@ -1091,36 +1091,48 @@ function ImmaculateGridPage({cu,navigate}){
 
   const submitGuess=async()=>{
     if(!inputVal.trim()||!activeCell||!cu)return;
-    // Must pick from autocomplete - ensures real player spelling
-    if(!selectedPlayer){
-      // Try one last search to see if exact match exists
-      setValidating(true);
-      try{
-        const r=await fetch(`/api/hyperbeam?search=${encodeURIComponent(inputVal.trim())}&sport=${sport}`);
-        const d=await r.json();
-        const athletes=d.athletes||[];
-        const exact=athletes.find(a=>a.name.toLowerCase()===inputVal.trim().toLowerCase());
-        if(exact){
-          setSelectedPlayer(exact);
-          setInputVal(exact.name);
-        } else if(athletes.length>0){
-          // Show suggestions instead of submitting
-          setSuggestions(athletes);
-          setValidating(false);
-          return;
-        } else {
-          alert("⚠️ Player not found in ESPN database. Check the spelling or pick from the suggestions.");
-          setValidating(false);
-          return;
-        }
-      }catch{
-        // Network error - allow submit anyway
-      }
-      setValidating(false);
+    if(!selectedPlayer||selectedPlayer.id==="__free__"){
+      alert("Please pick a player from the dropdown suggestions first.");
+      return;
     }
-    setSubmitting(true);
-    const playerName=(selectedPlayer&&selectedPlayer.id!=="__free__")?selectedPlayer.name:inputVal.trim();
     const [r,c]=activeCell.split(",").map(Number);
+    const rowTeam=rows[r]; const colTeam=cols[c];
+    const playerName=selectedPlayer.name;
+    const playerId=selectedPlayer.id;
+
+    // ── Real validation: did this player actually play for BOTH teams? ──
+    setValidating(true);
+    try{
+      const vr=await fetch(`/api/hyperbeam?validate=1&playerId=${encodeURIComponent(playerId)}&team1=${encodeURIComponent(rowTeam.abbr)}&team2=${encodeURIComponent(colTeam.abbr)}&sport=${sport}`);
+      const vd=await vr.json();
+      setValidating(false);
+
+      if(!vd.valid && !vd.failOpen){
+        // Hard fail — ESPN confirmed they did NOT play for both teams
+        alert(`❌ Invalid answer!
+
+${vd.reason}
+
+Try a different player.`);
+        return;
+      }
+      // failOpen means ESPN couldn't confirm either way — allow with warning
+      if(vd.failOpen){
+        const ok=window.confirm(`⚠️ Couldn't verify "${playerName}" in ESPN's database.
+
+Submit anyway on the honor system?`);
+        if(!ok)return;
+      }
+    }catch(e){
+      setValidating(false);
+      // Network error — allow submit with warning
+      const ok=window.confirm(`⚠️ Couldn't reach validation service.
+
+Submit "${playerName}" on the honor system?`);
+      if(!ok)return;
+    }
+
+    setSubmitting(true);
     try{
       await sb.post("nova_grid_guesses",{
         id:gid(),user_id:cu.id,sport,grid_date:dateStr,
@@ -1133,7 +1145,7 @@ function ImmaculateGridPage({cu,navigate}){
       setInputVal("");
       setSelectedPlayer(null);
       setSuggestions([]);
-    }catch(e){alert("Error saving guess");}
+    }catch(e){alert("Error saving guess.");}
     setSubmitting(false);
   };
 
@@ -1268,7 +1280,7 @@ function ImmaculateGridPage({cu,navigate}){
                     </div>
                     <button onClick={submitGuess} disabled={submitting||validating||!inputVal.trim()}
                       style={{padding:"10px 18px",borderRadius:8,background:selectedPlayer?"#22C55E":ac,border:"none",color:"#000",fontWeight:900,fontSize:12,fontFamily:"'Orbitron',sans-serif",cursor:"pointer",opacity:submitting||validating||!inputVal.trim()?0.5:1,whiteSpace:"nowrap",transition:"background .2s"}}>
-                      {submitting||validating?"…":"✓ GO"}
+                      {submitting?"SAVING…":validating?"CHECKING…":"✓ SUBMIT"}
                     </button>
                     <button onClick={()=>{setActiveCell(null);setSuggestions([]);}}
                       style={{padding:"10px 12px",borderRadius:8,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#64748B",fontSize:13,cursor:"pointer"}}>✕</button>
