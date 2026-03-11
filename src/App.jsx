@@ -869,6 +869,361 @@ function GameDetailPage({gameId,sport,navigate}){
   );
 }
 
+// ─── IMMACULATE GRID ──────────────────────────────────────────────────────────────
+
+const IG_TEAMS={
+  mlb:[
+    {id:"nyy",name:"Yankees",abbr:"NYY",color:"#1a3a6b"},{id:"bos",name:"Red Sox",abbr:"BOS",color:"#bd3039"},
+    {id:"lad",name:"Dodgers",abbr:"LAD",color:"#005a9c"},{id:"chc",name:"Cubs",abbr:"CHC",color:"#0e3386"},
+    {id:"sf",name:"Giants",abbr:"SF",color:"#fd5a1e"},{id:"hou",name:"Astros",abbr:"HOU",color:"#002d62"},
+    {id:"atl",name:"Braves",abbr:"ATL",color:"#ce1141"},{id:"stl",name:"Cardinals",abbr:"STL",color:"#c41e3a"},
+    {id:"phi",name:"Phillies",abbr:"PHI",color:"#e81828"},{id:"cin",name:"Reds",abbr:"CIN",color:"#c6011f"},
+    {id:"cle",name:"Guardians",abbr:"CLE",color:"#00385d"},{id:"tor",name:"Blue Jays",abbr:"TOR",color:"#134a8e"},
+    {id:"min",name:"Twins",abbr:"MIN",color:"#002b5c"},{id:"tex",name:"Rangers",abbr:"TEX",color:"#003278"},
+    {id:"sea",name:"Mariners",abbr:"SEA",color:"#0c2c56"},{id:"nyM",name:"Mets",abbr:"NYM",color:"#002d72"},
+    {id:"was",name:"Nationals",abbr:"WSH",color:"#ab0003"},{id:"det",name:"Tigers",abbr:"DET",color:"#0c2340"},
+    {id:"chw",name:"White Sox",abbr:"CWS",color:"#27251f"},{id:"oak",name:"Athletics",abbr:"OAK",color:"#003831"},
+    {id:"mia",name:"Marlins",abbr:"MIA",color:"#00a3e0"},{id:"ari",name:"D-backs",abbr:"ARI",color:"#a71930"},
+    {id:"col",name:"Rockies",abbr:"COL",color:"#33006f"},{id:"tb",name:"Rays",abbr:"TB",color:"#092c5c"},
+    {id:"pit",name:"Pirates",abbr:"PIT",color:"#fdb827"},{id:"mil",name:"Brewers",abbr:"MIL",color:"#0a2351"},
+    {id:"kc",name:"Royals",abbr:"KC",color:"#004687"},{id:"bal",name:"Orioles",abbr:"BAL",color:"#df4601"},
+    {id:"laa",name:"Angels",abbr:"LAA",color:"#ba0021"},{id:"sd",name:"Padres",abbr:"SD",color:"#2f241d"},
+  ],
+  nfl:[
+    {id:"ne",name:"Patriots",abbr:"NE",color:"#002244"},{id:"kc",name:"Chiefs",abbr:"KC",color:"#e31837"},
+    {id:"dal",name:"Cowboys",abbr:"DAL",color:"#041e42"},{id:"gb",name:"Packers",abbr:"GB",color:"#203731"},
+    {id:"sf",name:"49ers",abbr:"SF",color:"#aa0000"},{id:"sea",name:"Seahawks",abbr:"SEA",color:"#002244"},
+    {id:"buf",name:"Bills",abbr:"BUF",color:"#00338d"},{id:"bal",name:"Ravens",abbr:"BAL",color:"#241773"},
+    {id:"phi",name:"Eagles",abbr:"PHI",color:"#004c54"},{id:"lac",name:"Chargers",abbr:"LAC",color:"#0080c6"},
+    {id:"mia",name:"Dolphins",abbr:"MIA",color:"#008e97"},{id:"min",name:"Vikings",abbr:"MIN",color:"#4f2683"},
+    {id:"chi",name:"Bears",abbr:"CHI",color:"#0b162a"},{id:"den",name:"Broncos",abbr:"DEN",color:"#fb4f14"},
+    {id:"pit",name:"Steelers",abbr:"PIT",color:"#ffb612"},{id:"det",name:"Lions",abbr:"DET",color:"#0076b6"},
+    {id:"lar",name:"Rams",abbr:"LAR",color:"#003594"},{id:"cin",name:"Bengals",abbr:"CIN",color:"#fb4f14"},
+    {id:"ind",name:"Colts",abbr:"IND",color:"#002c5f"},{id:"ten",name:"Titans",abbr:"TEN",color:"#0c2340"},
+    {id:"cle",name:"Browns",abbr:"CLE",color:"#311d00"},{id:"hou",name:"Texans",abbr:"HOU",color:"#03202f"},
+    {id:"jax",name:"Jaguars",abbr:"JAX",color:"#006778"},{id:"nyg",name:"Giants",abbr:"NYG",color:"#0b2265"},
+    {id:"nyj",name:"Jets",abbr:"NYJ",color:"#125740"},{id:"was",name:"Commanders",abbr:"WAS",color:"#5a1414"},
+    {id:"atl",name:"Falcons",abbr:"ATL",color:"#a71930"},{id:"car",name:"Panthers",abbr:"CAR",color:"#0085ca"},
+    {id:"no",name:"Saints",abbr:"NO",color:"#d3bc8d"},{id:"tb",name:"Buccaneers",abbr:"TB",color:"#d50a0a"},
+    {id:"az",name:"Cardinals",abbr:"AZ",color:"#97233f"},{id:"lv",name:"Raiders",abbr:"LV",color:"#000000"},
+  ],
+  nba:[
+    {id:"lal",name:"Lakers",abbr:"LAL",color:"#552583"},{id:"bos",name:"Celtics",abbr:"BOS",color:"#007a33"},
+    {id:"gsw",name:"Warriors",abbr:"GSW",color:"#1d428a"},{id:"chi",name:"Bulls",abbr:"CHI",color:"#ce1141"},
+    {id:"mia",name:"Heat",abbr:"MIA",color:"#98002e"},{id:"sa",name:"Spurs",abbr:"SA",color:"#c4ced4"},
+    {id:"phi",name:"76ers",abbr:"PHI",color:"#006bb6"},{id:"tor",name:"Raptors",abbr:"TOR",color:"#ce1141"},
+    {id:"dal",name:"Mavericks",abbr:"DAL",color:"#00538c"},{id:"mil",name:"Bucks",abbr:"MIL",color:"#00471b"},
+    {id:"den",name:"Nuggets",abbr:"DEN",color:"#0e2240"},{id:"phx",name:"Suns",abbr:"PHX",color:"#1d1160"},
+    {id:"okc",name:"Thunder",abbr:"OKC",color:"#007ac1"},{id:"mem",name:"Grizzlies",abbr:"MEM",color:"#5d76a9"},
+    {id:"cle",name:"Cavaliers",abbr:"CLE",color:"#860038"},{id:"hou",name:"Rockets",abbr:"HOU",color:"#ce1141"},
+    {id:"por",name:"Trail Blazers",abbr:"POR",color:"#e03a3e"},{id:"min",name:"Timberwolves",abbr:"MIN",color:"#0c2340"},
+    {id:"ind",name:"Pacers",abbr:"IND",color:"#002d62"},{id:"nyk",name:"Knicks",abbr:"NYK",color:"#006bb6"},
+    {id:"bkn",name:"Nets",abbr:"BKN",color:"#000000"},{id:"atl",name:"Hawks",abbr:"ATL",color:"#e03a3e"},
+    {id:"cha",name:"Hornets",abbr:"CHA",color:"#00788c"},{id:"det",name:"Pistons",abbr:"DET",color:"#c8102e"},
+    {id:"sac",name:"Kings",abbr:"SAC",color:"#5a2d81"},{id:"no",name:"Pelicans",abbr:"NO",color:"#0c2340"},
+    {id:"was",name:"Wizards",abbr:"WAS",color:"#002b5c"},{id:"orl",name:"Magic",abbr:"ORL",color:"#0077c0"},
+    {id:"uta",name:"Jazz",abbr:"UTA",color:"#002b5c"},{id:"lac",name:"Clippers",abbr:"LAC",color:"#c8102e"},
+  ],
+  nhl:[
+    {id:"bos",name:"Bruins",abbr:"BOS",color:"#fcb514"},{id:"mtl",name:"Canadiens",abbr:"MTL",color:"#af1e2d"},
+    {id:"tor",name:"Maple Leafs",abbr:"TOR",color:"#003e7e"},{id:"nyr",name:"Rangers",abbr:"NYR",color:"#0038a8"},
+    {id:"chi",name:"Blackhawks",abbr:"CHI",color:"#cf0a2c"},{id:"det",name:"Red Wings",abbr:"DET",color:"#ce1126"},
+    {id:"pit",name:"Penguins",abbr:"PIT",color:"#fcb514"},{id:"edm",name:"Oilers",abbr:"EDM",color:"#ff4c00"},
+    {id:"col",name:"Avalanche",abbr:"COL",color:"#6f263d"},{id:"tb",name:"Lightning",abbr:"TB",color:"#002868"},
+    {id:"vgs",name:"Golden Knights",abbr:"VGS",color:"#b4975a"},{id:"wsh",name:"Capitals",abbr:"WSH",color:"#041e42"},
+    {id:"car",name:"Hurricanes",abbr:"CAR",color:"#cc0000"},{id:"fla",name:"Panthers",abbr:"FLA",color:"#041e42"},
+    {id:"nj",name:"Devils",abbr:"NJ",color:"#ce1126"},{id:"phi",name:"Flyers",abbr:"PHI",color:"#f74902"},
+    {id:"stl",name:"Blues",abbr:"STL",color:"#002f87"},{id:"min",name:"Wild",abbr:"MIN",color:"#154734"},
+    {id:"dal",name:"Stars",abbr:"DAL",color:"#006847"},{id:"ana",name:"Ducks",abbr:"ANA",color:"#fc4c02"},
+    {id:"la",name:"Kings",abbr:"LA",color:"#111111"},{id:"sjs",name:"Sharks",abbr:"SJS",color:"#006d75"},
+    {id:"wpg",name:"Jets",abbr:"WPG",color:"#041e42"},{id:"buf",name:"Sabres",abbr:"BUF",color:"#003087"},
+    {id:"ott",name:"Senators",abbr:"OTT",color:"#c52032"},{id:"cgy",name:"Flames",abbr:"CGY",color:"#c8102e"},
+    {id:"van",name:"Canucks",abbr:"VAN",color:"#00843d"},{id:"cls",name:"Blue Jackets",abbr:"CLS",color:"#002654"},
+    {id:"nsh",name:"Predators",abbr:"NSH",color:"#ffb81c"},{id:"ari",name:"Coyotes",abbr:"ARI",color:"#8c2633"},
+    {id:"nyi",name:"Islanders",abbr:"NYI",color:"#003087"},{id:"sea",name:"Kraken",abbr:"SEA",color:"#001628"},
+  ],
+};
+
+// Seeded RNG so same date = same grid for everyone
+function seededRng(seed){
+  let s=seed>>>0;
+  return()=>{s=Math.imul(s^(s>>>13),s^(s<<7));s^=s>>>17;return(s>>>0)/4294967296;};
+}
+function getPSTDateStr(){
+  const d=new Date(new Date().toLocaleString("en-US",{timeZone:"America/Los_Angeles"}));
+  return d.toISOString().slice(0,10);
+}
+function dateSeed(str){return str.split("-").reduce((a,n,i)=>a+(parseInt(n)*(i===0?10000:i===1?100:1)),0);}
+function getDailyGrid(sport,dateStr){
+  const pool=[...IG_TEAMS[sport]];
+  const offset={mlb:1,nfl:2,nba:3,nhl:4}[sport];
+  const rng=seededRng(dateSeed(dateStr)*31+offset*997);
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  return{rows:pool.slice(0,3),cols:pool.slice(3,6)};
+}
+
+function ImmaculateGridPage({cu,navigate}){
+  const mob=useIsMobile();
+  const [sport,setSport]=useState("mlb");
+  const dateStr=getPSTDateStr();
+  const {rows,cols}=getDailyGrid(sport,dateStr);
+
+  // guesses: {[cell]: {player_name, user_id, score}}
+  const [allGuesses,setAllGuesses]=useState({}); // cell -> array of {user_id,player_name}
+  const [myGuesses,setMyGuesses]=useState({});   // cell -> player_name
+  const [activeCell,setActiveCell]=useState(null); // "r,c"
+  const [inputVal,setInputVal]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [submitting,setSubmitting]=useState(false);
+  const [nextReset,setNextReset]=useState("");
+  const inputRef=useRef(null);
+
+  // Countdown to midnight PST
+  useEffect(()=>{
+    const tick=()=>{
+      const now=new Date();
+      const pst=new Date(now.toLocaleString("en-US",{timeZone:"America/Los_Angeles"}));
+      const tomorrow=new Date(pst);
+      tomorrow.setDate(tomorrow.getDate()+1);
+      tomorrow.setHours(0,0,0,0);
+      const diff=tomorrow-pst;
+      const h=Math.floor(diff/3600000);
+      const m=Math.floor((diff%3600000)/60000);
+      const s=Math.floor((diff%60000)/1000);
+      setNextReset(`${h}h ${m}m ${s}s`);
+    };
+    tick();
+    const t=setInterval(tick,1000);
+    return()=>clearInterval(t);
+  },[]);
+
+  // Load today's guesses for this sport
+  useEffect(()=>{
+    setLoading(true);
+    setMyGuesses({});
+    setAllGuesses({});
+    setActiveCell(null);
+    const key=`${sport}_${dateStr}`;
+    sb.get("nova_grid_guesses",`?sport=eq.${sport}&grid_date=eq.${dateStr}&limit=500`)
+      .then(rows=>{
+        const all={};
+        const mine={};
+        (rows||[]).forEach(g=>{
+          const k=`${g.cell_r},${g.cell_c}`;
+          if(!all[k])all[k]=[];
+          all[k].push({user_id:g.user_id,player_name:g.player_name});
+          if(cu&&g.user_id===cu.id)mine[k]=g.player_name;
+        });
+        setAllGuesses(all);
+        setMyGuesses(mine);
+      })
+      .finally(()=>setLoading(false));
+  },[sport,dateStr]);
+
+  // Rarity score: fewer people answered = higher score (max 1000)
+  const rarityScore=(cellKey)=>{
+    const total=Object.values(allGuesses).flat().length||1;
+    const cellCount=(allGuesses[cellKey]||[]).length||0;
+    if(cellCount===0)return 1000;
+    return Math.max(Math.round(1000/(cellCount)),1);
+  };
+
+  const myTotal=Object.keys(myGuesses).reduce((sum,k)=>sum+rarityScore(k),0);
+  const filledCount=Object.keys(myGuesses).length;
+
+  const openCell=(r,c)=>{
+    if(!cu){alert("Log in to play!");return;}
+    const k=`${r},${c}`;
+    if(myGuesses[k])return; // already answered
+    setActiveCell(k);
+    setInputVal("");
+    setTimeout(()=>inputRef.current?.focus(),80);
+  };
+
+  const submitGuess=async()=>{
+    if(!inputVal.trim()||!activeCell||!cu)return;
+    setSubmitting(true);
+    const [r,c]=activeCell.split(",").map(Number);
+    try{
+      await sb.post("nova_grid_guesses",{
+        id:gid(),user_id:cu.id,sport,grid_date:dateStr,
+        cell_r:r,cell_c:c,player_name:inputVal.trim(),ts:Date.now()
+      });
+      const k=activeCell;
+      setMyGuesses(p=>({...p,[k]:inputVal.trim()}));
+      setAllGuesses(p=>({...p,[k]:[...(p[k]||[]),{user_id:cu.id,player_name:inputVal.trim()}]}));
+      setActiveCell(null);
+      setInputVal("");
+    }catch(e){alert("Error saving guess");}
+    setSubmitting(false);
+  };
+
+  const sportEmoji={mlb:"⚾",nfl:"🏈",nba:"🏀",nhl:"🏒"};
+  const sportColor={mlb:"#22C55E",nfl:"#F97316",nba:"#3B82F6",nhl:"#A78BFA"};
+  const ac=sportColor[sport];
+
+  const TeamBadge=({team,small})=>(
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+      <div style={{width:small?28:34,height:small?28:34,borderRadius:8,background:team.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:small?8:10,fontWeight:900,color:"#fff",fontFamily:"'Orbitron',sans-serif",letterSpacing:"-.3px",border:"1px solid rgba(255,255,255,.15)"}}>
+        {team.abbr}
+      </div>
+      <div style={{fontSize:small?8:9,color:"#64748B",fontFamily:"'Orbitron',sans-serif",letterSpacing:".03em",maxWidth:small?36:50,textAlign:"center",lineHeight:1.2}}>{team.name}</div>
+    </div>
+  );
+
+  const totalGuessers=new Set(Object.values(allGuesses).flat().map(g=>g.user_id)).size;
+
+  return(
+    <div style={{maxWidth:700,margin:"0 auto",padding:mob?"16px 10px":"28px 20px"}}>
+      {/* Header */}
+      <div style={{textAlign:"center",marginBottom:20}}>
+        <div style={{fontSize:mob?20:26,fontWeight:900,fontFamily:"'Orbitron',sans-serif",background:`linear-gradient(135deg,${ac},#fff)`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:".05em"}}>
+          IMMACULATE GRID
+        </div>
+        <div style={{fontSize:11,color:"#475569",marginTop:4,fontFamily:"'Rajdhani',sans-serif"}}>
+          {dateStr} &nbsp;·&nbsp; resets in <span style={{color:ac,fontWeight:700}}>{nextReset}</span> &nbsp;·&nbsp; {totalGuessers} player{totalGuessers!==1?"s":""} today
+        </div>
+      </div>
+
+      {/* Sport tabs */}
+      <div style={{display:"flex",gap:6,justifyContent:"center",marginBottom:20}}>
+        {["mlb","nfl","nba","nhl"].map(s=>(
+          <button key={s} onClick={()=>setSport(s)} style={{padding:"7px 16px",borderRadius:20,border:`1px solid ${sport===s?sportColor[s]:"rgba(255,255,255,.1)"}`,background:sport===s?`${sportColor[s]}22`:"none",color:sport===s?sportColor[s]:"#64748B",fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,cursor:"pointer",letterSpacing:".05em",transition:"all .2s"}}>
+            {sportEmoji[s]} {s.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      {/* Score bar */}
+      {cu&&(
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)",borderRadius:10,padding:"10px 16px",marginBottom:16}}>
+          <div style={{fontSize:12,color:"#64748B",fontFamily:"'Orbitron',sans-serif"}}>YOUR SCORE</div>
+          <div style={{fontSize:22,fontWeight:900,fontFamily:"'Orbitron',sans-serif",color:ac}}>{myTotal.toLocaleString()}</div>
+          <div style={{fontSize:11,color:"#475569",fontFamily:"'Orbitron',sans-serif"}}>{filledCount}/9 CELLS</div>
+        </div>
+      )}
+
+      {loading?(
+        <div style={{textAlign:"center",padding:60,color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:12}}>LOADING GRID…</div>
+      ):(
+        <>
+          {/* Grid */}
+          <div style={{display:"grid",gridTemplateColumns:`${mob?44:56}px repeat(3,1fr)`,gridTemplateRows:`${mob?52:64}px repeat(3,1fr)`,gap:4}}>
+            {/* Top-left empty corner */}
+            <div/>
+            {/* Column headers */}
+            {cols.map((col,ci)=>(
+              <div key={ci} style={{display:"flex",alignItems:"center",justifyContent:"center",padding:"4px 2px"}}>
+                <TeamBadge team={col} small={mob}/>
+              </div>
+            ))}
+            {/* Rows */}
+            {rows.map((row,ri)=>(
+              <React.Fragment key={ri}>
+                {/* Row header */}
+                <div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:"2px 4px"}}>
+                  <TeamBadge team={row} small={mob}/>
+                </div>
+                {/* Cells */}
+                {cols.map((_,ci)=>{
+                  const k=`${ri},${ci}`;
+                  const mine=myGuesses[k];
+                  const cellAll=allGuesses[k]||[];
+                  const score=mine?rarityScore(k):null;
+                  const pct=cellAll.length>0?Math.round((cellAll.length/(totalGuessers||1))*100):null;
+                  const isActive=activeCell===k;
+                  return(
+                    <div key={ci} onClick={()=>openCell(ri,ci)}
+                      style={{aspectRatio:"1",borderRadius:10,border:`1.5px solid ${isActive?ac:mine?"rgba(255,255,255,.18)":"rgba(255,255,255,.07)"}`,background:isActive?`${ac}18`:mine?`rgba(255,255,255,.05)`:"rgba(255,255,255,.02)",cursor:mine||!cu?"default":"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:4,gap:2,transition:"all .15s",position:"relative",overflow:"hidden"}}>
+                      {mine?(
+                        <>
+                          <div style={{width:"100%",height:3,background:`linear-gradient(90deg,${ac},transparent)`,position:"absolute",top:0,left:0,borderRadius:"2px 2px 0 0"}}/>
+                          <div style={{fontSize:mob?9:11,fontWeight:700,color:"#E2E8F0",textAlign:"center",lineHeight:1.2,wordBreak:"break-word",padding:"0 2px"}}>{mine}</div>
+                          {score&&<div style={{fontSize:mob?8:9,fontFamily:"'Orbitron',sans-serif",color:ac,fontWeight:900}}>+{score}</div>}
+                          {pct!==null&&<div style={{fontSize:7,color:"#475569"}}>{pct}% got this</div>}
+                        </>
+                      ):(
+                        <>
+                          {pct!==null&&pct>0&&<div style={{fontSize:8,color:"#334155"}}>{pct}%</div>}
+                          {cu&&<div style={{fontSize:16,color:"rgba(255,255,255,.08)"}}>+</div>}
+                          {!cu&&<div style={{fontSize:9,color:"#334155"}}>🔒</div>}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </div>
+
+          {/* Input modal */}
+          {activeCell&&cu&&(()=>{
+            const [r,c]=activeCell.split(",").map(Number);
+            const row=rows[r]; const col=cols[c];
+            return(
+              <div style={{marginTop:16,background:"rgba(10,15,28,.95)",border:`1px solid ${ac}44`,borderRadius:14,padding:16,backdropFilter:"blur(12px)"}}>
+                <div style={{fontSize:11,color:"#64748B",fontFamily:"'Orbitron',sans-serif",marginBottom:8,letterSpacing:".08em"}}>
+                  NAME A PLAYER WHO PLAYED FOR BOTH:
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                  <div style={{padding:"4px 10px",borderRadius:6,background:row.color,color:"#fff",fontSize:10,fontWeight:700,fontFamily:"'Orbitron',sans-serif"}}>{row.abbr}</div>
+                  <div style={{color:"#475569",fontSize:14}}>×</div>
+                  <div style={{padding:"4px 10px",borderRadius:6,background:col.color,color:"#fff",fontSize:10,fontWeight:700,fontFamily:"'Orbitron',sans-serif"}}>{col.abbr}</div>
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <input ref={inputRef} value={inputVal} onChange={e=>setInputVal(e.target.value)}
+                    onKeyDown={e=>{if(e.key==="Enter")submitGuess();if(e.key==="Escape")setActiveCell(null);}}
+                    placeholder="Player name..." autoFocus
+                    style={{flex:1,background:"rgba(255,255,255,.05)",border:`1px solid ${ac}55`,borderRadius:8,padding:"9px 12px",color:"#E2E8F0",fontSize:13,outline:"none"}}/>
+                  <button onClick={submitGuess} disabled={submitting||!inputVal.trim()}
+                    style={{padding:"9px 18px",borderRadius:8,background:ac,border:"none",color:"#000",fontWeight:900,fontSize:12,fontFamily:"'Orbitron',sans-serif",cursor:"pointer",opacity:submitting||!inputVal.trim()?0.5:1}}>
+                    {submitting?"…":"GO"}
+                  </button>
+                  <button onClick={()=>setActiveCell(null)}
+                    style={{padding:"9px 12px",borderRadius:8,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#64748B",fontSize:12,cursor:"pointer"}}>✕</button>
+                </div>
+                <div style={{fontSize:10,color:"#334155",marginTop:8}}>Honor system — only submit if you know they actually played for both! 🤝</div>
+              </div>
+            );
+          })()}
+
+          {/* Today's answers table */}
+          {Object.keys(allGuesses).length>0&&(
+            <div style={{marginTop:20,background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.06)",borderRadius:12,overflow:"hidden"}}>
+              <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(255,255,255,.05)",fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#475569",letterSpacing:".1em"}}>
+                TODAY'S ANSWERS · ALL PLAYERS
+              </div>
+              <div style={{maxHeight:220,overflowY:"auto"}}>
+                {rows.map((row,ri)=>cols.map((col,ci)=>{
+                  const k=`${ri},${ci}`;
+                  const entries=allGuesses[k]||[];
+                  if(!entries.length)return null;
+                  return entries.map((e,ei)=>(
+                    <div key={`${k}-${ei}`} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 14px",borderBottom:"1px solid rgba(255,255,255,.03)"}}>
+                      <div style={{width:22,height:22,borderRadius:5,background:row.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,fontWeight:900,color:"#fff",fontFamily:"'Orbitron',sans-serif",flexShrink:0}}>{row.abbr}</div>
+                      <div style={{color:"#475569",fontSize:10}}>×</div>
+                      <div style={{width:22,height:22,borderRadius:5,background:col.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,fontWeight:900,color:"#fff",fontFamily:"'Orbitron',sans-serif",flexShrink:0}}>{col.abbr}</div>
+                      <div style={{flex:1,fontSize:12,color:"#CBD5E1",fontWeight:600}}>{e.player_name}</div>
+                      <div style={{fontSize:10,color:ac,fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>+{rarityScore(k)}</div>
+                    </div>
+                  ));
+                }))}
+              </div>
+            </div>
+          )}
+
+          {!cu&&(
+            <div style={{textAlign:"center",padding:"30px 20px",color:"#475569",fontSize:13}}>
+              <div style={{fontSize:24,marginBottom:8}}>🔒</div>
+              Log in to play today's grid!
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function LeaderboardPage({users,navigate}){
   const mob=useIsMobile();
   const[tab,setTab]=useState("followers");
@@ -1541,8 +1896,8 @@ function FLModal({type,user,users,navigate,onClose}){
 // ── Navbar ────────────────────────────────────────────────────────────────────
 function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onClearNotifs,onMarkOneNotif,users,msgUnread}){
   const mob=useIsMobile();
-  const dTabs=[["home","Home"],["members","Members"],["news","📰 News"],["feed","🎬 Feed"],["predict","🎯 Predict"],["leaderboard","🏆 Board"]];
-  const mTabs=[{p:"home",icon:"🏠",lbl:"Home"},{p:"members",icon:"👥",lbl:"Members"},{p:"news",icon:"📰",lbl:"News"},{p:"predict",icon:"🎯",lbl:"Predict"},{p:"leaderboard",icon:"🏆",lbl:"Board"},{p:"messages",icon:"💬",lbl:"DMs",badge:msgUnread}];
+  const dTabs=[["home","Home"],["members","Members"],["news","📰 News"],["feed","🎬 Feed"],["predict","🎯 Predict"],["grid","🟩 Grid"],["leaderboard","🏆 Board"]];
+  const mTabs=[{p:"home",icon:"🏠",lbl:"Home"},{p:"news",icon:"📰",lbl:"News"},{p:"predict",icon:"🎯",lbl:"Predict"},{p:"grid",icon:"🟩",lbl:"Grid"},{p:"leaderboard",icon:"🏆",lbl:"Board"},{p:"messages",icon:"💬",lbl:"DMs",badge:msgUnread}];
   return (
     <>
       <nav style={{position:"fixed",top:0,left:0,right:0,zIndex:100,height:62,display:"flex",alignItems:"center",justifyContent:"space-between",padding:mob?"0 12px":"0 20px",background:"rgba(3,7,18,.97)",backdropFilter:"blur(24px)",borderBottom:"1px solid rgba(255,255,255,.055)"}}>
@@ -3584,6 +3939,7 @@ export default function App(){
     if(page==="feed")return <FeedPage users={users} cu={cu} likes={likes} onLike={handleLike} navigate={nav}/>;
     if(page==="game"&&gameRef)return <GameDetailPage gameId={gameRef.id} sport={gameRef.sport} navigate={nav}/>;
     if(page==="predict")return <PredictPage cu={cu} users={users} setUsers={setUsers} navigate={nav}/>;
+    if(page==="grid")return <ImmaculateGridPage cu={cu} navigate={nav}/>;
     if(page==="leaderboard")return <LeaderboardPage users={users} navigate={nav}/>;
     if(page==="messages")return <MessagesPage cu={cu} users={users} conversations={conversations} setConversations={setConversations} messages={messages} setMessages={setMessages}/>;
     if(page==="dashboard")return <DashboardPage cu={cu} users={users} setUsers={setUsers} navigate={nav}/>;
