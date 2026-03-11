@@ -1293,12 +1293,164 @@ function ClipCarousel({clips,canEdit,onDelete,emptyIcon,emptyMsg,cu,likes,onLike
 }
 
 function Starfield(){
-  const s=useRef(null);
-  if(!s.current)s.current=Array.from({length:200},(_,i)=>({id:i,x:Math.random()*100,y:Math.random()*100,sz:Math.random()*2.4+.4,delay:Math.random()*7,dur:Math.random()*3.5+2,bright:Math.random()>.92}));
-  return <div style={{position:"fixed",inset:0,zIndex:0,overflow:"hidden",background:"radial-gradient(ellipse at 18% 38%,#0e0228 0%,#030712 54%)"}}>
-    <div style={{position:"absolute",width:"65%",height:"65%",top:"-15%",left:"45%",borderRadius:"50%",background:"radial-gradient(circle,rgba(139,92,246,.08) 0%,transparent 70%)"}}/>
-    {s.current.map(st=><div key={st.id} style={{position:"absolute",left:`${st.x}%`,top:`${st.y}%`,width:st.sz,height:st.sz,borderRadius:"50%",background:st.bright?"#a8e0ff":st.sz>1.8?"rgba(180,220,255,.9)":"rgba(255,255,255,.8)",boxShadow:st.bright?"0 0 4px 1px rgba(168,224,255,.6)":"none",animation:`twinkle ${st.dur}s ${st.delay}s ease-in-out infinite alternate`}}/>)}
-  </div>;
+  const canvasRef=useRef(null);
+  const rafRef=useRef(null);
+
+  useEffect(()=>{
+    const canvas=canvasRef.current;
+    if(!canvas)return;
+    const ctx=canvas.getContext("2d");
+    let W=window.innerWidth, H=window.innerHeight;
+
+    // ── resize ──
+    const resize=()=>{
+      W=window.innerWidth; H=window.innerHeight;
+      canvas.width=W; canvas.height=H;
+    };
+    resize();
+    window.addEventListener("resize",resize);
+
+    // ── stars ──
+    const NUM=280;
+    const stars=Array.from({length:NUM},()=>({
+      x:Math.random()*W, y:Math.random()*H,
+      r:Math.random()*1.6+0.3,
+      baseAlpha:Math.random()*0.6+0.2,
+      alpha:0,
+      twinkleSpeed:Math.random()*0.008+0.003,
+      twinkleDir:Math.random()>0.5?1:-1,
+      color:Math.random()>0.88
+        ?(Math.random()>0.5?"#b3d9ff":"#d4b3ff")
+        :"#ffffff",
+      glow:Math.random()>0.92,
+    }));
+    // Stagger initial alpha
+    stars.forEach(s=>{ s.alpha=Math.random()*s.baseAlpha; });
+
+    // ── shooting stars ──
+    const shoots=[];
+    const spawnShoot=()=>{
+      // Start from top-right area, angle downward-left
+      const angle=Math.PI*0.8+Math.random()*Math.PI*0.3; // ~145–199 deg
+      const speed=Math.random()*6+8;
+      shoots.push({
+        x:Math.random()*W*0.8+W*0.2,
+        y:Math.random()*H*0.3,
+        vx:Math.cos(angle)*speed,
+        vy:Math.sin(angle)*speed,
+        len:Math.random()*140+80,
+        alpha:1,
+        width:Math.random()*1.2+0.4,
+        trail:[],
+      });
+    };
+
+    // Shoot every 3–8 seconds
+    let nextShoot=Date.now()+3000+Math.random()*5000;
+
+    // ── draw loop ──
+    const draw=()=>{
+      ctx.clearRect(0,0,W,H);
+
+      // Deep space bg
+      const bg=ctx.createRadialGradient(W*0.18,H*0.38,0,W*0.5,H*0.5,W*0.9);
+      bg.addColorStop(0,"#0e0228");
+      bg.addColorStop(0.55,"#030712");
+      bg.addColorStop(1,"#030712");
+      ctx.fillStyle=bg;
+      ctx.fillRect(0,0,W,H);
+
+      // Soft nebula glow top-right
+      const neb=ctx.createRadialGradient(W*0.78,H*0.15,0,W*0.78,H*0.15,W*0.35);
+      neb.addColorStop(0,"rgba(139,92,246,0.07)");
+      neb.addColorStop(1,"transparent");
+      ctx.fillStyle=neb;
+      ctx.fillRect(0,0,W,H);
+
+      // Second nebula bottom-left
+      const neb2=ctx.createRadialGradient(W*0.12,H*0.82,0,W*0.12,H*0.82,W*0.28);
+      neb2.addColorStop(0,"rgba(0,180,255,0.05)");
+      neb2.addColorStop(1,"transparent");
+      ctx.fillStyle=neb2;
+      ctx.fillRect(0,0,W,H);
+
+      // Draw stars
+      stars.forEach(s=>{
+        // Twinkle
+        s.alpha+=s.twinkleSpeed*s.twinkleDir;
+        if(s.alpha>=s.baseAlpha){s.alpha=s.baseAlpha;s.twinkleDir=-1;}
+        else if(s.alpha<=0.05){s.alpha=0.05;s.twinkleDir=1;}
+
+        ctx.save();
+        ctx.globalAlpha=s.alpha;
+        if(s.glow){
+          const g=ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,s.r*5);
+          g.addColorStop(0,s.color);
+          g.addColorStop(1,"transparent");
+          ctx.fillStyle=g;
+          ctx.fillRect(s.x-s.r*5,s.y-s.r*5,s.r*10,s.r*10);
+        }
+        ctx.beginPath();
+        ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+        ctx.fillStyle=s.color;
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Shoot new star?
+      const now=Date.now();
+      if(now>=nextShoot){
+        spawnShoot();
+        nextShoot=now+3000+Math.random()*5000;
+      }
+
+      // Draw shooting stars
+      for(let i=shoots.length-1;i>=0;i--){
+        const sh=shoots[i];
+        sh.x+=sh.vx; sh.y+=sh.vy;
+        sh.alpha-=0.018;
+        sh.trail.push({x:sh.x,y:sh.y});
+        if(sh.trail.length>30)sh.trail.shift();
+
+        if(sh.alpha<=0||sh.x<-200||sh.y>H+200){shoots.splice(i,1);continue;}
+
+        // Draw trail
+        ctx.save();
+        ctx.lineCap="round";
+        for(let t=1;t<sh.trail.length;t++){
+          const prog=t/sh.trail.length;
+          ctx.globalAlpha=sh.alpha*prog*0.9;
+          ctx.strokeStyle=`rgba(200,230,255,${prog})`;
+          ctx.lineWidth=sh.width*(1-prog*0.5);
+          ctx.beginPath();
+          ctx.moveTo(sh.trail[t-1].x,sh.trail[t-1].y);
+          ctx.lineTo(sh.trail[t].x,sh.trail[t].y);
+          ctx.stroke();
+        }
+        // Bright head
+        ctx.globalAlpha=sh.alpha;
+        const headGlow=ctx.createRadialGradient(sh.x,sh.y,0,sh.x,sh.y,sh.width*4);
+        headGlow.addColorStop(0,"rgba(255,255,255,1)");
+        headGlow.addColorStop(0.4,"rgba(180,220,255,0.6)");
+        headGlow.addColorStop(1,"transparent");
+        ctx.fillStyle=headGlow;
+        ctx.fillRect(sh.x-sh.width*4,sh.y-sh.width*4,sh.width*8,sh.width*8);
+        ctx.restore();
+      }
+
+      rafRef.current=requestAnimationFrame(draw);
+    };
+
+    draw();
+    return()=>{
+      cancelAnimationFrame(rafRef.current);
+      window.removeEventListener("resize",resize);
+    };
+  },[]);
+
+  return(
+    <canvas ref={canvasRef} style={{position:"fixed",inset:0,zIndex:0,display:"block",pointerEvents:"none"}}/>
+  );
 }
 
 function NotifBell({notifs,onRead,onClear,onMarkOne,navigate,users}){
