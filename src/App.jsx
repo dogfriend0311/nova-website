@@ -975,8 +975,14 @@ function ImmaculateGridPage({cu,navigate}){
   const [inputVal,setInputVal]=useState("");
   const [loading,setLoading]=useState(false);
   const [submitting,setSubmitting]=useState(false);
+  const [validating,setValidating]=useState(false);
   const [nextReset,setNextReset]=useState("");
+  const [suggestions,setSuggestions]=useState([]);
+  const [suggLoading,setSuggLoading]=useState(false);
+  const [selectedPlayer,setSelectedPlayer]=useState(null); // {id,name,team,position}
   const inputRef=useRef(null);
+  const suggRef=useRef(null);
+  const searchTimerRef=useRef(null);
 
   // Countdown to midnight PST
   useEffect(()=>{
@@ -1022,38 +1028,99 @@ function ImmaculateGridPage({cu,navigate}){
 
   // Rarity score: fewer people answered = higher score (max 1000)
   const rarityScore=(cellKey)=>{
-    const total=Object.values(allGuesses).flat().length||1;
     const cellCount=(allGuesses[cellKey]||[]).length||0;
+    const tg=totalGuessers||1;
     if(cellCount===0)return 1000;
-    return Math.max(Math.round(1000/(cellCount)),1);
+    // pct of all players who got this cell (0-1), rarity = inverse
+    const pct=cellCount/tg;
+    // score 999 -> 100 as pct goes 0 -> 1, minimum 100
+    return Math.max(Math.round(1000*(1-pct*0.9)),100);
   };
 
   const myTotal=Object.keys(myGuesses).reduce((sum,k)=>sum+rarityScore(k),0);
   const filledCount=Object.keys(myGuesses).length;
 
+  // Search ESPN for player name autocomplete
+  const searchPlayers=async(q)=>{
+    if(q.length<2){setSuggestions([]);return;}
+    setSuggLoading(true);
+    try{
+      const r=await fetch(`/api/hyperbeam?search=${encodeURIComponent(q)}&sport=${sport}`);
+      const d=await r.json();
+      setSuggestions(d.athletes||[]);
+    }catch{setSuggestions([]);}
+    setSuggLoading(false);
+  };
+
+  const onSearchInput=(val)=>{
+    setInputVal(val);
+    setSelectedPlayer(null);
+    clearTimeout(searchTimerRef.current);
+    searchTimerRef.current=setTimeout(()=>searchPlayers(val),300);
+  };
+
+  const pickSuggestion=(s)=>{
+    setInputVal(s.name);
+    setSelectedPlayer(s);
+    setSuggestions([]);
+    inputRef.current?.focus();
+  };
+
   const openCell=(r,c)=>{
     if(!cu){alert("Log in to play!");return;}
     const k=`${r},${c}`;
-    if(myGuesses[k])return; // already answered
+    if(myGuesses[k])return;
     setActiveCell(k);
     setInputVal("");
+    setSelectedPlayer(null);
+    setSuggestions([]);
     setTimeout(()=>inputRef.current?.focus(),80);
   };
 
   const submitGuess=async()=>{
     if(!inputVal.trim()||!activeCell||!cu)return;
+    // Must pick from autocomplete - ensures real player spelling
+    if(!selectedPlayer){
+      // Try one last search to see if exact match exists
+      setValidating(true);
+      try{
+        const r=await fetch(`/api/hyperbeam?search=${encodeURIComponent(inputVal.trim())}&sport=${sport}`);
+        const d=await r.json();
+        const athletes=d.athletes||[];
+        const exact=athletes.find(a=>a.name.toLowerCase()===inputVal.trim().toLowerCase());
+        if(exact){
+          setSelectedPlayer(exact);
+          setInputVal(exact.name);
+        } else if(athletes.length>0){
+          // Show suggestions instead of submitting
+          setSuggestions(athletes);
+          setValidating(false);
+          return;
+        } else {
+          alert("⚠️ Player not found in ESPN database. Check the spelling or pick from the suggestions.");
+          setValidating(false);
+          return;
+        }
+      }catch{
+        // Network error - allow submit anyway
+      }
+      setValidating(false);
+    }
     setSubmitting(true);
+    const playerName=selectedPlayer?.name||inputVal.trim();
     const [r,c]=activeCell.split(",").map(Number);
     try{
       await sb.post("nova_grid_guesses",{
         id:gid(),user_id:cu.id,sport,grid_date:dateStr,
-        cell_r:r,cell_c:c,player_name:inputVal.trim(),ts:Date.now()
+        cell_r:r,cell_c:c,player_name:playerName,ts:Date.now()
       });
       const k=activeCell;
-      setMyGuesses(p=>({...p,[k]:inputVal.trim()}));
-      setAllGuesses(p=>({...p,[k]:[...(p[k]||[]),{user_id:cu.id,player_name:inputVal.trim()}]}));
+      setMyGuesses(p=>({...p,[k]:playerName}));
+      setAllGuesses(p=>({...p,[k]:[...(p[k]||[]),{user_id:cu.id,player_name:playerName}]}));
       setActiveCell(null);
       setInputVal("");
+      setSelectedPlayer(null);
+      setSuggestions([]);
     }catch(e){alert("Error saving guess");}
     setSubmitting(false);
   };
@@ -1161,28 +1228,69 @@ function ImmaculateGridPage({cu,navigate}){
             const [r,c]=activeCell.split(",").map(Number);
             const row=rows[r]; const col=cols[c];
             return(
-              <div style={{marginTop:16,background:"rgba(10,15,28,.95)",border:`1px solid ${ac}44`,borderRadius:14,padding:16,backdropFilter:"blur(12px)"}}>
+              <div style={{marginTop:16,background:"rgba(10,15,28,.97)",border:`1px solid ${ac}44`,borderRadius:14,padding:16,backdropFilter:"blur(12px)"}}>
                 <div style={{fontSize:11,color:"#64748B",fontFamily:"'Orbitron',sans-serif",marginBottom:8,letterSpacing:".08em"}}>
                   NAME A PLAYER WHO PLAYED FOR BOTH:
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-                  <div style={{padding:"4px 10px",borderRadius:6,background:row.color,color:"#fff",fontSize:10,fontWeight:700,fontFamily:"'Orbitron',sans-serif"}}>{row.abbr}</div>
-                  <div style={{color:"#475569",fontSize:14}}>×</div>
-                  <div style={{padding:"4px 10px",borderRadius:6,background:col.color,color:"#fff",fontSize:10,fontWeight:700,fontFamily:"'Orbitron',sans-serif"}}>{col.abbr}</div>
+                  <div style={{padding:"5px 12px",borderRadius:6,background:row.color,color:"#fff",fontSize:11,fontWeight:700,fontFamily:"'Orbitron',sans-serif",letterSpacing:".05em"}}>{row.abbr} <span style={{opacity:.7,fontSize:9}}>{row.name}</span></div>
+                  <div style={{color:"#475569",fontSize:16,fontWeight:900}}>×</div>
+                  <div style={{padding:"5px 12px",borderRadius:6,background:col.color,color:"#fff",fontSize:11,fontWeight:700,fontFamily:"'Orbitron',sans-serif",letterSpacing:".05em"}}>{col.abbr} <span style={{opacity:.7,fontSize:9}}>{col.name}</span></div>
                 </div>
-                <div style={{display:"flex",gap:8}}>
-                  <input ref={inputRef} value={inputVal} onChange={e=>setInputVal(e.target.value)}
-                    onKeyDown={e=>{if(e.key==="Enter")submitGuess();if(e.key==="Escape")setActiveCell(null);}}
-                    placeholder="Player name..." autoFocus
-                    style={{flex:1,background:"rgba(255,255,255,.05)",border:`1px solid ${ac}55`,borderRadius:8,padding:"9px 12px",color:"#E2E8F0",fontSize:13,outline:"none"}}/>
-                  <button onClick={submitGuess} disabled={submitting||!inputVal.trim()}
-                    style={{padding:"9px 18px",borderRadius:8,background:ac,border:"none",color:"#000",fontWeight:900,fontSize:12,fontFamily:"'Orbitron',sans-serif",cursor:"pointer",opacity:submitting||!inputVal.trim()?0.5:1}}>
-                    {submitting?"…":"GO"}
-                  </button>
-                  <button onClick={()=>setActiveCell(null)}
-                    style={{padding:"9px 12px",borderRadius:8,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#64748B",fontSize:12,cursor:"pointer"}}>✕</button>
+                {/* Autocomplete input */}
+                <div style={{position:"relative"}}>
+                  <div style={{display:"flex",gap:8}}>
+                    <div style={{flex:1,position:"relative"}}>
+                      <input ref={inputRef} value={inputVal}
+                        onChange={e=>onSearchInput(e.target.value)}
+                        onKeyDown={e=>{
+                          if(e.key==="Enter")submitGuess();
+                          if(e.key==="Escape"){setSuggestions([]);setActiveCell(null);}
+                          if(e.key==="ArrowDown"&&suggestions.length>0){
+                            const el=suggRef.current?.querySelector("button");
+                            el&&el.focus();
+                          }
+                        }}
+                        placeholder="Start typing a player name…" autoFocus
+                        style={{width:"100%",boxSizing:"border-box",background:selectedPlayer?"rgba(34,197,94,.08)":"rgba(255,255,255,.05)",border:`1px solid ${selectedPlayer?`#22C55E`:ac+"55"}`,borderRadius:8,padding:"10px 12px",paddingRight:suggLoading?"36px":"12px",color:"#E2E8F0",fontSize:13,outline:"none"}}/>
+                      {suggLoading&&<div style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",fontSize:12,color:"#475569"}}>⟳</div>}
+                      {selectedPlayer&&<div style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",fontSize:14,color:"#22C55E"}}>✓</div>}
+                    </div>
+                    <button onClick={submitGuess} disabled={submitting||validating||!inputVal.trim()}
+                      style={{padding:"10px 18px",borderRadius:8,background:selectedPlayer?"#22C55E":ac,border:"none",color:"#000",fontWeight:900,fontSize:12,fontFamily:"'Orbitron',sans-serif",cursor:"pointer",opacity:submitting||validating||!inputVal.trim()?0.5:1,whiteSpace:"nowrap",transition:"background .2s"}}>
+                      {submitting||validating?"…":"✓ GO"}
+                    </button>
+                    <button onClick={()=>{setActiveCell(null);setSuggestions([]);}}
+                      style={{padding:"10px 12px",borderRadius:8,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#64748B",fontSize:13,cursor:"pointer"}}>✕</button>
+                  </div>
+                  {/* Suggestions dropdown */}
+                  {suggestions.length>0&&(
+                    <div ref={suggRef} style={{position:"absolute",top:"calc(100% + 6px)",left:0,right:60,zIndex:50,background:"#0a0f1c",border:`1px solid ${ac}44`,borderRadius:10,overflow:"hidden",boxShadow:"0 12px 40px rgba(0,0,0,.8)"}}>
+                      {suggestions.map((s,i)=>(
+                        <button key={s.id||i} onClick={()=>pickSuggestion(s)}
+                          onKeyDown={e=>{
+                            if(e.key==="ArrowDown"){const next=e.currentTarget.nextSibling;next&&next.focus();}
+                            if(e.key==="ArrowUp"){const prev=e.currentTarget.previousSibling;prev?prev.focus():inputRef.current?.focus();}
+                            if(e.key==="Escape"){setSuggestions([]);inputRef.current?.focus();}
+                          }}
+                          style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"9px 14px",background:"none",border:"none",borderBottom:"1px solid rgba(255,255,255,.04)",color:"#E2E8F0",cursor:"pointer",textAlign:"left"}}>
+                          <div style={{width:28,height:28,borderRadius:6,background:`linear-gradient(135deg,${ac}44,${ac}22)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:ac,fontWeight:900,flexShrink:0,fontFamily:"'Orbitron',sans-serif"}}>
+                            {s.name.split(" ").map(w=>w[0]).slice(0,2).join("")}
+                          </div>
+                          <div>
+                            <div style={{fontSize:13,fontWeight:600,lineHeight:1.2}}>{s.name}</div>
+                            {(s.team||s.position)&&<div style={{fontSize:10,color:"#475569"}}>{[s.position,s.team].filter(Boolean).join(" · ")}</div>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div style={{fontSize:10,color:"#334155",marginTop:8}}>Honor system — only submit if you know they actually played for both! 🤝</div>
+                <div style={{fontSize:10,color:"#334155",marginTop:8,display:"flex",alignItems:"center",gap:4}}>
+                  {selectedPlayer
+                    ?<><span style={{color:"#22C55E"}}>✓</span> <span style={{color:"#22C55E"}}>{selectedPlayer.name}</span> confirmed — hit GO to submit</>
+                    :"Pick a name from the list to confirm it's a real player 🏟️"}
+                </div>
               </div>
             );
           })()}
