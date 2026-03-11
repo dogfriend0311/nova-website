@@ -1026,14 +1026,15 @@ function ImmaculateGridPage({cu,navigate}){
       .finally(()=>setLoading(false));
   },[sport,dateStr]);
 
+  // totalGuessers must be declared BEFORE rarityScore uses it
+  const totalGuessers=new Set(Object.values(allGuesses).flat().map(g=>g.user_id)).size;
+
   // Rarity score: fewer people answered = higher score (max 1000)
   const rarityScore=(cellKey)=>{
     const cellCount=(allGuesses[cellKey]||[]).length||0;
     const tg=totalGuessers||1;
     if(cellCount===0)return 1000;
-    // pct of all players who got this cell (0-1), rarity = inverse
     const pct=cellCount/tg;
-    // score 999 -> 100 as pct goes 0 -> 1, minimum 100
     return Math.max(Math.round(1000*(1-pct*0.9)),100);
   };
 
@@ -1137,8 +1138,6 @@ function ImmaculateGridPage({cu,navigate}){
       <div style={{fontSize:small?8:9,color:"#64748B",fontFamily:"'Orbitron',sans-serif",letterSpacing:".03em",maxWidth:small?36:50,textAlign:"center",lineHeight:1.2}}>{team.name}</div>
     </div>
   );
-
-  const totalGuessers=new Set(Object.values(allGuesses).flat().map(g=>g.user_id)).size;
 
   return(
     <div style={{maxWidth:700,margin:"0 auto",padding:mob?"16px 10px":"28px 20px"}}>
