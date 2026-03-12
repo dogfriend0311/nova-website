@@ -1129,6 +1129,12 @@ const TRIVIA_Q={
 function shuffle(arr,rng){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function quickRng(){let s=Date.now()>>>0;return()=>{s=Math.imul(s^(s>>>13),s^(s<<7));s^=s>>>17;return(s>>>0)/4294967296;};}
 
+// Strip parenthetical context from displayed choice text — scoring still uses full string
+function cleanChoice(s){
+  // Keep short parens like "(2019)" or "(unanimous)" — only strip long explanations
+  return s.replace(/\s*\([^)]{30,}\)/g,"").replace(/\s*—[^"]{15,}/g,"").trim();
+}
+
 function TriviaPage({cu}){
   const mob=useIsMobile();
   const [sport,setSport]=useState(null);
@@ -1170,8 +1176,47 @@ function TriviaPage({cu}){
     setResults(r=>[...r,{q:q.q,correct,chosen:choice,answer:q.a}]);
   };
 
-  const next=()=>{if(qIdx+1>=questions.length){setPhase("done");return;}setQIdx(i=>i+1);setSelected(null);setLocked(false);};
-  const quit=()=>setPhase("done");
+  const saveStats=async(finalResults,finalScore)=>{
+    if(!cu)return;
+    const total=finalResults.length;
+    const wrong=total-finalScore;
+    try{
+      // Upsert by updating cumulative totals
+      const existing=await sb.get("nova_trivia_stats",`?user_id=eq.${cu.id}&limit=1`);
+      if(existing&&existing.length>0){
+        const e=existing[0];
+        await sb.patch("nova_trivia_stats",{
+          total_correct:e.total_correct+finalScore,
+          total_wrong:e.total_wrong+wrong,
+          total_questions:e.total_questions+total,
+          games_played:e.games_played+1,
+          last_played:Date.now(),
+        },`?user_id=eq.${cu.id}`);
+      } else {
+        await sb.post("nova_trivia_stats",{
+          id:gid(),user_id:cu.id,username:cu.username,display_name:cu.display_name,avatar:cu.avatar,avatar_url:cu.avatar_url,
+          total_correct:finalScore,total_wrong:wrong,total_questions:total,games_played:1,last_played:Date.now()
+        });
+      }
+    }catch(e){console.warn("Could not save trivia stats",e);}
+  };
+
+  const next=()=>{
+    if(qIdx+1>=questions.length){
+      const finalResults=[...results];
+      // score state may lag, count directly
+      const finalScore=finalResults.filter(r=>r.correct).length;
+      saveStats(finalResults,finalScore);
+      setPhase("done");return;
+    }
+    setQIdx(i=>i+1);setSelected(null);setLocked(false);
+  };
+  const quit=()=>{
+    const finalResults=[...results];
+    const finalScore=finalResults.filter(r=>r.correct).length;
+    saveStats(finalResults,finalScore);
+    setPhase("done");
+  };
   const restart=()=>{setSport(null);setDiff(null);setPhase("pick");};
 
   // ── Pick sport ──
@@ -1294,7 +1339,7 @@ function TriviaPage({cu}){
               <div style={{width:24,height:24,borderRadius:6,background:locked&&isCorr?"rgba(34,197,94,.25)":locked&&isSel&&!isCorr?"rgba(239,68,68,.25)":`${ac}15`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:900,fontFamily:"'Orbitron',sans-serif",color:locked&&isCorr?"#22C55E":locked&&isSel&&!isCorr?"#EF4444":ac,flexShrink:0}}>
                 {locked&&isCorr?"✓":locked&&isSel&&!isCorr?"✗":["A","B","C","D"][i]}
               </div>
-              {choice}
+              {cleanChoice(choice)}
             </button>
           );
         })}
@@ -1302,7 +1347,7 @@ function TriviaPage({cu}){
       {locked&&(
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
           <div style={{fontSize:12,fontWeight:700,color:selected===q.a?"#22C55E":"#EF4444",flex:1}}>
-            {selected===q.a?correctFeedback:`❌ ${q.a}`}
+            {selected===q.a?correctFeedback:`❌ ${cleanChoice(q.a)}`}
           </div>
           <button onClick={next} style={{padding:"11px 22px",borderRadius:10,background:ac,border:"none",color:"#000",fontWeight:900,fontSize:11,fontFamily:"'Orbitron',sans-serif",cursor:"pointer",flexShrink:0,letterSpacing:".04em"}}>
             {qIdx+1>=questions.length?"RESULTS →":"NEXT →"}
@@ -1317,6 +1362,16 @@ function TriviaPage({cu}){
 function LeaderboardPage({users,navigate}){
   const mob=useIsMobile();
   const[tab,setTab]=useState("followers");
+  const[triviaStats,setTriviaStats]=useState([]);
+  const[triviaLoading,setTriviaLoading]=useState(false);
+  useEffect(()=>{
+    if(tab!=="trivia_correct"&&tab!=="trivia_accuracy"&&tab!=="trivia_wrong")return;
+    setTriviaLoading(true);
+    sb.get("nova_trivia_stats","?order=total_correct.desc&limit=50").then(rows=>{
+      setTriviaStats(rows||[]);
+      setTriviaLoading(false);
+    }).catch(()=>setTriviaLoading(false));
+  },[tab]);
   const boards={
     followers:{label:"👥 Followers",key:u=>(u.followers||[]).length,suffix:"followers"},
     badges:{label:"🏅 Badges",key:u=>(u.badges||[]).length,suffix:"badges"},
@@ -1350,6 +1405,9 @@ function LeaderboardPage({users,navigate}){
           <button key={k} onClick={()=>setTab(k)} style={{padding:"8px 16px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===k?"rgba(0,212,255,.5)":"rgba(255,255,255,.1)"}`,background:tab===k?"rgba(0,212,255,.12)":"rgba(255,255,255,.03)",color:tab===k?"#00D4FF":"#64748B",transition:"all .2s"}}>{v.label}</button>
         ))}
         <button onClick={()=>setTab("commentlikes")} style={{padding:"8px 16px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab==="commentlikes"?"rgba(239,68,68,.5)":"rgba(255,255,255,.1)"}`,background:tab==="commentlikes"?"rgba(239,68,68,.12)":"rgba(255,255,255,.03)",color:tab==="commentlikes"?"#EF4444":"#64748B",transition:"all .2s"}}>❤️ Top Comments</button>
+        {[["trivia_correct","🧠 Most Correct","#22C55E"],["trivia_accuracy","🎯 Best Accuracy","#00D4FF"],["trivia_wrong","💀 Most Wrong","#EF4444"]].map(([k,label,c])=>(
+          <button key={k} onClick={()=>setTab(k)} style={{padding:"8px 16px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===k?c+"88":"rgba(255,255,255,.1)"}`,background:tab===k?c+"18":"rgba(255,255,255,.03)",color:tab===k?c:"#64748B",transition:"all .2s"}}>{label}</button>
+        ))}
       </div>
 
       {tab==="commentlikes"?(
@@ -1423,6 +1481,74 @@ function LeaderboardPage({users,navigate}){
           {sorted.length===0&&<Empty icon="🏆" msg="No data yet!"/>}
         </div>
       )}
+      {(tab==="trivia_correct"||tab==="trivia_accuracy"||tab==="trivia_wrong")&&(()=>{
+        const MEDALS=["🥇","🥈","🥉"];
+        if(triviaLoading)return <div style={{textAlign:"center",padding:60,color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:12}}>LOADING…</div>;
+        if(!triviaStats.length)return <Empty icon="🧠" msg="No trivia scores yet — play some trivia!"/>;
+        let sorted2=[...triviaStats];
+        let statKey,statLabel,statColor,statSuffix;
+        if(tab==="trivia_correct"){
+          sorted2.sort((a,b)=>(b.total_correct||0)-(a.total_correct||0));
+          statKey=u=>u.total_correct||0; statLabel="TOTAL CORRECT"; statColor="#22C55E"; statSuffix="correct";
+        } else if(tab==="trivia_accuracy"){
+          sorted2=sorted2.filter(u=>(u.total_questions||0)>=10); // min 10 questions
+          sorted2.sort((a,b)=>{
+            const ra=(a.total_correct||0)/Math.max(a.total_questions||1,1);
+            const rb=(b.total_correct||0)/Math.max(b.total_questions||1,1);
+            return rb-ra;
+          });
+          statKey=u=>Math.round(((u.total_correct||0)/Math.max(u.total_questions||1,1))*100)+"%";
+          statLabel="ACCURACY"; statColor="#00D4FF"; statSuffix="accuracy";
+        } else {
+          sorted2.sort((a,b)=>(b.total_wrong||0)-(a.total_wrong||0));
+          statKey=u=>u.total_wrong||0; statLabel="TOTAL WRONG"; statColor="#EF4444"; statSuffix="wrong";
+        }
+        const top=sorted2[0];
+        const topUser=users.find(x=>x.id===top?.user_id);
+        return(
+          <div>
+            {/* Top player showcase */}
+            {top&&(
+              <div style={{background:`linear-gradient(135deg,${statColor}18,${statColor}08)`,border:`1px solid ${statColor}44`,borderRadius:16,padding:"16px 20px",marginBottom:20}}>
+                <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:statColor,letterSpacing:".12em",marginBottom:10}}>🏆 {statLabel} LEADER</div>
+                <div style={{display:"flex",gap:12,alignItems:"center"}}>
+                  <Av user={topUser||{avatar:top.avatar,avatar_url:top.avatar_url,display_name:top.display_name}} size={48}/>
+                  <div style={{flex:1}}>
+                    <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,fontWeight:700,color:"#E2E8F0",marginBottom:2}}>{top.display_name||top.username}</div>
+                    <div style={{fontSize:11,color:"#64748B"}}>{top.games_played} game{top.games_played!==1?"s":""} played · {top.total_questions} questions answered</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:28,fontWeight:900,fontFamily:"'Orbitron',sans-serif",color:statColor}}>{typeof statKey==="function"?statKey(top):statKey}</div>
+                    <div style={{fontSize:9,color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>{statSuffix}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Full list */}
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {sorted2.slice(0,20).map((u,i)=>{
+                const usr=users.find(x=>x.id===u.user_id);
+                const val=typeof statKey==="function"?statKey(u):statKey;
+                const pct=u.total_questions?Math.round((u.total_correct/u.total_questions)*100):0;
+                return(
+                  <div key={u.user_id||i} style={{display:"flex",alignItems:"center",gap:12,background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.05)",borderRadius:12,padding:"12px 16px",cursor:"pointer"}} onClick={()=>navigate("profile",u.user_id)}>
+                    <div style={{width:24,textAlign:"center",fontSize:i<3?18:13,flexShrink:0}}>{i<3?MEDALS[i]:`#${i+1}`}</div>
+                    <Av user={usr||{avatar:u.avatar,avatar_url:u.avatar_url,display_name:u.display_name}} size={34}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0",marginBottom:2}}>{u.display_name||u.username}</div>
+                      <div style={{fontSize:10,color:"#475569"}}>{u.games_played} games · {pct}% accuracy</div>
+                    </div>
+                    <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:16,fontWeight:900,color:statColor,flexShrink:0}}>{val}</div>
+                  </div>
+                );
+              })}
+            </div>
+            {tab==="trivia_accuracy"&&sorted2.length<triviaStats.length&&(
+              <div style={{textAlign:"center",fontSize:10,color:"#334155",marginTop:12,fontFamily:"'Orbitron',sans-serif"}}>Minimum 10 questions required to appear on accuracy board</div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
