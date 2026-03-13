@@ -1,5 +1,4 @@
 const HB_KEY = "sk_test_vUEKzTF26D0FfDCFTJZpUXGrQlpzs8P7ET95_q9CRyI";
-const GEMINI_KEY = "AIzaSyCZsG2yaoMFuTCi6iGKt3sXbRqtsYN6gBQ";
 
 const SPORT_PATHS = {
   mlb: "baseball/mlb",
@@ -41,14 +40,13 @@ function teamMatches(espnTeams,targetAbbr){
   return false;
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin","*");
   res.setHeader("Access-Control-Allow-Methods","POST,GET,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers","Content-Type");
   if(req.method==="OPTIONS")return res.status(200).end();
 
   try {
-    // ── GET routes ──
     if(req.method==="GET"){
       if(req.query.athlete){
         const r=await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/athletes/${req.query.athlete}`);
@@ -96,38 +94,8 @@ export default async function handler(req, res) {
     }
 
     if(req.method!=="POST")return res.status(405).json({error:"Method not allowed"});
-
     const body=req.body||{};
 
-    // ── AI Chat (Gemini Flash) ──
-    if(body.action==="chat"){
-      const messages=body.messages||[];
-      const contents=messages.map(m=>({
-        role:m.role==="assistant"?"model":"user",
-        parts:[{text:m.content}]
-      }));
-      const geminiRes=await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
-        {
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({
-            systemInstruction:{parts:[{text:`You are Nova's sports assistant — a knowledgeable, enthusiastic sports AI for the Nova community platform. You help users with:\n- Sports questions (MLB, NFL, NBA, NHL stats, history, records, players, teams)\n- Predictions advice and analysis\n- Trivia questions and answers\n- Live scores and standings context\n- Fantasy sports tips\n\nKeep answers concise, fun, and conversational. Use emojis occasionally. If someone asks something completely unrelated to sports or Nova, gently redirect them to sports topics. Never make up statistics — if you're unsure, say so.`}]},
-            contents,
-            generationConfig:{maxOutputTokens:400,temperature:0.7},
-          })
-        }
-      );
-      const gd=await geminiRes.json();
-      if(!geminiRes.ok){
-        console.error("Gemini error:",JSON.stringify(gd));
-        return res.status(200).json({reply:"Sorry, I'm having trouble connecting right now. Try again in a moment! 🔄"});
-      }
-      const reply=gd.candidates?.[0]?.content?.parts?.[0]?.text||"Sorry, I couldn't generate a response.";
-      return res.status(200).json({reply});
-    }
-
-    // ── Hyperbeam create ──
     if(body.action==="create"){
       const r=await fetch("https://engine.hyperbeam.com/v0/vm",{
         method:"POST",
@@ -139,7 +107,6 @@ export default async function handler(req, res) {
       return res.status(200).json(data);
     }
 
-    // ── Hyperbeam delete ──
     if(body.action==="delete"&&body.sessionId){
       await fetch(`https://engine.hyperbeam.com/v0/vm/${body.sessionId}`,{
         method:"DELETE",headers:{Authorization:`Bearer ${HB_KEY}`},
@@ -152,4 +119,4 @@ export default async function handler(req, res) {
     console.error("Handler error:",e);
     return res.status(500).json({error:e.message});
   }
-}
+};
