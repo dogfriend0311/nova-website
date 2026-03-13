@@ -4145,6 +4145,118 @@ function RegisterModal({onRegister,onClose}){
   );
 }
 
+// ─── AI Chat Bot ────────────────────────────────────────────────────────────────
+const CHAT_SUGGESTIONS=["Who is the current MLB MVP?","Best QBs in the NFL right now?","How does the playoff format work in the NBA?","What are some good trivia questions about the NHL?","Who leads the league in home runs?","Give me a bold prediction for this season"];
+
+function AiChat(){
+  const mob=useIsMobile();
+  const[open,setOpen]=useState(false);
+  const[messages,setMessages]=useState([
+    {role:"assistant",content:"Hey! 👋 I'm Nova's sports assistant. Ask me anything about MLB, NFL, NBA, NHL — stats, history, players, predictions, you name it!"}
+  ]);
+  const[input,setInput]=useState("");
+  const[loading,setLoading]=useState(false);
+  const[showSugg,setShowSugg]=useState(true);
+  const bottomRef=useRef(null);
+  const inputRef=useRef(null);
+
+  useEffect(()=>{
+    if(open)setTimeout(()=>bottomRef.current?.scrollIntoView({behavior:"smooth"}),100);
+  },[messages,open]);
+
+  useEffect(()=>{
+    if(open)setTimeout(()=>inputRef.current?.focus(),200);
+  },[open]);
+
+  const send=async(text)=>{
+    const msg=text||input.trim();
+    if(!msg||loading)return;
+    setInput("");setShowSugg(false);
+    const newMessages=[...messages,{role:"user",content:msg}];
+    setMessages(newMessages);
+    setLoading(true);
+    try{
+      const r=await fetch("/api/hyperbeam",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({action:"chat",messages:newMessages}),
+      });
+      const d=await r.json();
+      setMessages(prev=>[...prev,{role:"assistant",content:d.reply||"Sorry, something went wrong!"}]);
+    }catch(e){
+      setMessages(prev=>[...prev,{role:"assistant",content:"Connection error. Try again! 🔄"}]);
+    }
+    setLoading(false);
+  };
+
+  const clearChat=()=>{
+    setMessages([{role:"assistant",content:"Hey! 👋 I'm Nova's sports assistant. Ask me anything about MLB, NFL, NBA, NHL — stats, history, players, predictions, you name it!"}]);
+    setShowSugg(true);
+  };
+
+  return(
+    <>
+      <button onClick={()=>setOpen(o=>!o)}
+        style={{position:"fixed",bottom:mob?70:24,right:20,zIndex:500,width:52,height:52,borderRadius:"50%",background:"linear-gradient(135deg,#00D4FF,#7C3AED)",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,boxShadow:"0 4px 20px rgba(0,212,255,.4)",transition:"transform .2s",transform:open?"rotate(20deg)":"rotate(0deg)"}}>
+        {open?"✕":"🤖"}
+      </button>
+      {open&&(
+        <div style={{position:"fixed",bottom:mob?130:88,right:mob?8:20,width:mob?"calc(100vw - 16px)":"360px",maxWidth:400,height:mob?"60vh":"480px",zIndex:499,display:"flex",flexDirection:"column",background:"linear-gradient(160deg,#0a0f1e,#0d1528)",border:"1px solid rgba(0,212,255,.2)",borderRadius:18,overflow:"hidden",boxShadow:"0 20px 60px rgba(0,0,0,.8)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,.07)",background:"rgba(0,212,255,.05)"}}>
+            <div style={{width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,#00D4FF,#7C3AED)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>🤖</div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12,fontWeight:900,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",letterSpacing:".05em"}}>NOVA AI</div>
+              <div style={{fontSize:10,color:"#22C55E",display:"flex",alignItems:"center",gap:4}}><span style={{width:6,height:6,borderRadius:"50%",background:"#22C55E",display:"inline-block"}}/>Online</div>
+            </div>
+            <button onClick={clearChat} style={{background:"none",border:"none",color:"#334155",cursor:"pointer",fontSize:11,padding:"4px 8px",borderRadius:6}}>Clear</button>
+            <button onClick={()=>setOpen(false)} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:16,padding:"4px"}}>✕</button>
+          </div>
+          <div style={{flex:1,overflowY:"auto",padding:"12px 14px",display:"flex",flexDirection:"column",gap:10}}>
+            {messages.map((m,i)=>(
+              <div key={i} style={{display:"flex",flexDirection:m.role==="user"?"row-reverse":"row",gap:8,alignItems:"flex-end"}}>
+                {m.role==="assistant"&&<div style={{width:24,height:24,borderRadius:"50%",background:"linear-gradient(135deg,#00D4FF44,#7C3AED44)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,flexShrink:0}}>🤖</div>}
+                <div style={{maxWidth:"80%",padding:"9px 13px",borderRadius:m.role==="user"?"14px 14px 4px 14px":"14px 14px 14px 4px",background:m.role==="user"?"linear-gradient(135deg,#00D4FF22,#7C3AED22)":"rgba(255,255,255,.05)",border:"1px solid "+(m.role==="user"?"rgba(0,212,255,.25)":"rgba(255,255,255,.07)"),fontSize:13,color:"#E2E8F0",lineHeight:1.5,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>
+                  {m.content}
+                </div>
+              </div>
+            ))}
+            {loading&&(
+              <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+                <div style={{width:24,height:24,borderRadius:"50%",background:"linear-gradient(135deg,#00D4FF44,#7C3AED44)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>🤖</div>
+                <div style={{padding:"10px 14px",borderRadius:"14px 14px 14px 4px",background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.07)",display:"flex",gap:4,alignItems:"center"}}>
+                  {[0,1,2].map(i=><div key={i} style={{width:6,height:6,borderRadius:"50%",background:"#00D4FF",animation:"twinkle .9s "+i*.2+"s ease-in-out infinite alternate",opacity:.4}}/>)}
+                </div>
+              </div>
+            )}
+            {showSugg&&messages.length===1&&!loading&&(
+              <div style={{marginTop:4}}>
+                <div style={{fontSize:10,color:"#334155",marginBottom:8,fontFamily:"'Orbitron',sans-serif",letterSpacing:".06em"}}>TRY ASKING:</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {CHAT_SUGGESTIONS.map((s,i)=>(
+                    <button key={i} onClick={()=>send(s)} style={{padding:"6px 11px",borderRadius:20,background:"rgba(0,212,255,.08)",border:"1px solid rgba(0,212,255,.2)",color:"#94A3B8",fontSize:11,cursor:"pointer",textAlign:"left",lineHeight:1.3}}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div ref={bottomRef}/>
+          </div>
+          <div style={{padding:"10px 12px",borderTop:"1px solid rgba(255,255,255,.07)",display:"flex",gap:8,background:"rgba(0,0,0,.3)"}}>
+            <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)}
+              onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
+              placeholder="Ask anything sports…" disabled={loading}
+              style={{flex:1,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"9px 12px",color:"#E2E8F0",fontSize:13,outline:"none"}}/>
+            <button onClick={()=>send()} disabled={loading||!input.trim()}
+              style={{width:38,height:38,borderRadius:10,background:loading||!input.trim()?"rgba(255,255,255,.05)":"linear-gradient(135deg,#00D4FF,#7C3AED)",border:"none",cursor:loading||!input.trim()?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,transition:"all .2s",flexShrink:0}}>
+              {loading?"⟳":"➤"}
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ─── App ───────────────────────────────────────────────────────────────────────
 export default function App(){
   const DISCORD_URL="https://discord.gg/your-invite-here";
@@ -4279,6 +4391,7 @@ export default function App(){
       </div>
       {showLogin&&<LoginModal onLogin={handleLogin} onClose={()=>setShowLogin(false)} users={users}/>}
       {showRegister&&<RegisterModal onRegister={handleRegister} onClose={()=>setShowRegister(false)}/>}
+      <AiChat/>
     </>
   );
 }
