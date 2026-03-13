@@ -41,7 +41,7 @@ function teamMatches(espnTeams,targetAbbr){
   return false;
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin","*");
   res.setHeader("Access-Control-Allow-Methods","POST,GET,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers","Content-Type");
@@ -101,11 +101,7 @@ module.exports = async function handler(req, res) {
 
     // ── AI Chat (Gemini Flash) ──
     if(body.action==="chat"){
-      if(!GEMINI_KEY||GEMINI_KEY==="PASTE_YOUR_GEMINI_KEY_HERE"){
-        return res.status(200).json({reply:"AI chat isn't configured yet — the admin needs to add a Gemini API key."});
-      }
       const messages=body.messages||[];
-      // Build Gemini contents array from chat history
       const contents=messages.map(m=>({
         role:m.role==="assistant"?"model":"user",
         parts:[{text:m.content}]
@@ -116,14 +112,7 @@ module.exports = async function handler(req, res) {
           method:"POST",
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify({
-            systemInstruction:{parts:[{text:`You are Nova's sports assistant — a knowledgeable, enthusiastic sports AI for the Nova community platform. You help users with:
-- Sports questions (MLB, NFL, NBA, NHL stats, history, records, players, teams)
-- Predictions advice and analysis
-- Trivia questions and answers
-- Live scores and standings context
-- Fantasy sports tips
-
-Keep answers concise, fun, and conversational. Use emojis occasionally. If someone asks something completely unrelated to sports or Nova, gently redirect them to sports topics. Never make up statistics — if you're unsure, say so.`}]},
+            systemInstruction:{parts:[{text:`You are Nova's sports assistant — a knowledgeable, enthusiastic sports AI for the Nova community platform. You help users with:\n- Sports questions (MLB, NFL, NBA, NHL stats, history, records, players, teams)\n- Predictions advice and analysis\n- Trivia questions and answers\n- Live scores and standings context\n- Fantasy sports tips\n\nKeep answers concise, fun, and conversational. Use emojis occasionally. If someone asks something completely unrelated to sports or Nova, gently redirect them to sports topics. Never make up statistics — if you're unsure, say so.`}]},
             contents,
             generationConfig:{maxOutputTokens:400,temperature:0.7},
           })
@@ -163,4 +152,4 @@ Keep answers concise, fun, and conversational. Use emojis occasionally. If someo
     console.error("Handler error:",e);
     return res.status(500).json({error:e.message});
   }
-};
+}
