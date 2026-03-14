@@ -14,6 +14,7 @@ const sb = {
   post:  async (t,b)       => { try { const r=await fetch(`${SUPABASE_URL}/rest/v1/${t}`,{method:"POST",headers:H({Prefer:"return=representation"}),body:JSON.stringify(b)}); if(!r.ok){console.error("sb.post",t,await r.text());return null;} return r.json(); } catch(e){console.error(e);return null;} },
   patch: async (t,q,b)     => { try { const r=await fetch(`${SUPABASE_URL}/rest/v1/${t}${q}`,{method:"PATCH",headers:H({Prefer:"return=representation"}),body:JSON.stringify(b)}); return r.ok?r.json():null; } catch(e){console.error(e);return null;} },
   del:   async (t,q)       => { try { await fetch(`${SUPABASE_URL}/rest/v1/${t}${q}`,{method:"DELETE",headers:H()}); } catch(e){console.error(e);} },
+  upsert:async (t,b,conflict="id") => { try { const r=await fetch(`${SUPABASE_URL}/rest/v1/${t}`,{method:"POST",headers:H({"Prefer":`resolution=merge-duplicates,return=representation`,"Content-Type":"application/json"}),body:JSON.stringify(b)}); if(!r.ok){console.error("sb.upsert",t,await r.text());return null;} return r.json(); } catch(e){console.error(e);return null;} },
   upload:      (uid,file)       => sbUp("nova-avatars",uid,file,"av-"),
   uploadBanner:(uid,file,slot)  => sbUp("nova-banners",uid,file,`${slot}-`),
   uploadClip:  (uid,file)       => sbUp("nova-clips",uid,file,"cl-"),
@@ -2320,27 +2321,42 @@ function generateFallbackPlays(count,odds){
   return plays;
 }
 
-// Stars hook
+// Stars hook — upsert-based so data always persists across app updates
 function useStars(cu){
   const[stars,setStars]=useState(0);
+
   const refresh=useCallback(async()=>{
     if(!cu)return;
-    try{const rows=await sb.get("nova_stars",`?user_id=eq.${cu.id}&limit=1`);if(rows?.length)setStars(rows[0].balance||0);}catch(e){}
+    const rows=await sb.get("nova_stars",`?user_id=eq.${cu.id}&limit=1`);
+    if(rows?.length)setStars(rows[0].balance||0);
   },[cu?.id]);
+
   useEffect(()=>{refresh();},[cu?.id]);
+
+  // Always fetch fresh balance to avoid stale state
+  const getBalance=async()=>{
+    const rows=await sb.get("nova_stars",`?user_id=eq.${cu.id}&limit=1`);
+    return rows?.[0]||null;
+  };
+
+  // Ensure row exists in DB
+  const ensureRow=async()=>{
+    const rows=await sb.get("nova_stars",`?user_id=eq.${cu.id}&limit=1`);
+    if(rows?.length)return rows[0];
+    // Create fresh row — user_id is PK, no id column needed
+    const base={user_id:cu.id,balance:0,lifetime_earned:0,last_login_claim:0,login_streak:0};
+    await sb.post("nova_stars",base);
+    return base;
+  };
 
   const earn=async(amount,reason)=>{
     if(!cu||amount<=0)return;
     try{
-      const rows=await sb.get("nova_stars",`?user_id=eq.${cu.id}&limit=1`);
-      if(rows?.length){
-        const nb=(rows[0].balance||0)+amount;
-        await sb.patch("nova_stars",{balance:nb,lifetime_earned:(rows[0].lifetime_earned||0)+amount},`?user_id=eq.${cu.id}`);
-        setStars(nb);
-      }else{
-        await sb.post("nova_stars",{id:gid(),user_id:cu.id,balance:amount,lifetime_earned:amount,last_login_claim:0,login_streak:0});
-        setStars(amount);
-      }
+      const r=await ensureRow();
+      const nb=(r.balance||0)+amount;
+      const nl=(r.lifetime_earned||0)+amount;
+      await sb.patch("nova_stars",`?user_id=eq.${cu.id}`,{balance:nb,lifetime_earned:nl});
+      setStars(nb);
       await sb.post("nova_star_log",{id:gid(),user_id:cu.id,amount,reason,ts:Date.now()});
     }catch(e){console.warn("earn stars",e);}
   };
@@ -2348,12 +2364,13 @@ function useStars(cu){
   const spend=async(amount,reason)=>{
     if(!cu)return false;
     try{
-      const rows=await sb.get("nova_stars",`?user_id=eq.${cu.id}&limit=1`);
-      const bal=rows?.[0]?.balance||0;
+      const r=await ensureRow();
+      const bal=r.balance||0;
       if(bal<amount)return false;
-      await sb.patch("nova_stars",{balance:bal-amount},`?user_id=eq.${cu.id}`);
+      const nb=bal-amount;
+      await sb.patch("nova_stars",`?user_id=eq.${cu.id}`,{balance:nb});
+      setStars(nb);
       await sb.post("nova_star_log",{id:gid(),user_id:cu.id,amount:-amount,reason,ts:Date.now()});
-      setStars(bal-amount);
       return true;
     }catch(e){return false;}
   };
@@ -2361,18 +2378,18 @@ function useStars(cu){
   const claimDaily=async()=>{
     if(!cu)return null;
     try{
-      const rows=await sb.get("nova_stars",`?user_id=eq.${cu.id}&limit=1`);
-      const row=rows?.[0];
+      const r=await ensureRow();
       const now=Date.now();
       const pstDay=(ts)=>{const d=new Date((ts||0)-8*3600000);return`${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;};
-      if(row&&pstDay(row.last_login_claim)===pstDay(now))return"already_claimed";
-      const streak=Math.min((row?.login_streak||0)+1,999);
+      if(r.last_login_claim&&pstDay(r.last_login_claim)===pstDay(now))return"already_claimed";
+      const streak=Math.min((r.login_streak||0)+1,999);
       const bonus=streak>=14?150:streak>=7?100:streak>=3?75:50;
       await earn(bonus,"Daily login bonus");
-      if(row)await sb.patch("nova_stars",{last_login_claim:now,login_streak:streak},`?user_id=eq.${cu.id}`);
+      await sb.patch("nova_stars",`?user_id=eq.${cu.id}`,{last_login_claim:now,login_streak:streak});
       return{stars:bonus,streak};
     }catch(e){return null;}
   };
+
   return{stars,refresh,earn,spend,claimDaily};
 }
 
@@ -2825,7 +2842,7 @@ function CardsPage({cu}){
     const ok=await spend(cost,`Bought ${cardDef.name} card`);
     if(!ok){toast2("Not enough stars!","#EF4444");return;}
     const newCard={id:gid(),user_id:cu.id,card_def_id:cardDef.id,card_type:cardDef.type,card_name:cardDef.name,player_id:cardDef.player_id||null,team_name:cardDef.team_name||null,headshot_url:cardDef.headshot_url||null,level:0,total_play_rating:0,custom_name:"",custom_border:"",custom_bg:"",custom_effect:"",pinned:false,pin_order:0,applied_to:null,acquired_at:Date.now()};
-    await sb.post("nova_user_cards",newCard);
+    await sb.upsert("nova_user_cards",newCard,"id");
     setMyCards(p=>[newCard,...p]);
     toast2(`🃏 Got ${cardDef.name}! Head to My Cards.`);
   };
@@ -2847,9 +2864,9 @@ function CardsPage({cu}){
     if(!fetchedPlays.length)fetchedPlays=generateFallbackPlays(pack.count,PACK_ODDS[packType]);
     const ok=await spend(pack.cost,`Opened ${pack.name}`);
     if(!ok){setPackLoading(false);toast2("Not enough stars!","#EF4444");return;}
-    await sb.post("nova_pack_log",{id:gid(),user_id:cu.id,pack_type:packType,pack_date:today,ts:Date.now()});
+    await sb.upsert("nova_pack_log",{id:gid(),user_id:cu.id,pack_type:packType,pack_date:today,ts:Date.now()},"id");
     for(const p of fetchedPlays){
-      await sb.post("nova_user_plays",{id:gid(),user_id:cu.id,play_data:JSON.stringify(p),applied_to:null,pinned:false,acquired_at:Date.now()});
+      await sb.upsert("nova_user_plays",{id:gid(),user_id:cu.id,play_data:JSON.stringify(p),applied_to:null,pinned:false,acquired_at:Date.now()},"id");
     }
     setPackLoading(false);
     setPackResult({pack,plays:fetchedPlays});
@@ -2861,8 +2878,8 @@ function CardsPage({cu}){
     const rating=pd?.rating||0;
     const newTotal=(userCard.total_play_rating||0)+rating;
     const newLevel=Math.floor(newTotal/10);
-    await sb.patch("nova_user_cards",{total_play_rating:newTotal,level:newLevel},`?id=eq.${userCard.id}`);
-    await sb.patch("nova_user_plays",{applied_to:userCard.id},`?id=eq.${userPlay.id}`);
+    await sb.patch("nova_user_cards",`?id=eq.${userCard.id}`,{total_play_rating:newTotal,level:newLevel});
+    await sb.patch("nova_user_plays",`?id=eq.${userPlay.id}`,{applied_to:userCard.id});
     setMyCards(p=>p.map(c=>c.id===userCard.id?{...c,total_play_rating:newTotal,level:newLevel}:c));
     setMyPlays(p=>p.map(pl=>pl.id===userPlay.id?{...pl,applied_to:userCard.id}:pl));
     toast2(`⚡ +${rating} rating! ${userCard.card_name} is now Level ${newLevel}`);
@@ -2871,7 +2888,7 @@ function CardsPage({cu}){
   const togglePin=async(card)=>{
     const pinned=myCards.filter(c=>c.pinned);
     if(!card.pinned&&pinned.length>=10){toast2("Max 10 cards pinned to profile!","#F59E0B");return;}
-    await sb.patch("nova_user_cards",{pinned:!card.pinned},`?id=eq.${card.id}`);
+    await sb.patch("nova_user_cards",`?id=eq.${card.id}`,{pinned:!card.pinned});
     setMyCards(p=>p.map(c=>c.id===card.id?{...c,pinned:!c.pinned}:c));
     toast2(card.pinned?"Unpinned from profile":"📌 Pinned to profile!");
   };
@@ -2904,7 +2921,7 @@ function CardsPage({cu}){
       {tab==="plays"&&<MyPlaysTab cu={cu} plays={myPlays} cards={myCards} onApply={applyPlay}/>}
 
       {packResult&&<PackOpenModal pack={packResult.pack} plays={packResult.plays} onClose={()=>setPackResult(null)} onKeep={()=>{setPackResult(null);setTab("plays");}}/>}
-      {customizeTarget&&<CardCustomizeModal card={customizeTarget} onClose={()=>setCustomizeTarget(null)} onSave={async(updates)=>{await sb.patch("nova_user_cards",updates,`?id=eq.${customizeTarget.id}`);setMyCards(p=>p.map(c=>c.id===customizeTarget.id?{...c,...updates}:c));setCustomizeTarget(null);toast2("Card updated! ✏️");}}/>}
+      {customizeTarget&&<CardCustomizeModal card={customizeTarget} onClose={()=>setCustomizeTarget(null)} onSave={async(updates)=>{await sb.patch("nova_user_cards",`?id=eq.${customizeTarget.id}`,updates);setMyCards(p=>p.map(c=>c.id===customizeTarget.id?{...c,...updates}:c));setCustomizeTarget(null);toast2("Card updated! ✏️");}}/>}
     </div>
   );
 }
