@@ -4329,7 +4329,43 @@ function DashboardPage({cu,users,setUsers,navigate}){
   const[announcements,setAnnouncements]=useState([]);
   const[announceSent,setAnnounceSent]=useState(false);
   const target=sel?users.find(u=>u.id===sel):null;
+  const[starTarget,setStarTarget]=useState("");
+  const[starAmount,setStarAmount]=useState("");
+  const[starReason,setStarReason]=useState("");
+  const[starMsg,setStarMsg]=useState(null);
+  const[starBalances,setStarBalances]=useState({});
+  const[starLoading,setStarLoading]=useState(false);
   if(!cu?.is_owner)return<div style={{padding:"100px 20px",textAlign:"center",color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>⛔ Access Denied</div>;
+
+  const loadStarBalance=async(uid)=>{
+    if(starBalances[uid]!==undefined)return;
+    const rows=await sb.get("nova_stars",`?user_id=eq.${uid}&limit=1`);
+    setStarBalances(p=>({...p,[uid]:rows?.[0]?.balance||0}));
+  };
+
+  const giveStars=async()=>{
+    const amt=parseInt(starAmount);
+    if(!starTarget||!amt||isNaN(amt)){setStarMsg({msg:"Pick a user and enter an amount","color":"#EF4444"});return;}
+    setStarLoading(true);
+    const rows=await sb.get("nova_stars",`?user_id=eq.${starTarget}&limit=1`);
+    const reason=starReason.trim()||"Owner grant";
+    if(rows?.length){
+      const nb=(rows[0].balance||0)+amt;
+      const nl=(rows[0].lifetime_earned||0)+(amt>0?amt:0);
+      await sb.patch("nova_stars",`?user_id=eq.${starTarget}`,{balance:Math.max(0,nb),lifetime_earned:nl});
+      setStarBalances(p=>({...p,[starTarget]:Math.max(0,nb)}));
+    }else{
+      const nb=Math.max(0,amt);
+      await sb.post("nova_stars",{user_id:starTarget,balance:nb,lifetime_earned:nb>0?nb:0,last_login_claim:0,login_streak:0});
+      setStarBalances(p=>({...p,[starTarget]:nb}));
+    }
+    await sb.post("nova_star_log",{id:gid(),user_id:starTarget,amount:amt,reason:`[OWNER] ${reason}`,ts:Date.now()});
+    const u=users.find(x=>x.id===starTarget);
+    setStarMsg({msg:`${amt>0?"+":" "}${amt} ⭐ ${amt>0?"given to":"taken from"} ${u?.display_name||"user"}`,color:amt>0?"#22C55E":"#EF4444"});
+    setStarAmount("");setStarReason("");
+    setStarLoading(false);
+    setTimeout(()=>setStarMsg(null),3000);
+  };
   const toggleBadge=async(uid,bid)=>{
     const u=users.find(x=>x.id===uid);if(!u)return;
     const bs=u.badges||[];const nb=bs.includes(bid)?bs.filter(b=>b!==bid):[...bs,bid];
@@ -4387,7 +4423,7 @@ function DashboardPage({cu,users,setUsers,navigate}){
         ))}
       </div>
       <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
-        {[["members","👥 Members"],["badges","🏅 Badges"],["roles","⭐ Roles"],["announce","📢 Announce"]].map(([t,l])=>(
+        {[["members","👥 Members"],["badges","🏅 Badges"],["roles","⭐ Roles"],["stars","⭐ Stars"],["announce","📢 Announce"]].map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t)} style={{padding:"8px 16px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"rgba(245,158,11,.5)":"rgba(255,255,255,.1)"}`,background:tab===t?"rgba(245,158,11,.12)":"rgba(255,255,255,.03)",color:tab===t?"#F59E0B":"#64748B",transition:"all .2s"}}>{l}</button>
         ))}
       </div>
@@ -4515,6 +4551,53 @@ function DashboardPage({cu,users,setUsers,navigate}){
               </div>
             ))}
           </div>
+        </div>
+      )}
+      {tab==="stars"&&(
+        <div style={{maxWidth:600}}>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94A3B8",marginBottom:16,letterSpacing:".12em"}}>⭐ STAR MANAGEMENT</div>
+          <Card style={{padding:20,marginBottom:16}}>
+            <Lbl>Select Member</Lbl>
+            <select value={starTarget} onChange={e=>{setStarTarget(e.target.value);if(e.target.value)loadStarBalance(e.target.value);}} style={{width:"100%",marginBottom:14}}>
+              <option value="">— Pick a member —</option>
+              {[...users].sort((a,b)=>a.display_name.localeCompare(b.display_name)).map(u=>(
+                <option key={u.id} value={u.id}>{u.display_name} (@{u.username})</option>
+              ))}
+            </select>
+            {starTarget&&(
+              <div style={{fontSize:11,color:"#F59E0B",fontFamily:"'Orbitron',sans-serif",marginBottom:14}}>
+                Current balance: {starBalances[starTarget]!==undefined?`${starBalances[starTarget].toLocaleString()} ⭐`:"loading..."}
+              </div>
+            )}
+            <Lbl>Amount (use negative to remove stars)</Lbl>
+            <input type="number" value={starAmount} onChange={e=>setStarAmount(e.target.value)} placeholder="e.g. 500 or -100" style={{marginBottom:12}}/>
+            <Lbl>Reason (optional)</Lbl>
+            <input value={starReason} onChange={e=>setStarReason(e.target.value)} placeholder="e.g. Community event prize" style={{marginBottom:16}}/>
+            {starMsg&&<div style={{padding:"10px 14px",borderRadius:8,background:starMsg.color+"18",border:`1px solid ${starMsg.color}44`,color:starMsg.color,fontSize:12,fontFamily:"'Orbitron',sans-serif",fontWeight:700,marginBottom:12}}>{starMsg.msg}</div>}
+            <div style={{display:"flex",gap:8}}>
+              <Btn onClick={giveStars} disabled={starLoading||!starTarget||!starAmount} style={{flex:1}}>{starLoading?"Working...":"⭐ Apply Stars"}</Btn>
+              <Btn variant="ghost" onClick={async()=>{
+                const allRows=await sb.get("nova_stars","?order=balance.desc&limit=20");
+                const updated={};
+                (allRows||[]).forEach(r=>{updated[r.user_id]=r.balance||0;});
+                setStarBalances(p=>({...p,...updated}));
+              }}>Refresh All</Btn>
+            </div>
+          </Card>
+          <Card style={{padding:16}}>
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#475569",letterSpacing:".12em",marginBottom:12}}>TOP STAR BALANCES</div>
+            {Object.entries(starBalances).length===0&&<div style={{fontSize:11,color:"#334155"}}>Click "Refresh All" to load balances</div>}
+            {Object.entries(starBalances).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([uid,bal])=>{
+              const u=users.find(x=>x.id===uid);if(!u)return null;
+              return(
+                <div key={uid} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,.05)",cursor:"pointer"}} onClick={()=>{setStarTarget(uid);setTab("stars");}}>
+                  <Av user={u} size={28}/>
+                  <div style={{flex:1}}><div style={{fontSize:11,fontWeight:700,color:"#E2E8F0",fontFamily:"'Orbitron',sans-serif"}}>{u.display_name}</div></div>
+                  <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,fontWeight:900,color:"#F59E0B"}}>{bal.toLocaleString()} ⭐</div>
+                </div>
+              );
+            })}
+          </Card>
         </div>
       )}
       {tab==="announce"&&(

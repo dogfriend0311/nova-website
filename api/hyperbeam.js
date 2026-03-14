@@ -61,19 +61,27 @@ export default async function handler(req, res) {
       }
       if(req.query.search&&req.query.sport&&!req.query.validate){
         const q=req.query.search.trim();
-        const sportPath=SPORT_PATHS[req.query.sport]||"baseball/mlb";
-        const url=`https://site.api.espn.com/apis/site/v2/sports/${sportPath}/athletes?limit=10&active=false&searchTerm=${encodeURIComponent(q)}`;
-        const r=await fetch(url,{headers:{"User-Agent":"Mozilla/5.0"}});
-        if(!r.ok)return res.status(200).json({athletes:[]});
-        const d=await r.json();
-        const items=d.items||d.athletes||[];
-        const athletes=items.slice(0,8).map(a=>({
-          id:a.id||"",
-          name:a.displayName||a.fullName||a.shortName||"",
-          team:a.team?.displayName||a.teamName||"",
-          position:a.position?.displayName||a.position?.name||a.position||"",
-        })).filter(a=>a.name.length>1);
-        return res.status(200).json({athletes});
+        try{
+          // MLB Stats API suggest endpoint — fast autocomplete
+          const url=`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(q)}&sportIds=1&season=2025&limit=10`;
+          const r=await fetch(url,{headers:{"User-Agent":"Mozilla/5.0","Accept":"application/json"},signal:makeTimeout(8000)});
+          if(!r.ok){
+            console.error("MLB search status:",r.status);
+            return res.status(200).json({athletes:[]});
+          }
+          const d=await r.json();
+          const people=(d.people||[]).slice(0,10);
+          const athletes=people.map(p=>({
+            id:String(p.id),
+            name:p.fullName||p.firstName+" "+(p.lastName||""),
+            team:p.currentTeam?.name||p.currentTeamName||"",
+            position:p.primaryPosition?.abbreviation||p.primaryPosition?.name||"",
+          })).filter(a=>a.name.trim().length>1);
+          return res.status(200).json({athletes});
+        }catch(e){
+          console.error("MLB search error:",e.message);
+          return res.status(200).json({athletes:[]});
+        }
       }
       if(req.query.validate&&req.query.playerId&&req.query.team1&&req.query.team2&&req.query.sport){
         const{playerId,team1,team2,sport}=req.query;

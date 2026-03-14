@@ -1,0 +1,19 @@
+name: MLB Star Earner (Phase 3)
+
+on:
+  schedule:
+    # Runs every 3 hours during MLB season (roughly Mar–Oct)
+    - cron: '0 */3 * * *'
+  workflow_dispatch: # also allows manual trigger from GitHub Actions tab
+
+jobs:
+  earn-stars:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger MLB star earner
+        run: |
+          curl -s -X POST "${{ secrets.VERCEL_APP_URL }}/api/mlb-cron" \
+            -H "Content-Type: application/json" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -d '{"action":"process_games"}' \
+            --max-time 55
