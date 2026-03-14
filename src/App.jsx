@@ -2335,31 +2335,7 @@ const MLB_TEAMS_LIST=[
   {id:"158",name:"Milwaukee Brewers",       abbr:"MIL",emoji:"🍺"},
 ];
 
-function generateFallbackPlays(count,odds){
-  const T={
-    common:   [{emoji:"⚾",desc:"Groundout to shortstop",type:"groundout"},{emoji:"⚾",desc:"Strikeout looking",type:"strikeout"},{emoji:"⚾",desc:"Flyout to center",type:"flyout"}],
-    uncommon: [{emoji:"⚾",desc:"Sharp single up the middle",type:"single"},{emoji:"🎯",desc:"Strikeout swinging, 95mph heater",type:"strikeout"},{emoji:"⚾",desc:"Walk drawn on a 3-2 count",type:"walk"}],
-    rare:     [{emoji:"💥",desc:"2-RBI double to the gap",type:"double"},{emoji:"💥",desc:"RBI double off the left-field wall",type:"double"},{emoji:"🔥",desc:"Pitcher fans the side",type:"k_side"}],
-    epic:     [{emoji:"💣",desc:"3-run home run to deep center, 430ft",type:"home_run"},{emoji:"💣",desc:"Go-ahead solo shot in the 7th",type:"home_run"},{emoji:"🌟",desc:"Diving catch robs extra bases",type:"defensive"}],
-    legendary:[{emoji:"🏆",desc:"Walk-off home run, crowd erupts",type:"walkoff_hr"},{emoji:"💎",desc:"Grand slam flips the lead late",type:"grand_slam"},{emoji:"🎯",desc:"Perfect game through 8 innings",type:"perfect_game"}],
-  };
-  const PLAYERS=["Aaron Judge","Shohei Ohtani","Mookie Betts","Freddie Freeman","Ronald Acuña Jr.","Juan Soto","Yordan Alvarez","Gunnar Henderson","Bobby Witt Jr.","Fernando Tatis Jr.","Julio Rodriguez","Corbin Carroll","Francisco Lindor","Pete Alonso","Bryce Harper","Rafael Devers","Jose Ramirez","Elly De La Cruz","Jackson Chourio","Paul Skenes"];
-  const TEAMS=["Yankees","Dodgers","Braves","Padres","Astros","Mets","Phillies","Mariners","Reds","Guardians","Royals","Cardinals","Cubs","Red Sox","Orioles","Rangers","Giants","Marlins","Twins","Brewers"];
-  const plays=[];
-  for(let i=0;i<count;i++){
-    const rand=Math.random();let rarity="common";let cum=0;
-    for(const[r,p]of Object.entries(odds)){cum+=p;if(rand<=cum){rarity=r;break;}}
-    const tpls=T[rarity]||T.common;const t=tpls[Math.floor(Math.random()*tpls.length)];
-    const player=PLAYERS[Math.floor(Math.random()*PLAYERS.length)];
-    const team=TEAMS[Math.floor(Math.random()*TEAMS.length)];
-    const rMin={common:0,uncommon:1,rare:4,epic:7,legendary:10}[rarity]||0;
-    const rMax={common:1,uncommon:3,rare:6,epic:9,legendary:13}[rarity]||1;
-    const rating=Math.floor(Math.random()*(rMax-rMin+1))+rMin;
-    const serial=`#${Math.floor(Math.random()*9999)+1}`;
-    plays.push({id:`fallback_${Date.now()}_${i}`,emoji:t.emoji,playerName:player,teamName:team,description:t.desc,rating,rarity,playType:t.type,season:2025,source:"generated",serial});
-  }
-  return plays;
-}
+// No fake play generation — only real MLB Stats API data
 
 // Stars hook
 function useStars(cu){
@@ -3226,15 +3202,22 @@ function CardsPage({cu}){
     }
     setPackLoading(true);
     let fetchedPlays=[];
+    let fetchError=null;
     try{
       const teamNameParam=packType==="team"&&myTeamCard?`&team_name=${encodeURIComponent(myTeamCard.team_name||myTeamCard.card_name)}`:"";
       const playerParam=playerIdForPack?`&player_id=${playerIdForPack}`:"";
       const url=`/api/hyperbeam?mlb_plays=1&pack_type=${packType}&count=${pack.playCount}${teamNameParam}${playerParam}`;
-      const r=await fetch(url,{signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),14000);return c.signal;})()});
+      const r=await fetch(url,{signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),20000);return c.signal;})()});
       const d=await r.json();
       fetchedPlays=d.plays||[];
-    }catch(e){}
-    if(!fetchedPlays.length)fetchedPlays=generateFallbackPlays(pack.playCount,PACK_ODDS[packType]);
+      if(d.error&&!fetchedPlays.length)fetchError=d.error;
+    }catch(e){fetchError=e.message;}
+    // Never use fake data — if no real plays, refund and tell the user
+    if(!fetchedPlays.length){
+      setPackLoading(false);
+      showToast("Couldn't fetch real MLB plays right now — not charged. Try again!","#F59E0B");
+      return;
+    }
     const ok=await spend(pack.cost,`Opened ${pack.name}`);
     if(!ok){setPackLoading(false);showToast("Not enough stars!","#EF4444");return;}
     // Save plays with serials
