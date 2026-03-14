@@ -1624,36 +1624,56 @@ function FeedPage({users,cu,likes,onLike,navigate}){
 // ─── Home ──────────────────────────────────────────────────────────────────────
 function HomePage({discordUrl,staffUsers,nav,users}){
   const mob=useIsMobile();
-  const feats=[{icon:"🎬",title:"Watch Parties",desc:"Stream movies together in real time"},{icon:"🎮",title:"Game Nights",desc:"Squad up for epic gaming sessions"},{icon:"🎵",title:"Music Lounge",desc:"Vibe out and share playlists"},{icon:"⚾",title:"Sports Nights",desc:"Watch live sports with the whole crew"}];
   const online=users.filter(u=>u.status_type==="online").length;
+
+  const NAV_PAGES=[
+    {p:"members",icon:"👥",label:"Members",color:"#00D4FF",desc:"Browse every Nova member, see their stats, teams, and profiles. Follow your favorites and connect with the community."},
+    {p:"news",icon:"📰",label:"News",color:"#F59E0B",desc:"Stay up to date with the latest breaking sports news across MLB, NFL, NBA, and NHL all in one place."},
+    {p:"feed",icon:"🎬",label:"Clips Feed",color:"#EC4899",desc:"Watch and share highlight clips from the community. React, comment, and show love to the best plays."},
+    {p:"predict",icon:"🎯",label:"Predictions",color:"#22C55E",desc:"Make your picks on upcoming games before they happen. Track your accuracy and climb the predictions leaderboard."},
+    {p:"trivia",icon:"🧠",label:"Trivia",color:"#A855F7",desc:"Challenge yourself with sports trivia across 4 sports and 3 difficulty levels. MVP years, stat records, championships and more."},
+    {p:"leaderboard",icon:"🏆",label:"Leaderboard",color:"#F97316",desc:"See who's on top — ranked by followers, trivia score, predictions accuracy, and most liked comments."},
+    {p:"messages",icon:"💬",label:"Messages",color:"#38BDF8",desc:"Slide into DMs, create group chats, share clips and GIFs, and hop on voice calls with other Nova members."},
+  ];
+
   return(
     <div style={{maxWidth:1080,margin:"0 auto",padding:"0 20px 100px"}}>
-      <div style={{textAlign:"center",padding:mob?"60px 0 50px":"80px 0 70px"}}>
-        <div className="fadeUp" style={{fontSize:mob?48:62,marginBottom:12,display:"inline-block",animation:"float 3.5s ease-in-out infinite"}}>💫</div>
-        <h1 className="fadeUp d1" style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?"clamp(50px,18vw,80px)":"clamp(46px,8vw,92px)",fontWeight:900,lineHeight:1.02,letterSpacing:".06em",marginBottom:16,background:"linear-gradient(135deg,#fff 0%,#a8d8ff 40%,#00D4FF 65%,#8B5CF6 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>NOVA</h1>
-        <p className="fadeUp d2" style={{fontSize:mob?15:18,color:"#94A3B8",maxWidth:440,margin:"0 auto 10px",lineHeight:1.65,fontWeight:500}}>Your community for watch parties, game nights, music vibes and live sports.</p>
-        <div className="fadeUp d2" style={{display:"flex",gap:20,justifyContent:"center",marginBottom:28}}>
+      {/* Hero */}
+      <div style={{textAlign:"center",padding:mob?"50px 0 44px":"72px 0 60px"}}>
+        <div className="fadeUp" style={{fontSize:mob?46:60,marginBottom:10,display:"inline-block",animation:"float 3.5s ease-in-out infinite"}}>💫</div>
+        <h1 className="fadeUp d1" style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?"clamp(48px,16vw,76px)":"clamp(44px,7.5vw,88px)",fontWeight:900,lineHeight:1.02,letterSpacing:".06em",marginBottom:14,background:"linear-gradient(135deg,#fff 0%,#a8d8ff 40%,#00D4FF 65%,#8B5CF6 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>NOVA</h1>
+        <p className="fadeUp d2" style={{fontSize:mob?14:17,color:"#94A3B8",maxWidth:420,margin:"0 auto 12px",lineHeight:1.7,fontWeight:500}}>The sports community for fans who actually know the game.</p>
+        <div className="fadeUp d2" style={{display:"flex",gap:20,justifyContent:"center",marginBottom:26}}>
           <span style={{fontSize:11,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".18em"}}>{users.length} MEMBERS</span>
+          <span style={{width:1,background:"rgba(255,255,255,.08)"}}/>
           <span style={{fontSize:11,color:"#22C55E",fontFamily:"'Orbitron',sans-serif",letterSpacing:".18em",display:"flex",alignItems:"center",gap:5}}><div style={{width:6,height:6,borderRadius:"50%",background:"#22C55E",boxShadow:"0 0 6px #22C55E"}}/>{online} ONLINE</span>
         </div>
         <div className="fadeUp d3" style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
           <a href={discordUrl} target="_blank" rel="noopener noreferrer"><Btn size="lg" style={{fontSize:12}}>🚀 Join Nova Discord</Btn></a>
           <Btn variant="ghost" size={mob?"md":"lg"} style={{fontSize:12}} onClick={()=>nav("members")}>👥 Browse Members</Btn>
-          <Btn variant="ghost" size={mob?"md":"lg"} style={{fontSize:12}} onClick={()=>nav("feed")}>🎬 Clips Feed</Btn>
         </div>
       </div>
+
+      {/* Page cards */}
       <div style={{marginBottom:60}}>
-        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,letterSpacing:".22em",color:"#334155",textAlign:"center",textTransform:"uppercase",marginBottom:24}}>What We Do</div>
-        <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(auto-fit,minmax(210px,1fr))",gap:12}}>
-          {feats.map((f,i)=>(
-            <Card key={i} style={{padding:"20px 16px"}}>
-              <div style={{fontSize:28,marginBottom:10}}>{f.icon}</div>
-              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0",marginBottom:7,letterSpacing:".05em"}}>{f.title}</div>
-              <div style={{color:"#64748B",fontSize:13,lineHeight:1.55}}>{f.desc}</div>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,letterSpacing:".22em",color:"#334155",textAlign:"center",marginBottom:20}}>EXPLORE NOVA</div>
+        <div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(auto-fill,minmax(280px,1fr))",gap:mob?10:14}}>
+          {NAV_PAGES.map(({p,icon,label,color,desc})=>(
+            <Card key={p} onClick={()=>nav(p)} style={{padding:mob?"14px":"20px 22px",cursor:"pointer",display:"flex",flexDirection:"column",gap:10,borderColor:"rgba(255,255,255,.06)"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:38,height:38,borderRadius:10,background:color+"18",border:`1px solid ${color}33`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:mob?18:20,flexShrink:0}}>{icon}</div>
+                <div>
+                  <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?10:11,fontWeight:700,color,letterSpacing:".06em"}}>{label.toUpperCase()}</div>
+                </div>
+                <div style={{marginLeft:"auto",fontSize:14,color:"#334155",flexShrink:0}}>→</div>
+              </div>
+              <div style={{fontSize:mob?11:12,color:"#64748B",lineHeight:1.6}}>{desc}</div>
             </Card>
           ))}
         </div>
       </div>
+
+      {/* Staff */}
       {staffUsers.length>0&&(
         <div>
           <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,letterSpacing:".22em",color:"#334155",textAlign:"center",textTransform:"uppercase",marginBottom:24}}>Meet the Staff</div>
@@ -2219,8 +2239,17 @@ function FLModal({type,user,users,navigate,onClose}){
 // ── Navbar ────────────────────────────────────────────────────────────────────
 function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onClearNotifs,onMarkOneNotif,users,msgUnread}){
   const mob=useIsMobile();
-  const dTabs=[["home","Home"],["members","Members"],["news","📰 News"],["feed","🎬 Feed"],["predict","🎯 Predict"],["trivia","🧠 Trivia"],["leaderboard","🏆 Board"]];
-  const mTabs=[{p:"home",icon:"🏠",lbl:"Home"},{p:"news",icon:"📰",lbl:"News"},{p:"predict",icon:"🎯",lbl:"Predict"},{p:"trivia",icon:"🧠",lbl:"Trivia"},{p:"leaderboard",icon:"🏆",lbl:"Board"},{p:"messages",icon:"💬",lbl:"DMs",badge:msgUnread}];
+  const[gamesOpen,setGamesOpen]=useState(false);
+  const gamesRef=useRef(null);
+  const GAMES_PAGES=["predict","trivia","leaderboard"];
+  const dTabs=[["home","Home"],["members","Members"],["news","📰 News"],["feed","🎬 Feed"]];
+  const mTabs=[{p:"home",icon:"🏠",lbl:"Home"},{p:"news",icon:"📰",lbl:"News"},{p:"feed",icon:"🎬",lbl:"Feed"},{p:"members",icon:"👥",lbl:"Members"},{p:"messages",icon:"💬",lbl:"DMs",badge:msgUnread}];
+  // Close dropdown on outside click
+  useEffect(()=>{
+    const h=(e)=>{if(gamesRef.current&&!gamesRef.current.contains(e.target))setGamesOpen(false);};
+    document.addEventListener("mousedown",h);
+    return()=>document.removeEventListener("mousedown",h);
+  },[]);
   return (
     <>
       <nav style={{position:"fixed",top:0,left:0,right:0,zIndex:100,height:62,display:"flex",alignItems:"center",justifyContent:"space-between",padding:mob?"0 12px":"0 20px",background:"rgba(3,7,18,.97)",backdropFilter:"blur(24px)",borderBottom:"1px solid rgba(255,255,255,.055)"}}>
@@ -2230,8 +2259,27 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
             <span style={{fontFamily:"'Orbitron',sans-serif",fontWeight:900,fontSize:mob?15:17,letterSpacing:".12em",background:"linear-gradient(135deg,#fff 10%,#00D4FF 55%,#8B5CF6 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>NOVA</span>
           </button>
           {!mob&&(
-            <div style={{display:"flex",gap:1}}>
+            <div style={{display:"flex",gap:1,alignItems:"center"}}>
               {dTabs.map(([p,l])=><button key={p} onClick={()=>nav(p)} style={{background:page===p?"rgba(0,212,255,.09)":"none",border:page===p?"1px solid rgba(0,212,255,.2)":"1px solid transparent",cursor:"pointer",padding:"4px 11px",borderRadius:8,fontFamily:"'Rajdhani',sans-serif",fontSize:13,fontWeight:600,color:page===p?"#00D4FF":"#94A3B8",transition:"all .2s",whiteSpace:"nowrap"}}>{l}</button>)}
+              {/* Games dropdown */}
+              <div ref={gamesRef} style={{position:"relative"}}>
+                <button onClick={()=>setGamesOpen(o=>!o)} style={{background:GAMES_PAGES.includes(page)?"rgba(168,85,247,.09)":"none",border:GAMES_PAGES.includes(page)?"1px solid rgba(168,85,247,.25)":"1px solid transparent",cursor:"pointer",padding:"4px 11px",borderRadius:8,fontFamily:"'Rajdhani',sans-serif",fontSize:13,fontWeight:600,color:GAMES_PAGES.includes(page)?"#A855F7":"#94A3B8",transition:"all .2s",display:"flex",alignItems:"center",gap:5}}>
+                  🎮 Games <span style={{fontSize:9,opacity:.7,transition:"transform .2s",transform:gamesOpen?"rotate(180deg)":"rotate(0deg)",display:"inline-block"}}>▼</span>
+                </button>
+                {gamesOpen&&(
+                  <div style={{position:"absolute",top:"calc(100% + 8px)",left:0,background:"linear-gradient(160deg,#0c1220,#10172a)",border:"1px solid rgba(168,85,247,.25)",borderRadius:12,padding:6,minWidth:160,zIndex:200,boxShadow:"0 16px 40px rgba(0,0,0,.7)"}}>
+                    {[["predict","🎯","Predictions","Make picks on upcoming games"],["trivia","🧠","Trivia","Test your sports knowledge"],["leaderboard","🏆","Leaderboard","Top members ranked"]].map(([p,icon,label,desc])=>(
+                      <button key={p} onClick={()=>{nav(p);setGamesOpen(false);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"9px 12px",borderRadius:8,background:page===p?"rgba(168,85,247,.12)":"none",border:"none",cursor:"pointer",textAlign:"left",transition:"background .15s"}}>
+                        <span style={{fontSize:18,flexShrink:0}}>{icon}</span>
+                        <div>
+                          <div style={{fontSize:12,fontWeight:700,fontFamily:"'Rajdhani',sans-serif",color:page===p?"#A855F7":"#E2E8F0"}}>{label}</div>
+                          <div style={{fontSize:10,color:"#475569"}}>{desc}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               {cu?.is_owner&&<button onClick={()=>nav("dashboard")} style={{background:page==="dashboard"?"rgba(245,158,11,.09)":"none",border:page==="dashboard"?"1px solid rgba(245,158,11,.2)":"1px solid transparent",cursor:"pointer",padding:"4px 11px",borderRadius:8,fontFamily:"'Rajdhani',sans-serif",fontSize:13,fontWeight:600,color:page==="dashboard"?"#F59E0B":"#94A3B8"}}>⚡ Dashboard</button>}
             </div>
           )}
@@ -2268,13 +2316,35 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
         <div className="mob-nav">
           {mTabs.map(t=>(
             <button key={t.p} className="mob-tab" onClick={()=>nav(t.p)} style={{color:page===t.p?"#00D4FF":"#475569"}}>
-              <span className="mob-tab-icon">
+              <span className="mob-tab-icon" style={{position:"relative"}}>
                 {t.icon}
                 {t.badge>0&&<span style={{position:"absolute",top:-4,right:-6,width:15,height:15,borderRadius:"50%",background:"#EF4444",color:"white",fontSize:8,fontWeight:900,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Orbitron',sans-serif",border:"1.5px solid #030712"}}>{t.badge>9?"9+":t.badge}</span>}
               </span>
               <span className="mob-tab-label" style={{color:page===t.p?"#00D4FF":"#475569"}}>{t.lbl}</span>
             </button>
           ))}
+          {/* Games button on mobile */}
+          <button className="mob-tab" onClick={()=>setGamesOpen(o=>!o)} style={{color:GAMES_PAGES.includes(page)?"#A855F7":"#475569"}}>
+            <span className="mob-tab-icon">🎮</span>
+            <span className="mob-tab-label" style={{color:GAMES_PAGES.includes(page)?"#A855F7":"#475569"}}>Games</span>
+          </button>
+        </div>
+      )}
+      {/* Mobile games sheet */}
+      {mob&&gamesOpen&&(
+        <div style={{position:"fixed",inset:0,zIndex:300,background:"rgba(0,0,0,.7)"}} onClick={()=>setGamesOpen(false)}>
+          <div style={{position:"absolute",bottom:70,left:0,right:0,background:"linear-gradient(160deg,#0c1220,#10172a)",borderTop:"1px solid rgba(168,85,247,.25)",borderRadius:"20px 20px 0 0",padding:"20px 16px"}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#475569",letterSpacing:".12em",marginBottom:14}}>🎮 GAMES</div>
+            {[["predict","🎯","Predictions","Make picks on upcoming games"],["trivia","🧠","Trivia","Test your sports knowledge"],["leaderboard","🏆","Leaderboard","Top members ranked"]].map(([p,icon,label,desc])=>(
+              <button key={p} onClick={()=>{nav(p);setGamesOpen(false);}} style={{display:"flex",alignItems:"center",gap:12,width:"100%",padding:"12px 14px",borderRadius:12,background:page===p?"rgba(168,85,247,.12)":"rgba(255,255,255,.03)",border:"1px solid "+(page===p?"rgba(168,85,247,.3)":"rgba(255,255,255,.06)"),marginBottom:8,cursor:"pointer",textAlign:"left"}}>
+                <span style={{fontSize:22}}>{icon}</span>
+                <div>
+                  <div style={{fontSize:14,fontWeight:700,fontFamily:"'Rajdhani',sans-serif",color:page===p?"#A855F7":"#E2E8F0"}}>{label}</div>
+                  <div style={{fontSize:11,color:"#475569"}}>{desc}</div>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </>
