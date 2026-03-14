@@ -1,3 +1,9 @@
+function makeTimeout(ms){
+  const ctrl=new AbortController();
+  setTimeout(()=>ctrl.abort(),ms);
+  return ctrl.signal;
+}
+
 const HB_KEY = "sk_test_vUEKzTF26D0FfDCFTJZpUXGrQlpzs8P7ET95_q9CRyI";
 
 const SPORT_PATHS = {
@@ -100,7 +106,7 @@ module.exports = async function handler(req, res) {
           for(let daysBack=1;daysBack<=10&&plays.length<count*3;daysBack++){
             const d=new Date(today);d.setDate(d.getDate()-daysBack);
             const dateStr=d.toISOString().split("T")[0];
-            const sr=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&gameType=R`,{signal:AbortSignal.timeout(6000)});
+            const sr=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&gameType=R`,{signal:makeTimeout(6000)});
             if(!sr.ok)continue;
             const sd=await sr.json();
             const games=(sd.dates?.[0]?.games||[]).filter(g=>g.status?.detailedState==="Final");
@@ -109,7 +115,7 @@ module.exports = async function handler(req, res) {
             const picks=games.sort(()=>Math.random()-.5).slice(0,2);
             for(const game of picks){
               try{
-                const fr=await fetch(`https://statsapi.mlb.com/api/v1.1/game/${game.gamePk}/feed/live`,{signal:AbortSignal.timeout(8000)});
+                const fr=await fetch(`https://statsapi.mlb.com/api/v1.1/game/${game.gamePk}/feed/live`,{signal:makeTimeout(8000)});
                 if(!fr.ok)continue;
                 const fd=await fr.json();
                 const allPlays=fd.liveData?.plays?.allPlays||[];
