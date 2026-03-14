@@ -3049,7 +3049,7 @@ function PackShopTab({cu,stars,loading,onOpen,myTeamCard}){
   );
 }
 
-function MyPlaysTab({cu,plays,cards,onApply,onPrestige}){
+function MyPlaysTab({cu,plays,cards,onApply,onPrestige,onPinPlay}){
   const mob=useIsMobile();
   const[sel,setSel]=useState(null);
   const[showPrestige,setShowPrestige]=useState(false);
@@ -3078,7 +3078,10 @@ function MyPlaysTab({cu,plays,cards,onApply,onPrestige}){
               return(
                 <div key={p.id} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5,position:"relative"}}>
                   <PlayCard play={pd} size={mob?"sm":"md"}/>
-                  {cards.length>0&&<button onClick={()=>setSel(isSel?null:p.id)} style={{padding:"4px 10px",borderRadius:6,background:isSel?"rgba(168,85,247,.15)":"rgba(255,255,255,.05)",border:`1px solid ${isSel?"rgba(168,85,247,.4)":"rgba(255,255,255,.1)"}`,color:isSel?"#A855F7":"#64748B",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{isSel?"CANCEL":"APPLY"}</button>}
+                  <div style={{display:"flex",gap:4}}>
+                    {cards.length>0&&<button onClick={()=>setSel(isSel?null:p.id)} style={{padding:"4px 8px",borderRadius:6,background:isSel?"rgba(168,85,247,.15)":"rgba(255,255,255,.05)",border:`1px solid ${isSel?"rgba(168,85,247,.4)":"rgba(255,255,255,.1)"}`,color:isSel?"#A855F7":"#64748B",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{isSel?"CANCEL":"APPLY"}</button>}
+                    {onPinPlay&&<button onClick={()=>onPinPlay(p)} style={{padding:"4px 8px",borderRadius:6,background:p.pinned?"rgba(0,212,255,.12)":"rgba(255,255,255,.05)",border:`1px solid ${p.pinned?"rgba(0,212,255,.35)":"rgba(255,255,255,.1)"}`,color:p.pinned?"#00D4FF":"#64748B",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{p.pinned?"📌":"📌 Pin"}</button>}
+                  </div>
                   {isSel&&cards.length>0&&(
                     <div style={{position:"absolute",top:"105%",left:"50%",transform:"translateX(-50%)",background:"linear-gradient(160deg,#0c1220,#10172a)",border:"1px solid rgba(168,85,247,.3)",borderRadius:10,padding:8,zIndex:100,minWidth:170,maxHeight:190,overflowY:"auto",boxShadow:"0 12px 36px rgba(0,0,0,.8)"}}>
                       <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:6}}>APPLY TO:</div>
@@ -3111,6 +3114,257 @@ function MyPlaysTab({cu,plays,cards,onApply,onPrestige}){
 }
 
 // Main Cards Page
+
+// ── Collection Tab — every obtainable card, yours highlighted ─────────────────
+function CollectionTab({cu,myCards,myPlays}){
+  const mob=useIsMobile();
+  const[section,setSection]=useState("players");
+  const[q,setQ]=useState("");
+  const[teamFilter,setTeamFilter]=useState(""); // abbr of selected team, "" = all
+  const[ownFilter,setOwnFilter]=useState("all"); // all | owned | unowned
+
+  const ownedCardIds=useMemo(()=>new Set(myCards.map(c=>c.card_def_id)),[myCards]);
+  const allTeams=MLB_TEAMS_LIST;
+  const myPlayerCards=myCards.filter(c=>c.card_type==="player");
+  const myTeamCards=myCards.filter(c=>c.card_type==="team");
+
+  // Deduplicated plays pool from user collection
+  const allPlays=useMemo(()=>{
+    const seen=new Map();
+    myPlays.forEach(p=>{
+      const pd=typeof p.play_data==="string"?JSON.parse(p.play_data):p.play_data;
+      if(!pd?.playerName)return;
+      const key=`${pd.playerName}__${pd.description}`;
+      if(!seen.has(key))seen.set(key,{pd,owned:true,userPlay:p});
+    });
+    return Array.from(seen.values());
+  },[myPlays]);
+
+  // Team dropdown shared component
+  const TeamDropdown=({value,onChange,style={}})=>(
+    <select value={value} onChange={e=>onChange(e.target.value)}
+      style={{background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,color:"#E2E8F0",fontFamily:"'Rajdhani',sans-serif",fontSize:13,padding:"8px 12px",cursor:"pointer",flex:"0 0 auto",...style}}>
+      <option value="">All Teams</option>
+      {allTeams.map(t=><option key={t.id} value={t.abbr}>{t.emoji} {t.name}</option>)}
+    </select>
+  );
+
+  // Ownership filter tabs
+  const OwnTabs=()=>(
+    <div style={{display:"flex",gap:5}}>
+      {[["all","All"],["owned","✅ Owned"],["unowned","🔒 Not Owned"]].map(([v,l])=>(
+        <button key={v} onClick={()=>setOwnFilter(v)}
+          style={{padding:"6px 12px",borderRadius:16,cursor:"pointer",fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700,
+            border:`1px solid ${ownFilter===v?"rgba(0,212,255,.45)":"rgba(255,255,255,.1)"}`,
+            background:ownFilter===v?"rgba(0,212,255,.1)":"rgba(255,255,255,.03)",
+            color:ownFilter===v?"#00D4FF":"#64748B"}}>
+          {l}
+        </button>
+      ))}
+    </div>
+  );
+
+  // ── Filtered lists ──────────────────────────────────────────────────────────
+
+  // Players: filter by name search + team filter (team_name stored on card)
+  const filteredPlayerCards=useMemo(()=>{
+    return myPlayerCards.filter(c=>{
+      const nameMatch=!q||c.card_name.toLowerCase().includes(q.toLowerCase());
+      const selectedTeam=allTeams.find(t=>t.abbr===teamFilter);
+      const teamMatch=!teamFilter||
+        (c.team_name||"").toLowerCase().includes((selectedTeam?.name||"").toLowerCase())||
+        (c.team_name||"").toLowerCase().includes(teamFilter.toLowerCase());
+      return nameMatch&&teamMatch;
+    });
+  },[myPlayerCards,q,teamFilter,allTeams]);
+
+  // Teams: filter by name search + ownership
+  const filteredTeams=useMemo(()=>{
+    return allTeams.filter(t=>{
+      const nameMatch=!q||t.name.toLowerCase().includes(q.toLowerCase())||t.abbr.toLowerCase().includes(q.toLowerCase());
+      const owned=ownedCardIds.has(`mlb_team_${t.id}`);
+      const ownMatch=ownFilter==="all"||(ownFilter==="owned"&&owned)||(ownFilter==="unowned"&&!owned);
+      return nameMatch&&ownMatch;
+    });
+  },[allTeams,q,ownFilter,ownedCardIds]);
+
+  // Plays: filter by name/description search + team + ownership
+  const filteredPlays=useMemo(()=>{
+    return allPlays.filter(({pd,owned})=>{
+      const textMatch=!q||(pd.playerName||"").toLowerCase().includes(q.toLowerCase())||(pd.description||"").toLowerCase().includes(q.toLowerCase());
+      const selectedTeam=allTeams.find(t=>t.abbr===teamFilter);
+      const teamMatch=!teamFilter||
+        (pd.teamName||"").toLowerCase().includes((selectedTeam?.name||teamFilter).toLowerCase())||
+        (pd.teamName||"").toLowerCase().includes(teamFilter.toLowerCase());
+      const ownMatch=ownFilter==="all"||(ownFilter==="owned"&&owned)||(ownFilter==="unowned"&&!owned);
+      return textMatch&&teamMatch&&ownMatch;
+    });
+  },[allPlays,q,teamFilter,ownFilter,allTeams]);
+
+  const resetFilters=()=>{setQ("");setTeamFilter("");setOwnFilter("all");};
+  const hasFilters=q||teamFilter||ownFilter!=="all";
+
+  return(
+    <div>
+      {/* Section tabs */}
+      <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+        {[["players","👤 Players"],["teams","🏟️ Teams"],["plays","⚡ Plays"]].map(([s,l])=>(
+          <button key={s} onClick={()=>{setSection(s);resetFilters();}}
+            style={{padding:"7px 16px",borderRadius:20,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,
+              border:`1px solid ${section===s?"rgba(245,158,11,.5)":"rgba(255,255,255,.1)"}`,
+              background:section===s?"rgba(245,158,11,.1)":"rgba(255,255,255,.03)",
+              color:section===s?"#F59E0B":"#64748B"}}>
+            {l}
+            <span style={{marginLeft:5,fontSize:9,color:section===s?"#F59E0B":"#334155"}}>
+              {s==="players"?`${myPlayerCards.length} owned`:s==="teams"?`${myTeamCards.length}/30`:`${allPlays.length} collected`}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Filter bar */}
+      <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+        <input value={q} onChange={e=>setQ(e.target.value)}
+          placeholder={section==="players"?"Search player name…":section==="teams"?"Search team…":"Search player or play…"}
+          style={{flex:1,minWidth:160}}/>
+        {/* Team dropdown — not shown for teams section (redundant) */}
+        {section!=="teams"&&(
+          <TeamDropdown value={teamFilter} onChange={setTeamFilter} style={{minWidth:140,maxWidth:200}}/>
+        )}
+        {/* Own/unowned filter for teams + plays */}
+        {(section==="teams"||section==="plays")&&<OwnTabs/>}
+        {hasFilters&&(
+          <button onClick={resetFilters}
+            style={{padding:"7px 12px",borderRadius:8,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.25)",color:"#EF4444",fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontWeight:700,flexShrink:0}}>
+            ✕ Clear
+          </button>
+        )}
+      </div>
+
+      {/* Results count */}
+      <div style={{fontSize:9,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginBottom:12}}>
+        {section==="players"&&`${filteredPlayerCards.length} PLAYER CARD${filteredPlayerCards.length!==1?"S":""}`}
+        {section==="teams"&&`${filteredTeams.length} TEAM${filteredTeams.length!==1?"S":""} · ${myTeamCards.length}/30 OWNED`}
+        {section==="plays"&&`${filteredPlays.length} PLAY${filteredPlays.length!==1?"S":""} · ${allPlays.length} TOTAL COLLECTED`}
+        {teamFilter&&` · ${allTeams.find(t=>t.abbr===teamFilter)?.name||teamFilter}`}
+      </div>
+
+      {/* ── PLAYERS ── */}
+      {section==="players"&&(
+        <div>
+          {!myPlayerCards.length&&(
+            <div style={{textAlign:"center",padding:"40px 20px"}}>
+              <div style={{fontSize:36,marginBottom:10}}>👤</div>
+              <div style={{color:"#334155",fontSize:13,fontFamily:"'Orbitron',sans-serif"}}>No player cards yet</div>
+              <div style={{color:"#1e3a5f",fontSize:11,marginTop:4}}>Head to Market · 200⭐ each</div>
+            </div>
+          )}
+          {myPlayerCards.length>0&&filteredPlayerCards.length===0&&(
+            <div style={{textAlign:"center",padding:"30px 20px",color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>
+              No cards match these filters
+            </div>
+          )}
+          <div style={{display:"grid",gridTemplateColumns:mob?"repeat(3,1fr)":"repeat(auto-fill,minmax(140px,1fr))",gap:mob?8:12}}>
+            {filteredPlayerCards.map(card=>{
+              const rarity=getCardRarityFromTotal(card.total_play_rating||0);
+              const rc=RARITY_CFG[rarity];
+              const nxt=nextRarityThreshold(card.total_play_rating||0);
+              return(
+                <div key={card.id} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+                  <CardDisplay type="player" name={card.card_name} headshot={card.custom_headshot||card.headshot_url}
+                    totalRating={card.total_play_rating||0} customName={card.custom_name||undefined}
+                    customBorder={card.custom_border||undefined} customBg={card.custom_bg||undefined}
+                    customEffect={card.custom_effect||undefined} size={mob?"sm":"md"} pinned={card.pinned} serial={card.serial}/>
+                  <div style={{textAlign:"center",maxWidth:mob?90:150}}>
+                    <div style={{fontSize:mob?7:9,fontFamily:"'Orbitron',sans-serif",color:rc.color,fontWeight:700}}>{rc.label}</div>
+                    {nxt&&<div style={{fontSize:7,color:"#334155"}}>{nxt.needed}pts → {nxt.next}</div>}
+                    {card.team_name&&<div style={{fontSize:7,color:"#475569"}}>{card.team_name}</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── TEAMS ── */}
+      {section==="teams"&&(
+        <div>
+          {filteredTeams.length===0&&(
+            <div style={{textAlign:"center",padding:"30px 20px",color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>
+              No teams match these filters
+            </div>
+          )}
+          <div style={{display:"grid",gridTemplateColumns:mob?"repeat(3,1fr)":"repeat(auto-fill,minmax(130px,1fr))",gap:mob?8:10}}>
+            {filteredTeams.map(team=>{
+              const defId=`mlb_team_${team.id}`;
+              const owned=ownedCardIds.has(defId);
+              const ownedCard=myTeamCards.find(c=>c.card_def_id===defId);
+              const rarity=owned?getCardRarityFromTotal(ownedCard?.total_play_rating||0):"general";
+              const rc=RARITY_CFG[rarity];
+              return(
+                <div key={team.id} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,
+                  opacity:owned?1:0.32,filter:owned?"none":"grayscale(1) brightness(0.4)",transition:"all .2s"}}>
+                  {owned
+                    ?<CardDisplay type="team" name={team.name} headshot={ownedCard?.custom_headshot||mlbTeamLogo(team.id)}
+                        totalRating={ownedCard?.total_play_rating||0} customBorder={ownedCard?.custom_border||undefined}
+                        customEffect={ownedCard?.custom_effect||undefined} size={mob?"sm":"md"}
+                        pinned={ownedCard?.pinned} serial={ownedCard?.serial}/>
+                    :<div style={{width:mob?108:138,height:mob?155:198,borderRadius:12,
+                        border:"2px solid rgba(255,255,255,.08)",background:"rgba(255,255,255,.02)",
+                        display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8}}>
+                        <img src={mlbTeamLogo(team.id)} style={{width:"50%",height:"50%",objectFit:"contain",opacity:.3}}
+                          onError={e=>e.target.style.display="none"}/>
+                        <div style={{fontSize:8,color:"#1e3a5f",fontFamily:"'Orbitron',sans-serif",textAlign:"center",padding:"0 4px"}}>{team.name}</div>
+                        <div style={{fontSize:7,color:"#0d2545"}}>800⭐ to unlock</div>
+                      </div>
+                  }
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:mob?8:9,fontFamily:"'Orbitron',sans-serif",color:owned?rc.color:"#1e3a5f",fontWeight:700}}>
+                      {owned?rc.label:"Locked"}
+                    </div>
+                    <div style={{fontSize:7,color:"#334155"}}>{team.abbr}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── PLAYS ── */}
+      {section==="plays"&&(
+        <div>
+          {!allPlays.length&&(
+            <div style={{textAlign:"center",padding:"40px 20px"}}>
+              <div style={{fontSize:36,marginBottom:10}}>⚡</div>
+              <div style={{color:"#334155",fontSize:13,fontFamily:"'Orbitron',sans-serif"}}>No plays collected yet</div>
+              <div style={{color:"#1e3a5f",fontSize:11,marginTop:4}}>Open packs to collect real 2025 MLB play cards</div>
+            </div>
+          )}
+          {allPlays.length>0&&filteredPlays.length===0&&(
+            <div style={{textAlign:"center",padding:"30px 20px",color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>
+              No plays match these filters
+            </div>
+          )}
+          <div style={{display:"flex",flexWrap:"wrap",gap:mob?8:12}}>
+            {filteredPlays.map(({pd,owned},i)=>(
+              <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5,
+                opacity:owned?1:0.25,filter:owned?"none":"grayscale(1) brightness(0.3)",transition:"all .2s"}}>
+                <PlayCard play={pd} size={mob?"sm":"md"}/>
+                {pd.prestige&&<div style={{fontSize:8,color:"#FFD700",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>✨ PRESTIGE</div>}
+                <div style={{fontSize:7,color:owned?"#22C55E":"#334155",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>
+                  {owned?"OWNED":""}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CardsPage({cu}){
   const mob=useIsMobile();
   const{stars,refresh:refreshStars,earn,spend,claimDaily}=useStars(cu);
@@ -3284,14 +3538,22 @@ function CardsPage({cu}){
 
   const togglePin=async(card)=>{
     const pinned=myCards.filter(c=>c.pinned);
-    if(!card.pinned&&pinned.length>=10){showToast("Max 10 cards pinned!","#F59E0B");return;}
+    if(!card.pinned&&pinned.length>=10){showToast("Max 10 cards pinned to profile!","#F59E0B");return;}
     await sb.patch("nova_user_cards",`?id=eq.${card.id}`,{pinned:!card.pinned});
     setMyCards(p=>p.map(c=>c.id===card.id?{...c,pinned:!c.pinned}:c));
-    showToast(card.pinned?"Unpinned":"📌 Pinned to profile!");
+    showToast(card.pinned?"Unpinned from profile":"📌 Pinned to profile!");
+  };
+
+  const togglePinPlay=async(play)=>{
+    const pinnedPlays=myPlays.filter(p=>p.pinned);
+    if(!play.pinned&&pinnedPlays.length>=10){showToast("Max 10 plays pinned to profile!","#F59E0B");return;}
+    await sb.patch("nova_user_plays",`?id=eq.${play.id}`,{pinned:!play.pinned});
+    setMyPlays(p=>p.map(pl=>pl.id===play.id?{...pl,pinned:!pl.pinned}:pl));
+    showToast(play.pinned?"Play unpinned":"📌 Play pinned to profile!");
   };
 
   const myTeamCard=myCards.find(c=>c.card_type==="team");
-  const TABS=[["market","🏪 Market"],["mycards","🃏 My Cards"],["packs","🎁 Packs"],["plays","⚡ My Plays"]];
+  const TABS=[["market","🏪 Market"],["mycards","🃏 My Cards"],["packs","🎁 Packs"],["plays","⚡ My Plays"],["collection","📖 Collection"]];
 
   return(
     <div style={{maxWidth:1080,margin:"0 auto",padding:mob?"14px 12px 100px":"28px 20px 80px",position:"relative"}}>
@@ -3312,7 +3574,8 @@ function CardsPage({cu}){
       {tab==="market"&&<CardMarketTab cu={cu} stars={stars} myCards={myCards} onBuy={buyCard}/>}
       {tab==="mycards"&&<MyCardsTab cu={cu} cards={myCards} plays={myPlays} onCustomize={setCustomizeTarget} onPin={togglePin} onApply={applyPlay}/>}
       {tab==="packs"&&<PackShopTab cu={cu} stars={stars} loading={packLoading} onOpen={openPack} myTeamCard={myTeamCard}/>}
-      {tab==="plays"&&<MyPlaysTab cu={cu} plays={myPlays} cards={myCards} onApply={applyPlay} onPrestige={prestigePlay}/>}
+      {tab==="plays"&&<MyPlaysTab cu={cu} plays={myPlays} cards={myCards} onApply={applyPlay} onPrestige={prestigePlay} onPinPlay={togglePinPlay}/>}
+      {tab==="collection"&&<CollectionTab cu={cu} myCards={myCards} myPlays={myPlays}/>}
       {packResult&&<PackOpenModal pack={packResult.pack} plays={packResult.plays} onClose={()=>setPackResult(null)} onKeep={()=>{setPackResult(null);setTab("plays");loadMyPlays();}}/>}
       {customizeTarget&&<CardCustomizeModal card={customizeTarget} onClose={()=>setCustomizeTarget(null)} onSave={async(updates)=>{await sb.patch("nova_user_cards",`?id=eq.${customizeTarget.id}`,updates);setMyCards(p=>p.map(c=>c.id===customizeTarget.id?{...c,...updates}:c));setCustomizeTarget(null);showToast("Card updated! ✏️");}}/>}
     </div>
@@ -4239,6 +4502,8 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif,navOpts={}}){
   const[showTeamPicker,setShowTeamPicker]=useState(null);
   const[replyTo,setReplyTo]=useState(null); // {id, author_name, author_id}
   const[profileTab,setProfileTab]=useState("posts"); // posts | activity
+  const[pinnedCards,setPinnedCards]=useState([]);
+  const[pinnedPlays,setPinnedPlays]=useState([]);
   const commentsSectionRef=useRef(null);
   useEffect(()=>{
     if(navOpts.scrollToComments){
@@ -4250,7 +4515,26 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif,navOpts={}}){
   const[activityLoading,setActivityLoading]=useState(false);
   const[showGifPicker,setShowGifPicker]=useState(false);
 
-  useEffect(()=>{if(u)loadComments();},[userId]);
+  useEffect(()=>{
+    if(!u)return;
+    loadComments();
+    // Load pinned cards
+    sb.get("nova_user_cards",`?user_id=eq.${userId}&pinned=eq.true&order=pin_order.asc`).then(rows=>{
+      if(!rows?.length){setPinnedCards([]);return;}
+      // Fix any old ESPN headshot URLs
+      setPinnedCards(rows.map(card=>{
+        if(card.card_type==="player"&&card.player_id&&(!card.headshot_url||card.headshot_url.includes("espncdn")))
+          return{...card,headshot_url:mlbPlayerHeadshot(card.player_id)};
+        if(card.card_type==="team"&&card.card_def_id&&(!card.headshot_url||card.headshot_url.includes("espncdn")))
+          return{...card,headshot_url:mlbTeamLogo(card.card_def_id.replace("mlb_team_",""))};
+        return card;
+      }));
+    });
+    // Load pinned plays
+    sb.get("nova_user_plays",`?user_id=eq.${userId}&pinned=eq.true&order=acquired_at.desc`).then(rows=>{
+      setPinnedPlays(rows||[]);
+    });
+  },[userId]);
   useEffect(()=>{
     if(profileTab==="activity"&&userActivity.length===0){
       setActivityLoading(true);
@@ -4437,6 +4721,47 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif,navOpts={}}){
           <Sec title="🎬 Clips" onAdd={isMe||isOwner?()=>setShowAddClip(true):null}>
             <ClipCarousel clips={u.page_clips||[]} canEdit={isMe||isOwner} onDelete={deleteClip} emptyIcon="🎬" emptyMsg="No clips yet" cu={cu} likes={likes} onLike={()=>{}}/>
           </Sec>
+
+          {/* Pinned Cards */}
+          {(pinnedCards.length>0||pinnedPlays.length>0)&&(
+            <Sec title="⭐ Nova Cards">
+              {pinnedCards.length>0&&(
+                <div style={{marginBottom:pinnedPlays.length>0?18:0}}>
+                  <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".12em",marginBottom:10}}>CARDS · {pinnedCards.length}</div>
+                  <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:8}}>
+                    {pinnedCards.map(card=>(
+                      <div key={card.id} style={{flexShrink:0}}>
+                        <CardDisplay
+                          type={card.card_type}
+                          name={card.card_name}
+                          headshot={card.custom_headshot||card.headshot_url}
+                          totalRating={card.total_play_rating||0}
+                          customName={card.custom_name||undefined}
+                          customBorder={card.custom_border||undefined}
+                          customBg={card.custom_bg||undefined}
+                          customEffect={card.custom_effect||undefined}
+                          size="md"
+                          serial={card.serial}
+                          pinned
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {pinnedPlays.length>0&&(
+                <div>
+                  <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".12em",marginBottom:10}}>PLAYS · {pinnedPlays.length}</div>
+                  <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8}}>
+                    {pinnedPlays.map(p=>{
+                      const pd=typeof p.play_data==="string"?JSON.parse(p.play_data):p.play_data;
+                      return <div key={p.id} style={{flexShrink:0}}><PlayCard play={pd} size="md"/></div>;
+                    })}
+                  </div>
+                </div>
+              )}
+            </Sec>
+          )}
 
           {/* Social clips */}
           {((u.page_social||[]).length>0||(isMe||isOwner))&&(
