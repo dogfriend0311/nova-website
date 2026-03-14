@@ -63,6 +63,11 @@ const CSS = `
   .mob-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:none;background:none;cursor:pointer;padding:4px 0;min-width:0}
   .mob-tab-icon{font-size:19px;line-height:1;position:relative;display:inline-block}
   .mob-tab-label{font-size:9px;font-family:'Orbitron',sans-serif;font-weight:700;letter-spacing:.04em;white-space:nowrap}
+  @keyframes epicPulse{0%,100%{box-shadow:0 0 12px #A855F7,0 0 4px #A855F7}50%{box-shadow:0 0 28px #A855F7,0 0 50px #A855F788}}
+  @keyframes legendFlare{0%,100%{box-shadow:0 0 16px #F59E0B,0 0 6px #F59E0B}33%{box-shadow:0 0 32px #F59E0B,0 0 60px #F59E0BAA,0 0 4px #EF4444}66%{box-shadow:0 0 24px #F59E0B,0 0 40px #F59E0B88}}
+  @keyframes cardFlipIn{from{transform:rotateY(-90deg);opacity:0}to{transform:rotateY(0deg);opacity:1}}
+  @keyframes starPop{0%{transform:scale(0);opacity:0}70%{transform:scale(1.3)}100%{transform:scale(1);opacity:1}}
+  @keyframes rarePulse{0%,100%{box-shadow:0 0 8px #3B82F6}50%{box-shadow:0 0 20px #3B82F6,0 0 36px #3B82F644}}
 `;
 
 const gid = () => "x"+Date.now()+Math.random().toString(36).slice(2,5);
@@ -1630,6 +1635,7 @@ function HomePage({discordUrl,staffUsers,nav,users}){
     {p:"members",icon:"👥",label:"Members",color:"#00D4FF",desc:"Browse every Nova member, see their stats, teams, and profiles. Follow your favorites and connect with the community."},
     {p:"news",icon:"📰",label:"News",color:"#F59E0B",desc:"Stay up to date with the latest breaking sports news across MLB, NFL, NBA, and NHL all in one place."},
     {p:"feed",icon:"🎬",label:"Clips Feed",color:"#EC4899",desc:"Watch and share highlight clips from the community. React, comment, and show love to the best plays."},
+    {p:"cards",icon:"⚾",label:"Nova Cards",color:"#F59E0B",desc:"Collect MLB player and team cards, open packs for real 2025 play cards, level up your cards and flex them on your profile."},
     {p:"predict",icon:"🎯",label:"Predictions",color:"#22C55E",desc:"Make your picks on upcoming games before they happen. Track your accuracy and climb the predictions leaderboard."},
     {p:"trivia",icon:"🧠",label:"Trivia",color:"#A855F7",desc:"Challenge yourself with sports trivia across 4 sports and 3 difficulty levels. MVP years, stat records, championships and more."},
     {p:"leaderboard",icon:"🏆",label:"Leaderboard",color:"#F97316",desc:"See who's on top — ranked by followers, trivia score, predictions accuracy, and most liked comments."},
@@ -2237,11 +2243,677 @@ function FLModal({type,user,users,navigate,onClose}){
 }
 
 // ── Navbar ────────────────────────────────────────────────────────────────────
+// ─── CARDS SYSTEM ─────────────────────────────────────────────────────────────
+const RARITY_CFG={
+  common:{label:"Common",color:"#94A3B8",glow:"rgba(148,163,184,.3)",border:"rgba(148,163,184,.5)",anim:null},
+  rare:  {label:"Rare",  color:"#3B82F6",glow:"rgba(59,130,246,.4)", border:"rgba(59,130,246,.7)", anim:"rarePulse 2.5s ease-in-out infinite"},
+  epic:  {label:"Epic",  color:"#A855F7",glow:"rgba(168,85,247,.5)", border:"rgba(168,85,247,.8)", anim:"epicPulse 2s ease-in-out infinite"},
+  legend:{label:"Legend",color:"#F59E0B",glow:"rgba(245,158,11,.6)", border:"rgba(245,158,11,.9)", anim:"legendFlare 1.8s ease-in-out infinite"},
+};
+function getRarity(r){return r>=10?"legend":r>=7?"epic":r>=4?"rare":"common";}
+function getCardRarity(total){return total>=100?"legend":total>=60?"epic":total>=20?"rare":"common";}
+const PACK_DEFS={
+  general:  {name:"General Pack",  emoji:"🎒",cost:150,count:5, maxDaily:5, desc:"5 plays · standard odds"},
+  superstar:{name:"Superstar Pack",emoji:"⚡",cost:300,count:10,maxDaily:10,desc:"10 plays · boosted legend odds"},
+  team:     {name:"Team Pack",     emoji:"⚾",cost:200,count:7, maxDaily:3, desc:"7 plays · your team only"},
+};
+const PACK_ODDS={
+  general:  {common:.55,rare:.30,epic:.12,legend:.03},
+  superstar:{common:.30,rare:.35,epic:.25,legend:.10},
+  team:     {common:.45,rare:.32,epic:.18,legend:.05},
+};
+const MLB_TEAMS_LIST=[
+  {id:"108",name:"Los Angeles Angels",abbr:"LAA",emoji:"😇"},
+  {id:"109",name:"Arizona Diamondbacks",abbr:"ARI",emoji:"🐍"},
+  {id:"110",name:"Baltimore Orioles",abbr:"BAL",emoji:"🐦"},
+  {id:"111",name:"Boston Red Sox",abbr:"BOS",emoji:"🧦"},
+  {id:"112",name:"Chicago Cubs",abbr:"CHC",emoji:"🐻"},
+  {id:"113",name:"Cincinnati Reds",abbr:"CIN",emoji:"🔴"},
+  {id:"114",name:"Cleveland Guardians",abbr:"CLE",emoji:"🛡️"},
+  {id:"115",name:"Colorado Rockies",abbr:"COL",emoji:"⛰️"},
+  {id:"116",name:"Detroit Tigers",abbr:"DET",emoji:"🐯"},
+  {id:"117",name:"Houston Astros",abbr:"HOU",emoji:"🚀"},
+  {id:"118",name:"Kansas City Royals",abbr:"KC",emoji:"👑"},
+  {id:"119",name:"Los Angeles Dodgers",abbr:"LAD",emoji:"💙"},
+  {id:"120",name:"Washington Nationals",abbr:"WSH",emoji:"🦅"},
+  {id:"121",name:"New York Mets",abbr:"NYM",emoji:"🗽"},
+  {id:"133",name:"Oakland Athletics",abbr:"OAK",emoji:"🐘"},
+  {id:"134",name:"Pittsburgh Pirates",abbr:"PIT",emoji:"☠️"},
+  {id:"135",name:"San Diego Padres",abbr:"SD",emoji:"🏖️"},
+  {id:"136",name:"Seattle Mariners",abbr:"SEA",emoji:"🧭"},
+  {id:"137",name:"San Francisco Giants",abbr:"SF",emoji:"🌉"},
+  {id:"138",name:"St. Louis Cardinals",abbr:"STL",emoji:"🦅"},
+  {id:"139",name:"Tampa Bay Rays",abbr:"TB",emoji:"☀️"},
+  {id:"140",name:"Texas Rangers",abbr:"TEX",emoji:"⭐"},
+  {id:"141",name:"Toronto Blue Jays",abbr:"TOR",emoji:"🦅"},
+  {id:"142",name:"Minnesota Twins",abbr:"MIN",emoji:"🌙"},
+  {id:"143",name:"Philadelphia Phillies",abbr:"PHI",emoji:"🔔"},
+  {id:"144",name:"Atlanta Braves",abbr:"ATL",emoji:"🪓"},
+  {id:"145",name:"Chicago White Sox",abbr:"CWS",emoji:"⚫"},
+  {id:"146",name:"Miami Marlins",abbr:"MIA",emoji:"🐟"},
+  {id:"147",name:"New York Yankees",abbr:"NYY",emoji:"🗽"},
+  {id:"158",name:"Milwaukee Brewers",abbr:"MIL",emoji:"🍺"},
+];
+
+// Fallback plays when MLB API unavailable
+function generateFallbackPlays(count,odds){
+  const T={
+    common:[{emoji:"⚾",desc:"RBI Single to left field",type:"single"},{emoji:"🎯",desc:"Strikeout swinging on a filthy slider",type:"strikeout"},{emoji:"⚾",desc:"Walk drawn on a full count",type:"walk"},{emoji:"⚾",desc:"Infield single beats the shift",type:"single"}],
+    rare:  [{emoji:"💥",desc:"2-RBI Double to the gap",type:"double"},{emoji:"💥",desc:"RBI Double off the left-field wall",type:"double"},{emoji:"🔥",desc:"Pitcher K's the side in order",type:"k_side"}],
+    epic:  [{emoji:"💣",desc:"3-run home run to deep center, 430ft",type:"home_run"},{emoji:"💣",desc:"Leadoff HR to set the tone",type:"home_run"},{emoji:"🌟",desc:"Diving catch to rob extra bases",type:"defensive"}],
+    legend:[{emoji:"🏆",desc:"Walkoff home run in the 9th — crowd goes wild",type:"walkoff_hr"},{emoji:"💎",desc:"Grand slam flips the lead in the 7th",type:"grand_slam"},{emoji:"🎯",desc:"Perfect game through 8 innings",type:"perfect_game"}],
+  };
+  const PLAYERS=["Aaron Judge","Shohei Ohtani","Mookie Betts","Freddie Freeman","Ronald Acuña Jr.","Juan Soto","Yordan Alvarez","Gunnar Henderson","Bobby Witt Jr.","Fernando Tatis Jr.","Julio Rodriguez","Corbin Carroll","Francisco Lindor","Pete Alonso","Bryce Harper","Rafael Devers","Jose Ramirez","Elly De La Cruz","Jackson Chourio","Paul Skenes"];
+  const TEAMS=["Yankees","Dodgers","Braves","Padres","Astros","Mets","Phillies","Mariners","Reds","Guardians","Royals","Cardinals","Cubs","Red Sox","Orioles","Rangers","Giants","Marlins","Twins","Brewers"];
+  const plays=[];
+  for(let i=0;i<count;i++){
+    const rand=Math.random();let rarity="common";let cum=0;
+    for(const[r,p]of Object.entries(odds)){cum+=p;if(rand<=cum){rarity=r;break;}}
+    const tpls=T[rarity];const t=tpls[Math.floor(Math.random()*tpls.length)];
+    const player=PLAYERS[Math.floor(Math.random()*PLAYERS.length)];
+    const team=TEAMS[Math.floor(Math.random()*TEAMS.length)];
+    const rMin={common:0,rare:4,epic:7,legend:10}[rarity];
+    const rMax={common:3,rare:6,epic:9,legend:12}[rarity];
+    const rating=Math.floor(Math.random()*(rMax-rMin+1))+rMin;
+    plays.push({id:`fallback_${Date.now()}_${i}`,emoji:t.emoji,playerName:player,teamName:team,description:t.desc,rating,rarity,playType:t.type,season:2025,source:"generated"});
+  }
+  return plays;
+}
+
+// Stars hook
+function useStars(cu){
+  const[stars,setStars]=useState(0);
+  const refresh=useCallback(async()=>{
+    if(!cu)return;
+    try{const rows=await sb.get("nova_stars",`?user_id=eq.${cu.id}&limit=1`);if(rows?.length)setStars(rows[0].balance||0);}catch(e){}
+  },[cu?.id]);
+  useEffect(()=>{refresh();},[cu?.id]);
+
+  const earn=async(amount,reason)=>{
+    if(!cu||amount<=0)return;
+    try{
+      const rows=await sb.get("nova_stars",`?user_id=eq.${cu.id}&limit=1`);
+      if(rows?.length){
+        const nb=(rows[0].balance||0)+amount;
+        await sb.patch("nova_stars",{balance:nb,lifetime_earned:(rows[0].lifetime_earned||0)+amount},`?user_id=eq.${cu.id}`);
+        setStars(nb);
+      }else{
+        await sb.post("nova_stars",{id:gid(),user_id:cu.id,balance:amount,lifetime_earned:amount,last_login_claim:0,login_streak:0});
+        setStars(amount);
+      }
+      await sb.post("nova_star_log",{id:gid(),user_id:cu.id,amount,reason,ts:Date.now()});
+    }catch(e){console.warn("earn stars",e);}
+  };
+
+  const spend=async(amount,reason)=>{
+    if(!cu)return false;
+    try{
+      const rows=await sb.get("nova_stars",`?user_id=eq.${cu.id}&limit=1`);
+      const bal=rows?.[0]?.balance||0;
+      if(bal<amount)return false;
+      await sb.patch("nova_stars",{balance:bal-amount},`?user_id=eq.${cu.id}`);
+      await sb.post("nova_star_log",{id:gid(),user_id:cu.id,amount:-amount,reason,ts:Date.now()});
+      setStars(bal-amount);
+      return true;
+    }catch(e){return false;}
+  };
+
+  const claimDaily=async()=>{
+    if(!cu)return null;
+    try{
+      const rows=await sb.get("nova_stars",`?user_id=eq.${cu.id}&limit=1`);
+      const row=rows?.[0];
+      const now=Date.now();
+      const pstDay=(ts)=>{const d=new Date((ts||0)-8*3600000);return`${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;};
+      if(row&&pstDay(row.last_login_claim)===pstDay(now))return"already_claimed";
+      const streak=Math.min((row?.login_streak||0)+1,999);
+      const bonus=streak>=14?150:streak>=7?100:streak>=3?75:50;
+      await earn(bonus,"Daily login bonus");
+      if(row)await sb.patch("nova_stars",{last_login_claim:now,login_streak:streak},`?user_id=eq.${cu.id}`);
+      return{stars:bonus,streak};
+    }catch(e){return null;}
+  };
+  return{stars,refresh,earn,spend,claimDaily};
+}
+
+function StarBadge({stars,size="sm"}){
+  const fs=size==="lg"?20:size==="md"?16:13;
+  return(
+    <div style={{display:"flex",alignItems:"center",gap:5,background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.3)",borderRadius:8,padding:size==="lg"?"8px 14px":"4px 10px",cursor:"default",flexShrink:0}}>
+      <span style={{fontSize:fs}}>⭐</span>
+      <span style={{fontFamily:"'Orbitron',sans-serif",fontSize:fs-2,fontWeight:900,color:"#F59E0B"}}>{(stars||0).toLocaleString()}</span>
+    </div>
+  );
+}
+
+// Card visual
+function CardDisplay({type,name,subName,headshot,level=0,totalRating=0,customName,customBorder,customBg,customEffect,onClick,size="md",pinned}){
+  const rarity=getCardRarity(totalRating);
+  const rc=RARITY_CFG[rarity];
+  const w=size==="xs"?90:size==="sm"?120:size==="lg"?200:160;
+  const h=Math.round(w*1.42);
+  const border=customBorder||rc.color;
+  const bg=customBg||"#080d1a";
+  const anim=customEffect||rc.anim;
+  const [hov,setHov]=useState(false);
+  return(
+    <div onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
+      style={{width:w,height:h,borderRadius:12,border:`2px solid ${border}`,background:bg,cursor:onClick?"pointer":"default",position:"relative",overflow:"hidden",flexShrink:0,boxShadow:anim?`0 0 18px ${rc.glow},0 0 5px ${rc.glow}`:`0 4px 16px rgba(0,0,0,.5)`,animation:anim||"none",transition:"transform .18s",transform:hov&&onClick?"scale(1.05)":"scale(1)"}}>
+      <div style={{height:"62%",background:`linear-gradient(175deg,${rc.glow},rgba(0,0,0,.85))`,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",position:"relative"}}>
+        {headshot
+          ?<img src={headshot} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top"}} onError={e=>{e.target.style.display="none";}}/>
+          :<div style={{fontSize:size==="xs"?22:size==="sm"?28:42}}>{type==="team"?"🏟️":"⚾"}</div>}
+        <div style={{position:"absolute",top:5,right:5,background:"rgba(0,0,0,.8)",borderRadius:5,padding:"2px 6px",fontSize:8,fontFamily:"'Orbitron',sans-serif",fontWeight:700,color:rc.color,border:`1px solid ${rc.color}44`}}>{rc.label.toUpperCase()}</div>
+        {level>0&&<div style={{position:"absolute",top:5,left:5,background:"rgba(0,0,0,.8)",borderRadius:5,padding:"2px 6px",fontSize:8,fontFamily:"'Orbitron',sans-serif",fontWeight:700,color:"#F59E0B"}}>LV{level}</div>}
+        {pinned&&<div style={{position:"absolute",bottom:4,right:5,fontSize:10}}>📌</div>}
+      </div>
+      <div style={{padding:"7px 7px 5px",height:"38%",display:"flex",flexDirection:"column",justifyContent:"space-between",background:"rgba(0,0,0,.75)"}}>
+        {customName&&<div style={{fontSize:size==="xs"?7:8,color:"#64748B",fontFamily:"'Orbitron',sans-serif",letterSpacing:".05em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{customName}</div>}
+        <div style={{fontSize:size==="xs"?8:size==="sm"?9:11,fontWeight:900,fontFamily:"'Orbitron',sans-serif",color:"#E2E8F0",lineHeight:1.2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{name}</div>
+        {subName&&<div style={{fontSize:size==="xs"?7:9,color:"#475569",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{subName}</div>}
+        <div style={{display:"flex",gap:2}}>{[0,1,2,3,4].map(i=><div key={i} style={{flex:1,height:3,borderRadius:2,background:totalRating>=(i+1)*20?rc.color:"rgba(255,255,255,.1)"}}/>)}</div>
+      </div>
+    </div>
+  );
+}
+
+// Play card visual
+function PlayCard({play,faceDown=false,flipped=false,onFlip,size="md"}){
+  const rarity=play?getRarity(play.rating||0):"common";
+  const rc=RARITY_CFG[rarity];
+  const w=size==="xs"?85:size==="sm"?110:size==="lg"?170:140;
+  const h=Math.round(w*1.42);
+  return(
+    <div style={{width:w,height:h,perspective:1000,flexShrink:0,cursor:faceDown&&!flipped?"pointer":"default"}} onClick={faceDown&&!flipped?onFlip:undefined}>
+      <div style={{width:"100%",height:"100%",position:"relative",transformStyle:"preserve-3d",transition:"transform .75s cubic-bezier(.4,0,.2,1)",transform:flipped||!faceDown?"rotateY(180deg)":"rotateY(0deg)"}}>
+        {/* Back */}
+        <div style={{position:"absolute",inset:0,backfaceVisibility:"hidden",WebkitBackfaceVisibility:"hidden",borderRadius:10,border:"2px solid rgba(0,212,255,.25)",background:"linear-gradient(145deg,#060d1a,#0d1f3c)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 16px rgba(0,0,0,.6)"}}>
+          <div style={{textAlign:"center"}}><div style={{fontSize:size==="sm"?22:30,marginBottom:6}}>💫</div><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:7,color:"#1e3a5f",letterSpacing:".12em"}}>NOVA CARDS</div></div>
+        </div>
+        {/* Front */}
+        <div style={{position:"absolute",inset:0,backfaceVisibility:"hidden",WebkitBackfaceVisibility:"hidden",transform:"rotateY(180deg)",borderRadius:10,border:`2px solid ${rc.color}`,background:"linear-gradient(160deg,#080d1a,#0f1828)",overflow:"hidden",boxShadow:flipped&&rc.anim?`0 0 20px ${rc.glow}`:undefined,animation:flipped&&rc.anim?rc.anim:"none"}}>
+          <div style={{height:"52%",background:`linear-gradient(140deg,${rc.glow},rgba(0,0,0,.9))`,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",padding:6}}>
+            <div style={{fontSize:size==="sm"?26:38,textAlign:"center"}}>{play?.emoji||"⚾"}</div>
+            <div style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,.75)",borderRadius:4,padding:"1px 5px",fontSize:7,fontFamily:"'Orbitron',sans-serif",color:rc.color,fontWeight:700,border:`1px solid ${rc.color}44`}}>{rc.label.toUpperCase()}</div>
+            <div style={{position:"absolute",top:4,left:4,background:"rgba(0,0,0,.75)",borderRadius:4,padding:"1px 5px",fontSize:8,fontFamily:"'Orbitron',sans-serif",color:"#F59E0B",fontWeight:700}}>{play?.rating||0}⭐</div>
+          </div>
+          <div style={{padding:"5px 7px",height:"48%",display:"flex",flexDirection:"column",gap:2,justifyContent:"center"}}>
+            <div style={{fontSize:size==="sm"?8:10,fontWeight:900,fontFamily:"'Orbitron',sans-serif",color:"#E2E8F0",lineHeight:1.2,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:1,WebkitBoxOrient:"vertical"}}>{play?.playerName||"—"}</div>
+            <div style={{fontSize:size==="sm"?7:9,color:rc.color,fontFamily:"'Orbitron',sans-serif",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{play?.teamName||""}</div>
+            <div style={{fontSize:size==="sm"?7:9,color:"#64748B",lineHeight:1.3,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{play?.description||""}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Pack open modal
+function PackOpenModal({pack,plays,onClose,onKeep}){
+  const mob=useIsMobile();
+  const[flipped,setFlipped]=useState([]);
+  const[done,setDone]=useState(false);
+  const flipOne=(i)=>{
+    if(flipped.includes(i))return;
+    const nf=[...flipped,i];
+    setFlipped(nf);
+    if(nf.length===plays.length)setTimeout(()=>setDone(true),900);
+  };
+  const flipAll=()=>{
+    let delay=0;
+    plays.forEach((_,i)=>{
+      if(!flipped.includes(i)){setTimeout(()=>setFlipped(p=>[...new Set([...p,i])]),delay);delay+=160;}
+    });
+    setTimeout(()=>setDone(true),(plays.length*160)+1000);
+  };
+  const legendCount=plays.filter(p=>p.rarity==="legend").length;
+  const epicCount=plays.filter(p=>p.rarity==="epic").length;
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:400,background:"rgba(0,0,0,.95)",backdropFilter:"blur(16px)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px 12px"}}>
+      <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?14:20,fontWeight:900,color:"#00D4FF",marginBottom:4,letterSpacing:".08em"}}>📦 {pack.name}</div>
+      <div style={{fontSize:11,color:"#475569",marginBottom:24}}>{flipped.length<plays.length?`Click cards to reveal · ${flipped.length}/${plays.length} opened`:"All cards revealed!"}</div>
+      {done&&(legendCount>0||epicCount>0)&&(
+        <div style={{marginBottom:16,display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center"}}>
+          {legendCount>0&&<div style={{padding:"4px 14px",borderRadius:20,background:"rgba(245,158,11,.15)",border:"1px solid rgba(245,158,11,.5)",fontSize:11,color:"#F59E0B",fontFamily:"'Orbitron',sans-serif",fontWeight:700,animation:"legendFlare 1.8s ease-in-out infinite"}}>🏆 {legendCount}x LEGEND!</div>}
+          {epicCount>0&&<div style={{padding:"4px 14px",borderRadius:20,background:"rgba(168,85,247,.15)",border:"1px solid rgba(168,85,247,.5)",fontSize:11,color:"#A855F7",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>⚡ {epicCount}x EPIC!</div>}
+        </div>
+      )}
+      <div style={{display:"flex",flexWrap:"wrap",gap:10,justifyContent:"center",maxWidth:720,marginBottom:28}}>
+        {plays.map((p,i)=><PlayCard key={i} play={p} faceDown flipped={flipped.includes(i)} onFlip={()=>flipOne(i)} size={mob?"sm":"md"}/>)}
+      </div>
+      <div style={{display:"flex",gap:10,flexWrap:"wrap",justifyContent:"center"}}>
+        {!done&&flipped.length<plays.length&&<button onClick={flipAll} style={{padding:"10px 24px",borderRadius:10,background:"rgba(0,212,255,.1)",border:"1px solid rgba(0,212,255,.3)",color:"#00D4FF",fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,cursor:"pointer"}}>Reveal All</button>}
+        {done&&<button onClick={onKeep} style={{padding:"12px 30px",borderRadius:10,background:"linear-gradient(135deg,#00D4FF,#7C3AED)",border:"none",color:"#fff",fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:900,cursor:"pointer",letterSpacing:".04em"}}>Keep Plays →</button>}
+        <button onClick={onClose} style={{padding:"10px 20px",borderRadius:10,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:11,cursor:"pointer"}}>Close</button>
+      </div>
+    </div>
+  );
+}
+
+// Card customize modal
+function CardCustomizeModal({card,onSave,onClose}){
+  const[customName,setCustomName]=useState(card.custom_name||"");
+  const[border,setBorder]=useState(card.custom_border||"");
+  const[bg,setBg]=useState(card.custom_bg||"");
+  const[effect,setEffect]=useState(card.custom_effect||"");
+  const BORDERS=["","#00D4FF","#A855F7","#F59E0B","#EF4444","#22C55E","#F97316","#EC4899","#fff","#94A3B8"];
+  const BGS=["","#080d1a","#0a1a0a","#1a0808","#080a1a","#1a1208","#0a0818","#181818"];
+  const EFFS=[["","None"],["rarePulse 2.5s ease-in-out infinite","Rare Glow"],["epicPulse 2s ease-in-out infinite","Epic Pulse"],["legendFlare 1.8s ease-in-out infinite","Legend Flare"]];
+  const rc=RARITY_CFG[getCardRarity(card.total_play_rating||0)];
+  return(
+    <Modal title="✏️ Customize Card" onClose={onClose} width={440}>
+      <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
+        <CardDisplay type={card.card_type} name={card.card_name} headshot={card.headshot_url} level={card.level||0} totalRating={card.total_play_rating||0} customName={customName} customBorder={border||undefined} customBg={bg||undefined} customEffect={effect||undefined} size="md"/>
+      </div>
+      <div style={{marginBottom:16}}>
+        <Lbl>Card Nickname (optional)</Lbl>
+        <input value={customName} onChange={e=>setCustomName(e.target.value)} placeholder="Custom name…" maxLength={28}/>
+        <div style={{fontSize:10,color:"#334155",marginTop:3}}>Real player/team name still shows below</div>
+      </div>
+      <div style={{marginBottom:16}}>
+        <Lbl>Border Color</Lbl>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {BORDERS.map((c,i)=><button key={i} onClick={()=>setBorder(c)} style={{width:28,height:28,borderRadius:7,background:c||"rgba(255,255,255,.06)",border:`2px solid ${border===c?"#00D4FF":"rgba(255,255,255,.12)"}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>{!c&&<span style={{fontSize:10,color:"#334155"}}>✕</span>}</button>)}
+        </div>
+      </div>
+      <div style={{marginBottom:16}}>
+        <Lbl>Background</Lbl>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {BGS.map((c,i)=><button key={i} onClick={()=>setBg(c)} style={{width:28,height:28,borderRadius:7,background:c||"rgba(255,255,255,.06)",border:`2px solid ${bg===c?"#00D4FF":"rgba(255,255,255,.12)"}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>{!c&&<span style={{fontSize:10,color:"#334155"}}>✕</span>}</button>)}
+        </div>
+      </div>
+      <div style={{marginBottom:24}}>
+        <Lbl>Card Effect</Lbl>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {EFFS.map(([e,l])=><button key={l} onClick={()=>setEffect(e)} style={{padding:"6px 13px",borderRadius:8,background:effect===e?"rgba(0,212,255,.12)":"rgba(255,255,255,.04)",border:`1px solid ${effect===e?"rgba(0,212,255,.4)":"rgba(255,255,255,.1)"}`,color:effect===e?"#00D4FF":"#64748B",fontSize:11,cursor:"pointer",fontFamily:"'Orbitron',sans-serif"}}>{l}</button>)}
+        </div>
+      </div>
+      <div style={{display:"flex",gap:10}}>
+        <Btn onClick={()=>onSave({custom_name:customName,custom_border:border,custom_bg:bg,custom_effect:effect})} style={{flex:1}}>Save Card</Btn>
+        <Btn variant="muted" onClick={onClose}>Cancel</Btn>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Cards sub-tabs ──────────────────────────────────────────────────────────────
+function CardMarketTab({cu,stars,myCards,onBuy}){
+  const mob=useIsMobile();
+  const[type,setType]=useState("player");
+  const[q,setQ]=useState("");
+  const[results,setResults]=useState([]);
+  const[searching,setSearching]=useState(false);
+  const ownedIds=useMemo(()=>new Set(myCards.map(c=>c.card_def_id)),[myCards]);
+
+  useEffect(()=>{
+    if(type!=="player"||q.length<2)return;
+    const t=setTimeout(async()=>{
+      setSearching(true);
+      try{
+        const r=await fetch(`/api/hyperbeam?search=${encodeURIComponent(q)}&sport=mlb`);
+        const d=await r.json();
+        setResults((d.athletes||[]).map(a=>({id:`mlb_player_${a.id}`,player_id:a.id,type:"player",name:a.name,team_name:a.team,position:a.position,headshot_url:`https://a.espncdn.com/i/headshots/mlb/players/full/${a.id}.png`,cost:100})));
+      }catch(e){setResults([]);}
+      setSearching(false);
+    },380);
+    return()=>clearTimeout(t);
+  },[q,type]);
+
+  return(
+    <div>
+      <div style={{display:"flex",gap:8,marginBottom:20}}>
+        {[["player","👤 Players","100 ⭐"],["team","🏟️ Teams","250 ⭐"]].map(([t,l,cost])=>(
+          <button key={t} onClick={()=>{setType(t);setResults([]);setQ("");}} style={{padding:"8px 18px",borderRadius:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,border:`1px solid ${type===t?"rgba(0,212,255,.5)":"rgba(255,255,255,.1)"}`,background:type===t?"rgba(0,212,255,.1)":"rgba(255,255,255,.03)",color:type===t?"#00D4FF":"#64748B"}}>
+            {l} <span style={{fontSize:9,opacity:.7}}>{cost}</span>
+          </button>
+        ))}
+      </div>
+
+      {type==="player"&&(
+        <>
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search any active MLB player (e.g. Mike Trout, Aaron Judge...)" style={{marginBottom:16}}/>
+          {searching&&<div style={{textAlign:"center",padding:24,color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>Searching MLB roster...</div>}
+          {!searching&&q.length>=2&&!results.length&&<Empty icon="🔍" msg="No players found — try a different name"/>}
+          {q.length<2&&!searching&&<div style={{textAlign:"center",padding:"48px 20px"}}><div style={{fontSize:36,marginBottom:12}}>⚾</div><div style={{color:"#334155",fontSize:13}}>Search any MLB player to buy their card</div><div style={{color:"#1e3a5f",fontSize:11,marginTop:4}}>100 ⭐ per player card · You keep it forever</div></div>}
+          <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(auto-fill,minmax(190px,1fr))",gap:12}}>
+            {results.map(card=>{
+              const owned=ownedIds.has(card.id);
+              return(
+                <Card key={card.id} style={{padding:"14px 12px 16px",textAlign:"center"}}>
+                  <div style={{display:"flex",justifyContent:"center",marginBottom:10}}>
+                    <CardDisplay type="player" name={card.name} subName={card.team_name} headshot={card.headshot_url} level={0} totalRating={0} size="sm"/>
+                  </div>
+                  <div style={{fontSize:11,fontWeight:700,fontFamily:"'Orbitron',sans-serif",color:"#E2E8F0",marginBottom:1}}>{card.name}</div>
+                  <div style={{fontSize:10,color:"#475569",marginBottom:10}}>{card.team_name}{card.position?` · ${card.position}`:""}</div>
+                  {owned
+                    ?<div style={{padding:"7px",borderRadius:8,background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.25)",fontSize:10,color:"#22C55E",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>✓ OWNED</div>
+                    :<button onClick={()=>onBuy(card)} disabled={!cu||stars<100} style={{width:"100%",padding:"8px",borderRadius:8,background:cu&&stars>=100?"linear-gradient(135deg,rgba(0,212,255,.15),rgba(168,85,247,.1))":"rgba(255,255,255,.04)",border:`1px solid ${cu&&stars>=100?"rgba(0,212,255,.35)":"rgba(255,255,255,.08)"}`,color:cu&&stars>=100?"#00D4FF":"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,cursor:cu&&stars>=100?"pointer":"not-allowed"}}>
+                      {!cu?"Sign in":"Buy · 100 ⭐"}
+                    </button>
+                  }
+                </Card>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {type==="team"&&(
+        <div style={{display:"grid",gridTemplateColumns:mob?"repeat(2,1fr)":"repeat(auto-fill,minmax(175px,1fr))",gap:12}}>
+          {MLB_TEAMS_LIST.map(team=>{
+            const defId=`mlb_team_${team.id}`;
+            const owned=ownedIds.has(defId);
+            return(
+              <Card key={team.id} style={{padding:"16px 14px",textAlign:"center"}}>
+                <div style={{fontSize:30,marginBottom:8}}>{team.emoji}</div>
+                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#E2E8F0",marginBottom:2,lineHeight:1.3}}>{team.name}</div>
+                <div style={{fontSize:10,color:"#475569",marginBottom:12}}>{team.abbr}</div>
+                {owned
+                  ?<div style={{padding:"6px",borderRadius:8,background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.25)",fontSize:10,color:"#22C55E",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>✓ OWNED</div>
+                  :<button onClick={()=>onBuy({id:defId,type:"team",player_id:null,name:team.name,team_name:team.name,headshot_url:null,cost:250})} disabled={!cu||stars<250} style={{width:"100%",padding:"8px",borderRadius:8,background:cu&&stars>=250?"rgba(168,85,247,.15)":"rgba(255,255,255,.04)",border:`1px solid ${cu&&stars>=250?"rgba(168,85,247,.4)":"rgba(255,255,255,.08)"}`,color:cu&&stars>=250?"#A855F7":"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,cursor:cu&&stars>=250?"pointer":"not-allowed"}}>
+                    {!cu?"Sign in":"Buy · 250 ⭐"}
+                  </button>
+                }
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MyCardsTab({cu,cards,plays,onCustomize,onPin,onApply}){
+  const mob=useIsMobile();
+  const[sel,setSel]=useState(null); // selected card id for applying plays
+  const unapplied=useMemo(()=>plays.filter(p=>!p.applied_to),[plays]);
+  if(!cu)return<Empty icon="🃏" msg="Sign in to see your cards"/>;
+  if(!cards.length)return<div style={{textAlign:"center",padding:60}}><div style={{fontSize:44,marginBottom:12}}>🃏</div><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,color:"#475569"}}>No cards yet</div><div style={{fontSize:11,color:"#334155",marginTop:6}}>Head to the Market to buy your first card — 100 ⭐</div></div>;
+  return(
+    <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"repeat(auto-fill,minmax(260px,1fr))",gap:14}}>
+      {cards.map(card=>{
+        const rarity=getCardRarity(card.total_play_rating||0);
+        const rc=RARITY_CFG[rarity];
+        const lvlNext=((card.level||0)+1)*10;
+        const isSelected=sel===card.id;
+        return(
+          <Card key={card.id} style={{padding:14,border:isSelected?`1px solid rgba(0,212,255,.5)`:undefined}}>
+            <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+              <CardDisplay type={card.card_type} name={card.card_name} headshot={card.headshot_url} level={card.level||0} totalRating={card.total_play_rating||0} customName={card.custom_name} customBorder={card.custom_border||undefined} customBg={card.custom_bg||undefined} customEffect={card.custom_effect||undefined} size="sm" pinned={card.pinned}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12,fontWeight:700,fontFamily:"'Orbitron',sans-serif",color:"#E2E8F0",marginBottom:2}}>{card.custom_name||card.card_name}</div>
+                {card.custom_name&&<div style={{fontSize:10,color:"#475569",marginBottom:4}}>{card.card_name}</div>}
+                <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:8}}>
+                  <span style={{padding:"2px 8px",borderRadius:10,background:rc.color+"18",border:`1px solid ${rc.color}33`,fontSize:9,fontFamily:"'Orbitron',sans-serif",color:rc.color,fontWeight:700}}>{rc.label}</span>
+                  <span style={{fontSize:10,color:"#F59E0B",fontFamily:"'Orbitron',sans-serif"}}>Lv.{card.level||0}</span>
+                </div>
+                <div style={{fontSize:10,color:"#475569",marginBottom:10}}>
+                  <div style={{marginBottom:2}}>Rating: {card.total_play_rating||0} pts</div>
+                  <div style={{height:4,background:"rgba(255,255,255,.06)",borderRadius:2,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:`${Math.min(100,((card.total_play_rating||0)%10)*10)}%`,background:`linear-gradient(90deg,${rc.color},${rc.color}88)`,borderRadius:2,transition:"width .3s"}}/>
+                  </div>
+                  <div style={{fontSize:9,color:"#334155",marginTop:2}}>{lvlNext-(card.total_play_rating%10||0)} pts to next level</div>
+                </div>
+                <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                  <button onClick={()=>onCustomize(card)} style={{padding:"5px 10px",borderRadius:6,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.09)",color:"#94A3B8",fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif"}}>✏️ Edit</button>
+                  <button onClick={()=>onPin(card)} style={{padding:"5px 10px",borderRadius:6,background:card.pinned?"rgba(0,212,255,.1)":"rgba(255,255,255,.04)",border:`1px solid ${card.pinned?"rgba(0,212,255,.35)":"rgba(255,255,255,.09)"}`,color:card.pinned?"#00D4FF":"#94A3B8",fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif"}}>{card.pinned?"📌":"📌 Pin"}</button>
+                  {unapplied.length>0&&<button onClick={()=>setSel(isSelected?null:card.id)} style={{padding:"5px 10px",borderRadius:6,background:isSelected?"rgba(168,85,247,.12)":"rgba(255,255,255,.04)",border:`1px solid ${isSelected?"rgba(168,85,247,.4)":"rgba(255,255,255,.09)"}`,color:isSelected?"#A855F7":"#94A3B8",fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif"}}>⚡ Level Up</button>}
+                </div>
+              </div>
+            </div>
+            {isSelected&&unapplied.length>0&&(
+              <div style={{marginTop:12,borderTop:"1px solid rgba(255,255,255,.06)",paddingTop:12}}>
+                <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:8,letterSpacing:".1em"}}>SELECT A PLAY TO APPLY:</div>
+                <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:6}}>
+                  {unapplied.slice(0,15).map(p=>{
+                    const pd=typeof p.play_data==="string"?JSON.parse(p.play_data):p.play_data;
+                    const pr=getRarity(pd?.rating||0);const prc=RARITY_CFG[pr];
+                    return(
+                      <div key={p.id} style={{flexShrink:0,cursor:"pointer"}} onClick={()=>{onApply(p,card);setSel(null);}}>
+                        <PlayCard play={pd} size="xs"/>
+                        <div style={{textAlign:"center",fontSize:8,color:prc.color,fontFamily:"'Orbitron',sans-serif",marginTop:3}}>+{pd?.rating||0}⭐</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function PackShopTab({cu,stars,loading,onOpen,myTeamCard}){
+  const mob=useIsMobile();
+  return(
+    <div style={{maxWidth:600,margin:"0 auto"}}>
+      {!cu&&<Empty icon="🎁" msg="Sign in to open packs"/>}
+      {cu&&Object.entries(PACK_DEFS).map(([key,pack])=>{
+        if(key==="team"&&!myTeamCard)return null;
+        const canAfford=stars>=pack.cost;
+        const odds=PACK_ODDS[key];
+        return(
+          <Card key={key} style={{padding:"20px",marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:14}}>
+              <div style={{fontSize:38,flexShrink:0}}>{pack.emoji}</div>
+              <div style={{flex:1}}>
+                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:14,fontWeight:900,color:"#E2E8F0",marginBottom:4}}>{pack.name}</div>
+                <div style={{fontSize:11,color:"#475569"}}>{pack.desc}</div>
+                {key==="team"&&myTeamCard&&<div style={{fontSize:10,color:"#A855F7",marginTop:2}}>Team: {myTeamCard.card_name}</div>}
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:18,fontWeight:900,color:"#F59E0B"}}>{pack.cost}⭐</div>
+                <div style={{fontSize:9,color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>Max {pack.maxDaily}x/day</div>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+              {Object.entries(odds).map(([r,pct])=>{const rc=RARITY_CFG[r];return<div key={r} style={{padding:"3px 10px",borderRadius:16,background:rc.color+"14",border:`1px solid ${rc.color}33`,fontSize:9,color:rc.color,fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{rc.label} {Math.round(pct*100)}%</div>;})}
+            </div>
+            <button onClick={()=>onOpen(key)} disabled={!canAfford||loading} style={{width:"100%",padding:"13px",borderRadius:10,background:canAfford&&!loading?"linear-gradient(135deg,#00D4FF,#7C3AED)":"rgba(255,255,255,.05)",border:"none",color:canAfford&&!loading?"#fff":"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:900,cursor:canAfford&&!loading?"pointer":"not-allowed",letterSpacing:".04em",transition:"all .2s"}}>
+              {loading?"⟳ Pulling plays from MLB...":canAfford?`Open ${pack.name}`:`Need ${pack.cost-stars} more ⭐`}
+            </button>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function MyPlaysTab({cu,plays,cards,onApply}){
+  const mob=useIsMobile();
+  const[sel,setSel]=useState(null);
+  const unapplied=plays.filter(p=>!p.applied_to);
+  const applied=plays.filter(p=>p.applied_to);
+  if(!cu)return<Empty icon="⚡" msg="Sign in to see your plays"/>;
+  if(!plays.length)return<div style={{textAlign:"center",padding:60}}><div style={{fontSize:44,marginBottom:12}}>⚡</div><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,color:"#475569"}}>No play cards yet</div><div style={{fontSize:11,color:"#334155",marginTop:6}}>Open packs to get real MLB play cards!</div></div>;
+  return(
+    <div>
+      {unapplied.length>0&&(
+        <>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#22C55E",letterSpacing:".14em",marginBottom:14}}>⚡ UNUSED PLAYS · {unapplied.length}</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:10,marginBottom:32}}>
+            {unapplied.map(p=>{
+              const pd=typeof p.play_data==="string"?JSON.parse(p.play_data):p.play_data;
+              const isSel=sel===p.id;
+              return(
+                <div key={p.id} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,position:"relative"}}>
+                  <PlayCard play={pd} size={mob?"sm":"md"}/>
+                  {cards.length>0&&<button onClick={()=>setSel(isSel?null:p.id)} style={{padding:"4px 12px",borderRadius:6,background:isSel?"rgba(168,85,247,.15)":"rgba(255,255,255,.05)",border:`1px solid ${isSel?"rgba(168,85,247,.4)":"rgba(255,255,255,.1)"}`,color:isSel?"#A855F7":"#64748B",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{isSel?"CANCEL":"APPLY TO CARD"}</button>}
+                  {isSel&&cards.length>0&&(
+                    <div style={{position:"absolute",top:"105%",left:"50%",transform:"translateX(-50%)",background:"linear-gradient(160deg,#0c1220,#10172a)",border:"1px solid rgba(168,85,247,.3)",borderRadius:10,padding:8,zIndex:100,minWidth:180,maxHeight:200,overflowY:"auto",boxShadow:"0 12px 36px rgba(0,0,0,.8)"}}>
+                      <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:6}}>APPLY TO:</div>
+                      {cards.map(c=>(
+                        <button key={c.id} onClick={()=>{onApply(p,c);setSel(null);}} style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"7px 10px",borderRadius:7,background:"none",border:"none",cursor:"pointer",textAlign:"left",borderBottom:"1px solid rgba(255,255,255,.05)"}}>
+                          <div style={{fontSize:11}}>🃏</div>
+                          <div>
+                            <div style={{fontSize:11,color:"#E2E8F0",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{c.card_name}</div>
+                            <div style={{fontSize:9,color:"#475569"}}>Lv.{c.level||0} · {c.total_play_rating||0}pts</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+      {applied.length>0&&(
+        <>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".14em",marginBottom:14}}>✓ APPLIED · {applied.length}</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8,opacity:.55}}>
+            {applied.map(p=>{const pd=typeof p.play_data==="string"?JSON.parse(p.play_data):p.play_data;return<PlayCard key={p.id} play={pd} size="sm"/>;  })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Main Cards Page
+function CardsPage({cu}){
+  const mob=useIsMobile();
+  const{stars,refresh:refreshStars,earn,spend,claimDaily}=useStars(cu);
+  const[tab,setTab]=useState("market");
+  const[myCards,setMyCards]=useState([]);
+  const[myPlays,setMyPlays]=useState([]);
+  const[packResult,setPackResult]=useState(null);
+  const[packLoading,setPackLoading]=useState(false);
+  const[toast,setToast]=useState(null);
+  const[dailyClaimed,setDailyClaimed]=useState(false);
+  const[customizeTarget,setCustomizeTarget]=useState(null);
+
+  const toast2=(msg,color="#22C55E")=>{setToast({msg,color});setTimeout(()=>setToast(null),3200);};
+
+  const loadMyCards=useCallback(async()=>{
+    if(!cu)return;
+    const rows=await sb.get("nova_user_cards",`?user_id=eq.${cu.id}&order=acquired_at.desc`);
+    setMyCards(rows||[]);
+  },[cu?.id]);
+
+  const loadMyPlays=useCallback(async()=>{
+    if(!cu)return;
+    const rows=await sb.get("nova_user_plays",`?user_id=eq.${cu.id}&order=acquired_at.desc`);
+    setMyPlays(rows||[]);
+  },[cu?.id]);
+
+  useEffect(()=>{
+    loadMyCards();loadMyPlays();
+    if(!cu)return;
+    sb.get("nova_stars",`?user_id=eq.${cu.id}&limit=1`).then(rows=>{
+      if(rows?.length){
+        const pstDay=(ts)=>{const d=new Date((ts||0)-8*3600000);return`${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;};
+        setDailyClaimed(pstDay(rows[0].last_login_claim||0)===pstDay(Date.now()));
+      }
+    });
+  },[cu?.id]);
+
+  const handleDailyClaim=async()=>{
+    const r=await claimDaily();
+    if(r==="already_claimed"){toast2("Already claimed today! Come back at midnight PST 🌙","#F59E0B");return;}
+    if(r){setDailyClaimed(true);toast2(`⭐ +${r.stars} stars! Login streak: ${r.streak} day${r.streak!==1?"s":""}`);}
+  };
+
+  const buyCard=async(cardDef)=>{
+    if(!cu){toast2("Sign in first!","#EF4444");return;}
+    if(myCards.find(c=>c.card_def_id===cardDef.id)){toast2("You already own this card!","#F59E0B");return;}
+    const cost=cardDef.type==="team"?250:100;
+    if(stars<cost){toast2(`Need ${cost} ⭐ · You have ${stars} ⭐`,"#EF4444");return;}
+    const ok=await spend(cost,`Bought ${cardDef.name} card`);
+    if(!ok){toast2("Not enough stars!","#EF4444");return;}
+    const newCard={id:gid(),user_id:cu.id,card_def_id:cardDef.id,card_type:cardDef.type,card_name:cardDef.name,player_id:cardDef.player_id||null,team_name:cardDef.team_name||null,headshot_url:cardDef.headshot_url||null,level:0,total_play_rating:0,custom_name:"",custom_border:"",custom_bg:"",custom_effect:"",pinned:false,pin_order:0,applied_to:null,acquired_at:Date.now()};
+    await sb.post("nova_user_cards",newCard);
+    setMyCards(p=>[newCard,...p]);
+    toast2(`🃏 Got ${cardDef.name}! Head to My Cards.`);
+  };
+
+  const openPack=async(packType)=>{
+    if(!cu)return;
+    const pack=PACK_DEFS[packType];
+    if(stars<pack.cost){toast2(`Need ${pack.cost} ⭐`,"#EF4444");return;}
+    const today=new Date().toLocaleDateString("en-US",{timeZone:"America/Los_Angeles"}).replace(/\//g,"-");
+    const todayLog=await sb.get("nova_pack_log",`?user_id=eq.${cu.id}&pack_type=eq.${packType}&pack_date=eq.${today}`);
+    if((todayLog?.length||0)>=pack.maxDaily){toast2(`Daily limit: ${pack.maxDaily}x ${pack.name} per day`,"#F59E0B");return;}
+    setPackLoading(true);
+    let fetchedPlays=[];
+    try{
+      const r=await fetch(`/api/hyperbeam?mlb_plays=1&pack_type=${packType}&count=${pack.count}`,{signal:AbortSignal.timeout(12000)});
+      const d=await r.json();
+      fetchedPlays=d.plays||[];
+    }catch(e){}
+    if(!fetchedPlays.length)fetchedPlays=generateFallbackPlays(pack.count,PACK_ODDS[packType]);
+    const ok=await spend(pack.cost,`Opened ${pack.name}`);
+    if(!ok){setPackLoading(false);toast2("Not enough stars!","#EF4444");return;}
+    await sb.post("nova_pack_log",{id:gid(),user_id:cu.id,pack_type:packType,pack_date:today,ts:Date.now()});
+    for(const p of fetchedPlays){
+      await sb.post("nova_user_plays",{id:gid(),user_id:cu.id,play_data:JSON.stringify(p),applied_to:null,pinned:false,acquired_at:Date.now()});
+    }
+    setPackLoading(false);
+    setPackResult({pack,plays:fetchedPlays});
+    loadMyPlays();
+  };
+
+  const applyPlay=async(userPlay,userCard)=>{
+    const pd=typeof userPlay.play_data==="string"?JSON.parse(userPlay.play_data):userPlay.play_data;
+    const rating=pd?.rating||0;
+    const newTotal=(userCard.total_play_rating||0)+rating;
+    const newLevel=Math.floor(newTotal/10);
+    await sb.patch("nova_user_cards",{total_play_rating:newTotal,level:newLevel},`?id=eq.${userCard.id}`);
+    await sb.patch("nova_user_plays",{applied_to:userCard.id},`?id=eq.${userPlay.id}`);
+    setMyCards(p=>p.map(c=>c.id===userCard.id?{...c,total_play_rating:newTotal,level:newLevel}:c));
+    setMyPlays(p=>p.map(pl=>pl.id===userPlay.id?{...pl,applied_to:userCard.id}:pl));
+    toast2(`⚡ +${rating} rating! ${userCard.card_name} is now Level ${newLevel}`);
+  };
+
+  const togglePin=async(card)=>{
+    const pinned=myCards.filter(c=>c.pinned);
+    if(!card.pinned&&pinned.length>=10){toast2("Max 10 cards pinned to profile!","#F59E0B");return;}
+    await sb.patch("nova_user_cards",{pinned:!card.pinned},`?id=eq.${card.id}`);
+    setMyCards(p=>p.map(c=>c.id===card.id?{...c,pinned:!c.pinned}:c));
+    toast2(card.pinned?"Unpinned from profile":"📌 Pinned to profile!");
+  };
+
+  const myTeamCard=myCards.find(c=>c.card_type==="team");
+  const TABS=[["market","🏪 Market"],["mycards","🃏 My Cards"],["packs","🎁 Packs"],["plays","⚡ My Plays"]];
+
+  return(
+    <div style={{maxWidth:1080,margin:"0 auto",padding:mob?"14px 12px 100px":"30px 20px 80px",position:"relative"}}>
+      {toast&&<div style={{position:"fixed",top:76,left:"50%",transform:"translateX(-50%)",background:"rgba(8,13,26,.97)",border:`1px solid ${toast.color}44`,borderRadius:12,padding:"11px 22px",zIndex:500,color:toast.color,fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,boxShadow:"0 8px 32px rgba(0,0,0,.7)",pointerEvents:"none",whiteSpace:"nowrap"}}>{toast.msg}</div>}
+
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18,flexWrap:"wrap",gap:10}}>
+        <div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?15:22,fontWeight:900,background:"linear-gradient(135deg,#F59E0B,#A855F7)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:3}}>⚾ NOVA CARDS</div>
+          <div style={{fontSize:11,color:"#334155"}}>Collect · Level Up · Flex · MLB 2025</div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+          <StarBadge stars={stars}/>
+          {cu&&!dailyClaimed&&<button onClick={handleDailyClaim} style={{padding:"6px 14px",borderRadius:8,background:"linear-gradient(135deg,rgba(245,158,11,.18),rgba(239,68,68,.1))",border:"1px solid rgba(245,158,11,.4)",color:"#F59E0B",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,cursor:"pointer",animation:"starPop .4s ease"}}>🎁 Daily Bonus</button>}
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:6,marginBottom:22,flexWrap:"wrap"}}>
+        {TABS.map(([k,l])=><button key={k} onClick={()=>setTab(k)} style={{padding:"8px 16px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===k?"rgba(245,158,11,.5)":"rgba(255,255,255,.08)"}`,background:tab===k?"rgba(245,158,11,.1)":"rgba(255,255,255,.03)",color:tab===k?"#F59E0B":"#64748B",transition:"all .2s"}}>{l}</button>)}
+      </div>
+
+      {tab==="market"&&<CardMarketTab cu={cu} stars={stars} myCards={myCards} onBuy={buyCard}/>}
+      {tab==="mycards"&&<MyCardsTab cu={cu} cards={myCards} plays={myPlays} onCustomize={setCustomizeTarget} onPin={togglePin} onApply={applyPlay}/>}
+      {tab==="packs"&&<PackShopTab cu={cu} stars={stars} loading={packLoading} onOpen={openPack} myTeamCard={myTeamCard}/>}
+      {tab==="plays"&&<MyPlaysTab cu={cu} plays={myPlays} cards={myCards} onApply={applyPlay}/>}
+
+      {packResult&&<PackOpenModal pack={packResult.pack} plays={packResult.plays} onClose={()=>setPackResult(null)} onKeep={()=>{setPackResult(null);setTab("plays");}}/>}
+      {customizeTarget&&<CardCustomizeModal card={customizeTarget} onClose={()=>setCustomizeTarget(null)} onSave={async(updates)=>{await sb.patch("nova_user_cards",updates,`?id=eq.${customizeTarget.id}`);setMyCards(p=>p.map(c=>c.id===customizeTarget.id?{...c,...updates}:c));setCustomizeTarget(null);toast2("Card updated! ✏️");}}/>}
+    </div>
+  );
+}
+
 function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onClearNotifs,onMarkOneNotif,users,msgUnread}){
   const mob=useIsMobile();
   const[gamesOpen,setGamesOpen]=useState(false);
   const gamesRef=useRef(null);
-  const GAMES_PAGES=["predict","trivia","leaderboard"];
+  const GAMES_PAGES=["predict","trivia","leaderboard","cards"];
   const dTabs=[["home","Home"],["members","Members"],["news","📰 News"],["feed","🎬 Feed"]];
   const mTabs=[{p:"home",icon:"🏠",lbl:"Home"},{p:"news",icon:"📰",lbl:"News"},{p:"feed",icon:"🎬",lbl:"Feed"},{p:"members",icon:"👥",lbl:"Members"},{p:"messages",icon:"💬",lbl:"DMs",badge:msgUnread}];
   // Close dropdown on outside click
@@ -2268,7 +2940,7 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
                 </button>
                 {gamesOpen&&(
                   <div style={{position:"absolute",top:"calc(100% + 8px)",left:0,background:"linear-gradient(160deg,#0c1220,#10172a)",border:"1px solid rgba(168,85,247,.25)",borderRadius:12,padding:6,minWidth:160,zIndex:200,boxShadow:"0 16px 40px rgba(0,0,0,.7)"}}>
-                    {[["predict","🎯","Predictions","Make picks on upcoming games"],["trivia","🧠","Trivia","Test your sports knowledge"],["leaderboard","🏆","Leaderboard","Top members ranked"]].map(([p,icon,label,desc])=>(
+                    {[["cards","⚾","Nova Cards","Collect & level up MLB player cards"],["predict","🎯","Predictions","Make picks on upcoming games"],["trivia","🧠","Trivia","Test your sports knowledge"],["leaderboard","🏆","Leaderboard","Top members ranked"]].map(([p,icon,label,desc])=>(
                       <button key={p} onClick={()=>{nav(p);setGamesOpen(false);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"9px 12px",borderRadius:8,background:page===p?"rgba(168,85,247,.12)":"none",border:"none",cursor:"pointer",textAlign:"left",transition:"background .15s"}}>
                         <span style={{fontSize:18,flexShrink:0}}>{icon}</span>
                         <div>
@@ -2335,7 +3007,7 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
         <div style={{position:"fixed",inset:0,zIndex:300,background:"rgba(0,0,0,.7)"}} onClick={()=>setGamesOpen(false)}>
           <div style={{position:"absolute",bottom:70,left:0,right:0,background:"linear-gradient(160deg,#0c1220,#10172a)",borderTop:"1px solid rgba(168,85,247,.25)",borderRadius:"20px 20px 0 0",padding:"20px 16px"}} onClick={e=>e.stopPropagation()}>
             <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#475569",letterSpacing:".12em",marginBottom:14}}>🎮 GAMES</div>
-            {[["predict","🎯","Predictions","Make picks on upcoming games"],["trivia","🧠","Trivia","Test your sports knowledge"],["leaderboard","🏆","Leaderboard","Top members ranked"]].map(([p,icon,label,desc])=>(
+            {[["cards","⚾","Nova Cards","Collect & level up MLB player cards"],["predict","🎯","Predictions","Make picks on upcoming games"],["trivia","🧠","Trivia","Test your sports knowledge"],["leaderboard","🏆","Leaderboard","Top members ranked"]].map(([p,icon,label,desc])=>(
               <button key={p} onClick={()=>{nav(p);setGamesOpen(false);}} style={{display:"flex",alignItems:"center",gap:12,width:"100%",padding:"12px 14px",borderRadius:12,background:page===p?"rgba(168,85,247,.12)":"rgba(255,255,255,.03)",border:"1px solid "+(page===p?"rgba(168,85,247,.3)":"rgba(255,255,255,.06)"),marginBottom:8,cursor:"pointer",textAlign:"left"}}>
                 <span style={{fontSize:22}}>{icon}</span>
                 <div>
@@ -4332,6 +5004,7 @@ export default function App(){
     if(page==="feed")return <FeedPage users={users} cu={cu} likes={likes} onLike={handleLike} navigate={nav}/>;
     if(page==="game"&&gameRef)return <GameDetailPage gameId={gameRef.id} sport={gameRef.sport} navigate={nav}/>;
     if(page==="predict")return <PredictPage cu={cu} users={users} setUsers={setUsers} navigate={nav}/>;
+    if(page==="cards")return <CardsPage cu={cu}/>;
     if(page==="trivia")return <TriviaPage cu={cu}/>;
     if(page==="leaderboard")return <LeaderboardPage users={users} navigate={nav}/>;
     if(page==="messages")return <MessagesPage cu={cu} users={users} conversations={conversations} setConversations={setConversations} messages={messages} setMessages={setMessages}/>;
