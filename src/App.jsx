@@ -2298,6 +2298,10 @@ const PACK_ODDS={
 };
 const TEAM_TIERS=[10,20,50,100,200,500];
 
+// Official MLB team logo helper
+function mlbTeamLogo(teamId){return `https://www.mlbstatic.com/team-logos/${teamId}.svg`;}
+function mlbPlayerHeadshot(mlbPlayerId){return `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_426,q_auto:best/v1/people/${mlbPlayerId}/headshot/67/current`;}
+
 const MLB_TEAMS_LIST=[
   {id:"108",name:"Los Angeles Angels",      abbr:"LAA",emoji:"😇"},
   {id:"109",name:"Arizona Diamondbacks",    abbr:"ARI",emoji:"🐍"},
@@ -2445,7 +2449,7 @@ function CardDisplay({type,name,subName,headshot,totalRating=0,customName,custom
       )}
       <div style={{height:"62%",background:`linear-gradient(175deg,${rc.glow},rgba(0,0,0,.9))`,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",position:"relative"}}>
         {headshot
-          ?<img src={headshot} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top center"}} onError={e=>{e.target.style.display="none";}}/>
+          ?<img src={headshot} style={{width:type==="team"?"70%":"100%",height:type==="team"?"70%":"100%",objectFit:type==="team"?"contain":"cover",objectPosition:"top center",padding:type==="team"?"8px":0}} onError={e=>{e.target.style.display="none";}}/>
           :<div style={{fontSize:size==="xs"?22:size==="sm"?28:44}}>{type==="team"?"🏟️":"⚾"}</div>}
         <div style={{position:"absolute",top:5,right:5,background:"rgba(0,0,0,.85)",borderRadius:5,padding:"2px 6px",fontSize:7,fontFamily:"'Orbitron',sans-serif",fontWeight:700,color:rc.color,border:`1px solid ${rc.color}44`,zIndex:3}}>{rc.label.toUpperCase()}</div>
         {pinned&&<div style={{position:"absolute",bottom:4,right:5,fontSize:10,zIndex:3}}>📌</div>}
@@ -2499,13 +2503,15 @@ function PlayCard({play,faceDown=false,flipped=false,onFlip,size="md",showPresti
             </div>
             <div style={{position:"absolute",top:3,left:3,background:"rgba(0,0,0,.8)",borderRadius:4,padding:"1px 5px",fontSize:8,fontFamily:"'Orbitron',sans-serif",color:"#F59E0B",fontWeight:700}}>{play?.rating||0}⭐</div>
           </div>
-          <div style={{padding:"5px 6px",height:"50%",display:"flex",flexDirection:"column",gap:2,justifyContent:"space-between",zIndex:2,position:"relative"}}>
-            <div style={{fontSize:size==="sm"?8:10,fontWeight:900,fontFamily:"'Orbitron',sans-serif",color:"#E2E8F0",lineHeight:1.2,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:1,WebkitBoxOrient:"vertical"}}>{play?.playerName||"—"}</div>
-            <div style={{fontSize:size==="sm"?7:8,color:borderColor,fontFamily:"'Orbitron',sans-serif",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{play?.teamName||""}</div>
-            <div style={{fontSize:size==="sm"?7:8,color:"#64748B",lineHeight:1.3,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{play?.description||""}</div>
+          <div style={{padding:"5px 6px",height:"50%",display:"flex",flexDirection:"column",gap:1,justifyContent:"space-between",zIndex:2,position:"relative"}}>
+            <div style={{fontSize:size==="sm"?8:10,fontWeight:900,fontFamily:"'Orbitron',sans-serif",color:"#E2E8F0",lineHeight:1.15,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:1,WebkitBoxOrient:"vertical"}}>{play?.playerName||"—"}</div>
+            <div style={{fontSize:size==="sm"?7:8,color:borderColor,fontFamily:"'Orbitron',sans-serif",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{play?.teamName||""}{play?.opponent?` vs ${play.opponent}`:""}</div>
+            {size!=="xs"&&play?.pitcherName&&play.pitcherName!=="Unknown"&&<div style={{fontSize:7,color:"#475569",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>P: {play.pitcherName}</div>}
+            {size!=="xs"&&play?.inning&&<div style={{fontSize:7,color:"#334155"}}>{play.inning}{play.rbi>0?` · ${play.rbi} RBI`:""}</div>}
+            <div style={{fontSize:size==="sm"?7:8,color:"#64748B",lineHeight:1.3,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:size==="xs"?1:2,WebkitBoxOrient:"vertical"}}>{play?.description||""}</div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div style={{fontSize:7,color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>{play?.serial||""}</div>
-              <div style={{fontSize:7,color:"#334155"}}>MLB {play?.season||2025}</div>
+              <div style={{fontSize:7,color:"#334155"}}>{play?.gameDate||`MLB ${play?.season||2025}`}</div>
             </div>
           </div>
         </div>
@@ -2715,6 +2721,7 @@ function PackOpenModalWrapper({pack,plays,onClose,onKeep}){
 // Card customize modal
 function CardCustomizeModal({card,onSave,onClose}){
   const[customName,setCustomName]=useState(card.custom_name||"");
+  const[customHeadshot,setCustomHeadshot]=useState(card.custom_headshot||"");
   const[border,setBorder]=useState(card.custom_border||"");
   const[bg,setBg]=useState(card.custom_bg||"");
   const[effect,setEffect]=useState(card.custom_effect||"");
@@ -2724,7 +2731,23 @@ function CardCustomizeModal({card,onSave,onClose}){
   return(
     <Modal title="✏️ Customize Card" onClose={onClose} width={440}>
       <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
-        <CardDisplay type={card.card_type} name={card.card_name} headshot={card.headshot_url} totalRating={card.total_play_rating||0} customName={customName||undefined} customBorder={border||undefined} customBg={bg||undefined} customEffect={effect||undefined} size="md" serial={card.serial}/>
+        <CardDisplay type={card.card_type} name={card.card_name} headshot={customHeadshot||card.headshot_url} totalRating={card.total_play_rating||0} customName={customName||undefined} customBorder={border||undefined} customBg={bg||undefined} customEffect={effect||undefined} size="md" serial={card.serial}/>
+      </div>
+      <div style={{marginBottom:14}}><Lbl>Custom Photo</Lbl>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <label style={{padding:"7px 14px",borderRadius:8,background:"rgba(0,212,255,.08)",border:"1px solid rgba(0,212,255,.25)",color:"#00D4FF",fontSize:11,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontWeight:700,flexShrink:0}}>
+            📷 Upload Photo
+            <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{
+              const file=e.target.files?.[0];if(!file)return;
+              const reader=new FileReader();
+              reader.onload=(ev)=>setCustomHeadshot(ev.target.result);
+              reader.readAsDataURL(file);
+            }}/>
+          </label>
+          {customHeadshot&&<div style={{fontSize:10,color:"#22C55E"}}>✓ Photo selected</div>}
+          {customHeadshot&&<button onClick={()=>setCustomHeadshot("")} style={{background:"none",border:"none",color:"#EF4444",fontSize:11,cursor:"pointer"}}>✕ Remove</button>}
+        </div>
+        <div style={{fontSize:10,color:"#334155",marginTop:4}}>Upload any photo to replace the default headshot/logo on this card</div>
       </div>
       <div style={{marginBottom:14}}><Lbl>Card Nickname</Lbl>
         <input value={customName} onChange={e=>setCustomName(e.target.value)} placeholder="Custom nickname…" maxLength={28}/>
@@ -2746,7 +2769,7 @@ function CardCustomizeModal({card,onSave,onClose}){
         </div>
       </div>
       <div style={{display:"flex",gap:10}}>
-        <Btn onClick={()=>onSave({custom_name:customName,custom_border:border,custom_bg:bg,custom_effect:effect})} style={{flex:1}}>Save Card</Btn>
+        <Btn onClick={()=>onSave({custom_name:customName,custom_headshot:customHeadshot,custom_border:border,custom_bg:bg,custom_effect:effect})} style={{flex:1}}>Save Card</Btn>
         <Btn variant="muted" onClick={onClose}>Cancel</Btn>
       </div>
     </Modal>
@@ -2831,7 +2854,7 @@ function CardMarketTab({cu,stars,myCards,onBuy}){
         setResults((d.athletes||[]).map(a=>({
           id:`mlb_player_${a.id}`,player_id:a.id,type:"player",
           name:a.name,team_name:a.team,position:a.position,
-          headshot_url:`https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_426,q_auto:best/v1/people/${a.id}/headshot/67/current`,
+          headshot_url:mlbPlayerHeadshot(a.id),
           cost:200,
         })));
       }catch(e){setResults([]);}
@@ -2885,12 +2908,15 @@ function CardMarketTab({cu,stars,myCards,onBuy}){
             const rc=RARITY_CFG["general"];
             return(
               <Card key={team.id} style={{padding:"16px 14px",textAlign:"center"}}>
-                <div style={{fontSize:32,marginBottom:7}}>{team.emoji}</div>
+                <div style={{width:48,height:48,margin:"0 auto 7px",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <img src={mlbTeamLogo(team.id)} style={{width:"100%",height:"100%",objectFit:"contain"}} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}}/>
+                  <div style={{display:"none",fontSize:28,alignItems:"center",justifyContent:"center"}}>{team.emoji}</div>
+                </div>
                 <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#E2E8F0",marginBottom:2,lineHeight:1.3}}>{team.name}</div>
                 <div style={{fontSize:10,color:"#475569",marginBottom:12}}>{team.abbr}</div>
                 {owned
                   ?<div style={{padding:"6px",borderRadius:8,background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.25)",fontSize:10,color:"#22C55E",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>✓ OWNED</div>
-                  :<button onClick={()=>onBuy({id:defId,type:"team",player_id:null,name:team.name,team_name:team.name,headshot_url:null,cost:800})} disabled={!cu||stars<800} style={{width:"100%",padding:"8px",borderRadius:8,background:cu&&stars>=800?"rgba(168,85,247,.12)":"rgba(255,255,255,.04)",border:`1px solid ${cu&&stars>=800?"rgba(168,85,247,.35)":"rgba(255,255,255,.08)"}`,color:cu&&stars>=800?"#A855F7":"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,cursor:cu&&stars>=800?"pointer":"not-allowed"}}>
+                  :<button onClick={()=>onBuy({id:defId,type:"team",player_id:null,name:team.name,team_name:team.name,headshot_url:mlbTeamLogo(team.id),cost:800})} disabled={!cu||stars<800} style={{width:"100%",padding:"8px",borderRadius:8,background:cu&&stars>=800?"rgba(168,85,247,.12)":"rgba(255,255,255,.04)",border:`1px solid ${cu&&stars>=800?"rgba(168,85,247,.35)":"rgba(255,255,255,.08)"}`,color:cu&&stars>=800?"#A855F7":"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,cursor:cu&&stars>=800?"pointer":"not-allowed"}}>
                     {!cu?"Sign in":"Buy · 800 ⭐"}
                   </button>
                 }
@@ -2919,7 +2945,7 @@ function MyCardsTab({cu,cards,plays,onCustomize,onPin,onApply}){
         return(
           <Card key={card.id} style={{padding:14,border:isSelected?"1px solid rgba(0,212,255,.5)":undefined}}>
             <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
-              <CardDisplay type={card.card_type} name={card.card_name} headshot={card.headshot_url} totalRating={card.total_play_rating||0} customName={card.custom_name||undefined} customBorder={card.custom_border||undefined} customBg={card.custom_bg||undefined} customEffect={card.custom_effect||undefined} size="sm" pinned={card.pinned} serial={card.serial}/>
+              <CardDisplay type={card.card_type} name={card.card_name} headshot={card.headshot_url} totalRating={card.total_play_rating||0} customName={card.custom_name||undefined} customBorder={card.custom_border||undefined} customBg={card.custom_bg||undefined} customEffect={card.custom_effect||undefined} size="sm" pinned={card.pinned} serial={card.serial} headshot={card.custom_headshot||card.headshot_url}/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:12,fontWeight:700,fontFamily:"'Orbitron',sans-serif",color:"#E2E8F0",marginBottom:1}}>{card.custom_name||card.card_name}</div>
                 {card.custom_name&&<div style={{fontSize:10,color:"#475569",marginBottom:4}}>{card.card_name}</div>}
@@ -3034,7 +3060,7 @@ function PackShopTab({cu,stars,loading,onOpen,myTeamCard}){
                 )}
               </div>
             )}
-            <button onClick={()=>onOpen(key,isPlayerPack?selPlayer:null)} disabled={!canAfford||loading||(isPlayerPack&&!selPlayer)} style={{width:"100%",padding:"12px",borderRadius:10,background:canAfford&&!loading&&(!isPlayerPack||selPlayer)?"linear-gradient(135deg,#00D4FF,#7C3AED)":"rgba(255,255,255,.05)",border:"none",color:canAfford&&!loading&&(!isPlayerPack||selPlayer)?"#fff":"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:900,cursor:canAfford&&!loading&&(!isPlayerPack||selPlayer)?"pointer":"not-allowed",letterSpacing:".04em",transition:"all .2s"}}>
+            <button onClick={()=>onOpen(key,isPlayerPack?selPlayer:null,myTeamCard)} disabled={!canAfford||loading||(isPlayerPack&&!selPlayer)} style={{width:"100%",padding:"12px",borderRadius:10,background:canAfford&&!loading&&(!isPlayerPack||selPlayer)?"linear-gradient(135deg,#00D4FF,#7C3AED)":"rgba(255,255,255,.05)",border:"none",color:canAfford&&!loading&&(!isPlayerPack||selPlayer)?"#fff":"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:900,cursor:canAfford&&!loading&&(!isPlayerPack||selPlayer)?"pointer":"not-allowed",letterSpacing:".04em",transition:"all .2s"}}>
               {loading?"⟳ Opening...":canAfford?`Open ${pack.name}`:isPlayerPack&&!selPlayer?"Select a player first":`Need ${pack.cost-stars} more ⭐`}
             </button>
           </Card>
@@ -3173,7 +3199,7 @@ function CardsPage({cu}){
     refreshStars();
   };
 
-  const openPack=async(packType,playerIdForPack)=>{
+  const openPack=async(packType,playerIdForPack,myTeamCard)=>{
     if(!cu)return;
     const pack=PACK_DEFS[packType];
     if(stars<pack.cost){showToast(`Need ${pack.cost}⭐`,"#EF4444");return;}
@@ -3186,7 +3212,9 @@ function CardsPage({cu}){
     setPackLoading(true);
     let fetchedPlays=[];
     try{
-      const url=`/api/hyperbeam?mlb_plays=1&pack_type=${packType}&count=${pack.playCount}${playerIdForPack?`&player_id=${playerIdForPack}`:""}`;
+      const teamNameParam=packType==="team"&&myTeamCard?`&team_name=${encodeURIComponent(myTeamCard.team_name||myTeamCard.card_name)}`:"";
+      const playerParam=playerIdForPack?`&player_id=${playerIdForPack}`:"";
+      const url=`/api/hyperbeam?mlb_plays=1&pack_type=${packType}&count=${pack.playCount}${teamNameParam}${playerParam}`;
       const r=await fetch(url,{signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),14000);return c.signal;})()});
       const d=await r.json();
       fetchedPlays=d.plays||[];
@@ -3206,21 +3234,34 @@ function CardsPage({cu}){
     refreshStars();
   };
 
+  // Recalculate a card's total rating from all currently applied plays
+  const recalcCardRating=async(cardId)=>{
+    const appliedPlays=await sb.get("nova_user_plays",`?user_id=eq.${cu.id}&applied_to=eq.${cardId}`);
+    let total=0;
+    for(const p of (appliedPlays||[])){
+      const pd=typeof p.play_data==="string"?JSON.parse(p.play_data):p.play_data;
+      total+=(pd?.rating||0);
+    }
+    await sb.patch("nova_user_cards",`?id=eq.${cardId}`,{total_play_rating:total});
+    return total;
+  };
+
   const applyPlay=async(userPlay,userCard)=>{
     const pd=typeof userPlay.play_data==="string"?JSON.parse(userPlay.play_data):userPlay.play_data;
     const rating=pd?.rating||0;
-    const newTotal=(userCard.total_play_rating||0)+rating;
+    // Mark play as applied first
+    await sb.patch("nova_user_plays",`?id=eq.${userPlay.id}`,{applied_to:userCard.id});
+    setMyPlays(p=>p.map(pl=>pl.id===userPlay.id?{...pl,applied_to:userCard.id}:pl));
+    // Recalculate from source of truth
+    const newTotal=await recalcCardRating(userCard.id);
     const newRarity=getCardRarityFromTotal(newTotal);
     const oldRarity=getCardRarityFromTotal(userCard.total_play_rating||0);
-    await sb.patch("nova_user_cards",`?id=eq.${userCard.id}`,{total_play_rating:newTotal});
-    await sb.patch("nova_user_plays",`?id=eq.${userPlay.id}`,{applied_to:userCard.id});
     setMyCards(p=>p.map(c=>c.id===userCard.id?{...c,total_play_rating:newTotal}:c));
-    setMyPlays(p=>p.map(pl=>pl.id===userPlay.id?{...pl,applied_to:userCard.id}:pl));
     if(newRarity!==oldRarity){
       const rc=RARITY_CFG[newRarity];
       showToast(`🎉 ${userCard.card_name} reached ${rc.label.toUpperCase()}!`,rc.color);
     }else{
-      showToast(`⚡ +${rating}pts added to ${userCard.card_name}`);
+      showToast(`⚡ +${rating}pts → ${userCard.card_name} (${newTotal} total)`);
     }
   };
 
@@ -3233,8 +3274,13 @@ function CardsPage({cu}){
     for(const p of trio){
       await sb.del("nova_user_plays",`?id=eq.${p.id}`);
     }
-    await sb.upsert("nova_user_plays",{id:gid(),user_id:cu.id,play_data:JSON.stringify(prestigedPlay),applied_to:null,pinned:false,acquired_at:Date.now()},"id");
-    setMyPlays(p=>[...p.filter(pl=>!trio.map(t=>t.id).includes(pl.id)),{id:gid(),play_data:JSON.stringify(prestigedPlay),applied_to:null}]);
+    const newPid=gid();
+    await sb.upsert("nova_user_plays",{id:newPid,user_id:cu.id,play_data:JSON.stringify(prestigedPlay),applied_to:null,pinned:false,acquired_at:Date.now()},"id");
+    setMyPlays(p=>[...p.filter(pl=>!trio.map(t=>t.id).includes(pl.id)),{id:newPid,play_data:JSON.stringify(prestigedPlay),applied_to:null,acquired_at:Date.now()}]);
+    // Recalc any cards these were applied to
+    const appliedCards=[...new Set(trio.map(t=>t.applied_to).filter(Boolean))];
+    for(const cid of appliedCards){await recalcCardRating(cid);}
+    await loadMyCards();
     showToast(`✨ PRESTIGE! New rating: ${prestigedPlay.rating}⭐ — ${prestigedPlay.rarity.toUpperCase()}!`,"#FFD700");
   };
 

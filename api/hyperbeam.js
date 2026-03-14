@@ -108,68 +108,142 @@ export default async function handler(req, res) {
       if(req.query.mlb_plays){
         const packType=req.query.pack_type||"general";
         const count=parseInt(req.query.count)||5;
+        const filterTeam=(req.query.team_name||"").toLowerCase().trim();
+        const filterPlayerId=req.query.player_id||"";
         try{
           const today=new Date();
           let plays=[];
-          for(let daysBack=1;daysBack<=10&&plays.length<count*3;daysBack++){
+          const maxDays=filterTeam||filterPlayerId?20:10; // look further back for filtered packs
+          for(let daysBack=1;daysBack<=maxDays&&plays.length<count*6;daysBack++){
             const d=new Date(today);d.setDate(d.getDate()-daysBack);
             const dateStr=d.toISOString().split("T")[0];
-            const sr=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&gameType=R`,{signal:makeTimeout(6000)});
+            const sr=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&gameType=R`,{signal:makeTimeout(7000)});
             if(!sr.ok)continue;
             const sd=await sr.json();
-            const games=(sd.dates?.[0]?.games||[]).filter(g=>g.status?.detailedState==="Final");
+            let games=(sd.dates?.[0]?.games||[]).filter(g=>g.status?.detailedState==="Final");
             if(!games.length)continue;
-            // pick up to 2 random games
-            const picks=games.sort(()=>Math.random()-.5).slice(0,2);
+            // For team packs: only games involving the team
+            if(filterTeam){
+              games=games.filter(g=>{
+                const h=(g.teams?.home?.team?.name||"").toLowerCase();
+                const a=(g.teams?.away?.team?.name||"").toLowerCase();
+                return h.includes(filterTeam)||a.includes(filterTeam)||
+                       filterTeam.includes(h.split(" ").pop())||filterTeam.includes(a.split(" ").pop());
+              });
+            }
+            if(!games.length)continue;
+            const picks=games.sort(()=>Math.random()-.5).slice(0,filterTeam||filterPlayerId?5:2);
             for(const game of picks){
               try{
-                const fr=await fetch(`https://statsapi.mlb.com/api/v1.1/game/${game.gamePk}/feed/live`,{signal:makeTimeout(8000)});
+                const fr=await fetch(`https://statsapi.mlb.com/api/v1.1/game/${game.gamePk}/feed/live`,{signal:makeTimeout(9000)});
                 if(!fr.ok)continue;
                 const fd=await fr.json();
                 const allPlays=fd.liveData?.plays?.allPlays||[];
-                const homeTeam=fd.gameData?.teams?.home?.teamName||"";
-                const awayTeam=fd.gameData?.teams?.away?.teamName||"";
+                const homeTeamName=fd.gameData?.teams?.home?.teamName||"";
+                const awayTeamName=fd.gameData?.teams?.away?.teamName||"";
+                const homeTeamId=String(fd.gameData?.teams?.home?.id||"");
+                const awayTeamId=String(fd.gameData?.teams?.away?.id||"");
                 const gameDate=fd.gameData?.datetime?.officialDate||dateStr;
+                const venue=fd.gameData?.venue?.name||"";
                 for(const play of allPlays){
                   if(!play.result?.event||!play.result?.description)continue;
                   const event=play.result.event;
                   const desc=play.result.description;
-                  const playerName=play.matchup?.batter?.fullName||play.matchup?.pitcher?.fullName||"Unknown";
-                  const isHome=play.about?.halfInning==="bottom";
-                  const teamName=isHome?homeTeam:awayTeam;
+                  const isTopInning=play.about?.halfInning==="top";
                   const inning=play.about?.inning||1;
                   const rbi=play.result?.rbi||0;
-                  const isWalkoff=inning>=9&&!play.about?.isTopInning&&rbi>0&&play.about?.isComplete;
+                  // Batter and pitcher details
+                  const batterName=play.matchup?.batter?.fullName||"Unknown";
+                  const batterPlayerId=String(play.matchup?.batter?.id||"");
+                  const pitcherName=play.matchup?.pitcher?.fullName||"Unknown";
+                  const pitcherPlayerId=String(play.matchup?.pitcher?.id||"");
+                  // The batter's team is top=away, bottom=home
+                  const batterTeam=isTopInning?awayTeamName:homeTeamName;
+                  const fielderTeam=isTopInning?homeTeamName:awayTeamName;
+                  const opponent=isTopInning?homeTeamName:awayTeamName;
+                  const inningStr=`${isTopInning?"Top":"Bot"} ${inning}`;
+                  // Player pack filter — match batter or pitcher
+                  if(filterPlayerId&&batterPlayerId!==filterPlayerId&&pitcherPlayerId!==filterPlayerId)continue;
+                  // Team pack filter — match batter's team
+                  if(filterTeam){
+                    const bt=batterTeam.toLowerCase();
+                    if(!bt.includes(filterTeam)&&!filterTeam.includes(bt.split(" ").pop()))continue;
+                  }
+                  const isWalkoff=inning>=9&&!isTopInning&&rbi>0&&play.about?.isComplete;
                   let rating=0,emoji="⚾";
-                  if(isWalkoff&&(event==="Home Run"||event==="Single"||event==="Double"||event==="Triple")){rating=10+Math.floor(Math.random()*3);emoji="🏆";}
+                  if(isWalkoff&&["Home Run","Single","Double","Triple"].includes(event)){rating=10+Math.floor(Math.random()*3);emoji="🏆";}
                   else if(event==="Grand Slam"){rating=11+Math.floor(Math.random()*2);emoji="💎";}
-                  else if(event==="Home Run"){rating=rbi>=3?8+Math.floor(Math.random()*2):7;emoji="💣";}
+                  else if(event==="Home Run"){
+                    const dist=play.hitData?.totalDistance||0;
+                    rating=(rbi>=3?9:7)+(dist>430?1:0);emoji="💣";
+                  }
                   else if(event==="Triple"){rating=5+Math.floor(Math.random()*2);emoji="🔥";}
                   else if(event==="Double"){rating=rbi>=2?5+Math.floor(Math.random()*2):4;emoji="💥";}
-                  else if(event==="Single"){rating=rbi>=2?3:Math.floor(Math.random()*3);emoji="⚾";}
-                  else if(event==="Strikeout"){rating=Math.floor(Math.random()*3);emoji="🎯";}
+                  else if(event==="Single"){rating=rbi>=2?3:Math.floor(Math.random()*2)+1;emoji="⚾";}
+                  else if(event==="Strikeout"){
+                    const pitch=play.matchup?.pitchHand?.code||"";
+                    rating=Math.floor(Math.random()*3);emoji="🎯";
+                  }
+                  else if(event==="Stolen Base 2B"||event==="Stolen Base 3B"||event==="Stolen Base Home"){rating=3;emoji="💨";}
                   else continue;
-                  const rarity=rating>=10?"legend":rating>=7?"epic":rating>=4?"rare":"common";
-                  // team filter for team packs
-                  if(packType==="team"&&req.query.team_name&&teamName.toLowerCase()!==req.query.team_name.toLowerCase())continue;
-                  plays.push({id:`mlb_${game.gamePk}_${play.atBatIndex||Math.random().toString(36).slice(2,6)}`,emoji,playerName,teamName,description:desc.slice(0,90),rating,rarity,playType:event.toLowerCase().replace(/ /g,"_"),season:2025,gameDate,source:"mlb_stats_api"});
+                  if(rating<=0)rating=1;
+                  // Correct 7-tier rarity
+                  const rarity=rating>=12?"mystic":rating>=10?"legendary":rating>=7?"epic":rating>=4?"rare":rating>=2?"uncommon":"common";
+                  // Rich description
+                  const hitDist=play.hitData?.totalDistance;
+                  const richDesc=hitDist&&event==="Home Run"
+                    ?`${batterName} hits a ${hitDist}ft ${event.toLowerCase()} off ${pitcherName} (${inningStr})`
+                    :`${batterName} ${event.toLowerCase()} off ${pitcherName} (${inningStr}${rbi>0?`, ${rbi} RBI`:""})`;
+                  plays.push({
+                    id:`mlb_${game.gamePk}_${play.atBatIndex||Math.random().toString(36).slice(2,6)}`,
+                    emoji,
+                    playerName:batterName,
+                    playerMlbId:batterPlayerId,
+                    pitcherName,
+                    pitcherMlbId:pitcherPlayerId,
+                    teamName:batterTeam,
+                    opponent,
+                    inning:inningStr,
+                    gameDate,
+                    venue,
+                    description:richDesc.slice(0,120),
+                    rating,
+                    rarity,
+                    playType:event.toLowerCase().replace(/ /g,"_"),
+                    rbi,
+                    season:2025,
+                    source:"mlb_stats_api",
+                  });
                 }
               }catch(e){continue;}
             }
           }
-          // Weighted selection by pack odds
-          const ODDS={general:{common:.55,rare:.30,epic:.12,legend:.03},superstar:{common:.30,rare:.35,epic:.25,legend:.10},team:{common:.45,rare:.32,epic:.18,legend:.05}};
+          // Weighted selection by pack odds — using 7-tier names
+          const ODDS={
+            starter:  {common:.55,uncommon:.28,rare:.12,epic:.04,legendary:.01},
+            general:  {common:.40,uncommon:.30,rare:.18,epic:.09,legendary:.03},
+            yesterday:{common:.38,uncommon:.30,rare:.20,epic:.09,legendary:.03},
+            player:   {common:.42,uncommon:.30,rare:.17,epic:.08,legendary:.03},
+            team:     {common:.38,uncommon:.28,rare:.20,epic:.10,legendary:.04},
+          };
           const odds=ODDS[packType]||ODDS.general;
-          const byRarity={common:[],rare:[],epic:[],legend:[]};
+          const byRarity={common:[],uncommon:[],rare:[],epic:[],legendary:[],mystic:[]};
           for(const p of plays)(byRarity[p.rarity]||byRarity.common).push(p);
-          const selected=[];
           const shuffle=arr=>{const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
-          Object.keys(byRarity).forEach(r=>byRarity[r]=shuffle(byRarity[r]));
+          Object.keys(byRarity).forEach(r=>{byRarity[r]=shuffle(byRarity[r]);});
+          const selected=[];
           for(let i=0;i<count;i++){
             const rand=Math.random();let cum=0;let rarity="common";
             for(const[r,p]of Object.entries(odds)){cum+=p;if(rand<=cum){rarity=r;break;}}
-            const pool=byRarity[rarity].length?byRarity[rarity]:byRarity.common;
-            if(pool.length){selected.push(pool.shift());}
+            const pool=byRarity[rarity]?.length?byRarity[rarity]:(byRarity.uncommon.length?byRarity.uncommon:byRarity.common);
+            if(pool?.length)selected.push(pool.shift());
+          }
+          // Pad with fallback if not enough real plays
+          while(selected.length<count){
+            const FPLAYERS=["Aaron Judge","Shohei Ohtani","Mookie Betts","Freddie Freeman","Juan Soto","Yordan Alvarez","Gunnar Henderson","Bobby Witt Jr.","Paul Skenes","Elly De La Cruz"];
+            const fp=FPLAYERS[Math.floor(Math.random()*FPLAYERS.length)];
+            const ft=filterTeam||["Yankees","Dodgers","Braves","Astros","Padres"][Math.floor(Math.random()*5)];
+            selected.push({id:`fallback_${Date.now()}_${selected.length}`,emoji:"⚾",playerName:fp,pitcherName:"Unknown Pitcher",teamName:ft,opponent:"Unknown",inning:"Bot 5",gameDate:new Date().toISOString().split("T")[0],description:`${fp} RBI Single (Bot 5)`,rating:2,rarity:"uncommon",playType:"single",rbi:1,season:2025,source:"generated"});
           }
           return res.status(200).json({plays:selected.filter(Boolean)});
         }catch(e){
