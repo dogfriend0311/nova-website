@@ -2449,8 +2449,11 @@ function CardDisplay({type,name,subName,headshot,totalRating=0,customName,custom
       )}
       <div style={{height:"62%",background:`linear-gradient(175deg,${rc.glow},rgba(0,0,0,.9))`,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",position:"relative"}}>
         {headshot
-          ?<img src={headshot} style={{width:type==="team"?"70%":"100%",height:type==="team"?"70%":"100%",objectFit:type==="team"?"contain":"cover",objectPosition:"top center",padding:type==="team"?"8px":0}} onError={e=>{e.target.style.display="none";}}/>
-          :<div style={{fontSize:size==="xs"?22:size==="sm"?28:44}}>{type==="team"?"🏟️":"⚾"}</div>}
+          ?<img src={headshot} style={{width:type==="team"?"70%":"100%",height:type==="team"?"70%":"100%",objectFit:type==="team"?"contain":"cover",objectPosition:"top center",padding:type==="team"?"8px":0}}
+            onError={e=>{e.target.style.display="none";if(e.target.nextSibling)e.target.nextSibling.style.display="flex";}}/>
+          :<span/>}
+      <div style={{display:"none",fontSize:size==="xs"?22:size==="sm"?28:44,alignItems:"center",justifyContent:"center"}}>{type==="team"?"🏟️":"⚾"}</div>
+      {!headshot&&<div style={{fontSize:size==="xs"?22:size==="sm"?28:44,display:"flex",alignItems:"center",justifyContent:"center"}}>{type==="team"?"🏟️":"⚾"}</div>}
         <div style={{position:"absolute",top:5,right:5,background:"rgba(0,0,0,.85)",borderRadius:5,padding:"2px 6px",fontSize:7,fontFamily:"'Orbitron',sans-serif",fontWeight:700,color:rc.color,border:`1px solid ${rc.color}44`,zIndex:3}}>{rc.label.toUpperCase()}</div>
         {pinned&&<div style={{position:"absolute",bottom:4,right:5,fontSize:10,zIndex:3}}>📌</div>}
       </div>
@@ -3149,7 +3152,19 @@ function CardsPage({cu}){
   const loadMyCards=useCallback(async()=>{
     if(!cu)return;
     const rows=await sb.get("nova_user_cards",`?user_id=eq.${cu.id}&order=acquired_at.desc`);
-    setMyCards(rows||[]);
+    if(!rows?.length){setMyCards([]);return;}
+    // Auto-fix any old ESPN headshot URLs to MLB static
+    const fixed=rows.map(card=>{
+      if(card.card_type==="player"&&card.player_id&&(!card.headshot_url||card.headshot_url.includes("espncdn"))){
+        return{...card,headshot_url:mlbPlayerHeadshot(card.player_id)};
+      }
+      if(card.card_type==="team"&&card.card_def_id&&(!card.headshot_url||card.headshot_url.includes("espncdn"))){
+        const teamId=card.card_def_id.replace("mlb_team_","");
+        return{...card,headshot_url:mlbTeamLogo(teamId)};
+      }
+      return card;
+    });
+    setMyCards(fixed);
   },[cu?.id]);
   const loadMyPlays=useCallback(async()=>{
     if(!cu)return;
