@@ -463,8 +463,19 @@ function GameDetailPage({gameId,sport,navigate}){
     setPbpLoading(true);
     try{
       if(sport==="mlb"){
-        // MLB Stats API — real live play-by-play
-        const mlbRes=await fetch(`https://statsapi.mlb.com/api/v1.1/game/${gameId}/feed/live`,{signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),10000);return c.signal;})()});
+        // ESPN gameId != MLB Stats API gamePk — look up gamePk from ESPN event data
+        let gamePk=gameId;
+        try{
+          const espnGame=await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/summary?event=${gameId}`);
+          if(espnGame.ok){
+            const espnData=await espnGame.json();
+            // ESPN embeds the MLB gamePk in the header.links or externalId
+            const extId=espnData?.header?.competitions?.[0]?.externalIds?.find(x=>x.provider==="mlbgamepk");
+            if(extId?.value)gamePk=extId.value;
+          }
+        }catch(e){}
+        // MLB Stats API — real live/final play-by-play
+        const mlbRes=await fetch(`https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`,{signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),10000);return c.signal;})()});
         if(mlbRes.ok){
           const mlbData=await mlbRes.json();
           const allPlays=(mlbData.liveData?.plays?.allPlays||[]).slice().reverse(); // newest first
@@ -832,7 +843,7 @@ function GameDetailPage({gameId,sport,navigate}){
 
         {/* Scoring summary — all sports */}
         {/* ── Live Play-by-Play (MLB + NBA only) ── */}
-        {(sport==="mlb"||sport==="nba")&&g.started&&(
+        {(sport==="mlb"||sport==="nba")&&(g.started||g.completed)&&(
           <Card style={{padding:"16px 18px"}} hover={false}>
             {/* Tab row */}
             <div style={{display:"flex",gap:6,marginBottom:14,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap"}}>
@@ -992,20 +1003,94 @@ function GameDetailPage({gameId,sport,navigate}){
         {g.boxPlayers?.length>0&&g.boxPlayers.map((side,si)=>{
           const categories=side.statistics||[];if(!categories.length)return null;
           const teamAbbr=side.team?.abbreviation||`Team ${si+1}`;
-          const sportCatNames={mlb:["BATTING","PITCHING"],nba:["PLAYERS",""],nfl:["PASSING/RUSHING","DEFENSE"],nhl:["SKATERS","GOALIES"]}[g.sport]||["PLAYERS",""];
+          const teamName=side.team?.displayName||teamAbbr;
+          // Sport-specific category names
+          const sportCatNames={
+            mlb:["BATTING","PITCHING","FIELDING"],
+            nba:["STARTERS","BENCH"],
+            nfl:["PASSING","RUSHING","RECEIVING","DEFENSE","KICKING"],
+            nhl:["SKATERS","GOALIES"],
+          }[g.sport]||[];
+          // Key highlight stats per sport for quick-scan row
+          const highlightStat=(stats,labels,sport)=>{
+            if(sport==="nba"){const pts=stats[labels.indexOf("PTS")]||stats[0];const reb=stats[labels.indexOf("REB")]||stats[4];const ast=stats[labels.indexOf("AST")]||stats[5];return[pts,reb,ast].filter(Boolean).join(" / ");}
+            if(sport==="nhl"){const g2=stats[labels.indexOf("G")]??stats[0];const a=stats[labels.indexOf("A")]??stats[1];return`${g2}G ${a}A`;}
+            return null;
+          };
           return(
-            <Card key={si} style={{padding:"16px 18px"}} hover={false}>
-              <SLabel>🧢 {teamAbbr} — PLAYER STATS</SLabel>
-              {categories.slice(0,2).map((cat,ci)=>{
+            <Card key={si} style={{padding:"16px 18px",marginBottom:12}} hover={false}>
+              <SLabel color={g.sport==="nba"?"#F59E0B":g.sport==="nhl"?"#00D4FF":"#22C55E"}>
+                {g.sport==="nba"?"🏀":g.sport==="nhl"?"🏒":g.sport==="mlb"?"⚾":"🏈"} {teamName.toUpperCase()} — PLAYER STATS
+              </SLabel>
+              {categories.map((cat,ci)=>{
                 const players=cat.athletes||[];if(!players.length)return null;
-                const labels=cat.labels||cat.keys||[];
+                const labels=(cat.labels||cat.keys||[]);
+                const totals=cat.totals||[];
+                const catName=sportCatNames[ci]||cat.name||`CAT ${ci+1}`;
                 return(
-                  <div key={ci} style={{marginBottom:ci===0?14:0}}>
-                    {sportCatNames[ci]&&<div style={{fontSize:9,color:"#475569",marginBottom:6,fontFamily:"'Orbitron',sans-serif"}}>{sportCatNames[ci]}</div>}
-                    <div style={{overflowX:"auto"}}>
-                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:300}}>
-                        <thead><tr style={{borderBottom:"1px solid rgba(255,255,255,.08)"}}><td style={{padding:"4px 8px",color:"#475569",minWidth:110}}>PLAYER</td>{labels.slice(0,7).map((l,li)=><td key={li} style={{padding:"4px 6px",textAlign:"center",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:9}}>{l}</td>)}</tr></thead>
-                        <tbody>{players.map((p,pi)=>(<tr key={pi} style={{background:pi%2===0?"rgba(255,255,255,.02)":"transparent",borderBottom:"1px solid rgba(255,255,255,.03)"}}><td style={{padding:"5px 8px",color:"#E2E8F0",fontWeight:600,whiteSpace:"nowrap"}}>{p.athlete?.shortName||p.athlete?.displayName||"—"}</td>{(p.stats||[]).slice(0,7).map((s,si2)=>(<td key={si2} style={{padding:"5px 6px",textAlign:"center",color:"#94A3B8"}}>{s||"—"}</td>))}</tr>))}</tbody>
+                  <div key={ci} style={{marginBottom:ci<categories.length-1?18:0}}>
+                    <div style={{fontSize:9,color:"#475569",marginBottom:8,fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",paddingBottom:4,borderBottom:"1px solid rgba(255,255,255,.05)"}}>{catName}</div>
+                    <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:Math.max(360,labels.length*52+140)}}>
+                        <thead>
+                          <tr style={{borderBottom:"1px solid rgba(255,255,255,.1)"}}>
+                            <td style={{padding:"5px 8px",color:"#475569",minWidth:130,fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>PLAYER</td>
+                            {labels.map((l,li)=>(
+                              <td key={li} style={{padding:"5px 6px",textAlign:"center",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:700,whiteSpace:"nowrap"}}>{l}</td>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {players.map((p,pi)=>{
+                            const stats=p.stats||[];
+                            const name=p.athlete?.shortName||p.athlete?.displayName||"—";
+                            const pos=p.athlete?.position?.abbreviation||"";
+                            const isStarter=p.starter||p.status?.displayValue==="Starter"||false;
+                            // Highlight top performers
+                            const pts=g.sport==="nba"?parseInt(stats[labels.indexOf("PTS")]||0):0;
+                            const goals=g.sport==="nhl"?parseInt(stats[labels.indexOf("G")]??0):0;
+                            const isTop=(g.sport==="nba"&&pts>=20)||(g.sport==="nhl"&&goals>=1);
+                            return(
+                              <tr key={pi} style={{
+                                background:isTop?"rgba(245,158,11,.04)":pi%2===0?"rgba(255,255,255,.02)":"transparent",
+                                borderBottom:"1px solid rgba(255,255,255,.04)",
+                              }}>
+                                <td style={{padding:"6px 8px",whiteSpace:"nowrap"}}>
+                                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                                    {pos&&<span style={{fontSize:8,fontFamily:"'Orbitron',sans-serif",color:"#334155",minWidth:20}}>{pos}</span>}
+                                    <span style={{color:isTop?"#F59E0B":"#E2E8F0",fontWeight:isTop?700:500,fontSize:11}}>{name}</span>
+                                    {isStarter&&<span style={{fontSize:7,color:"#22C55E",fontFamily:"'Orbitron',sans-serif"}}>S</span>}
+                                  </div>
+                                </td>
+                                {stats.map((s,si2)=>{
+                                  const lbl=labels[si2]||"";
+                                  // Color-code key stats
+                                  const isKeyNBA=["PTS","REB","AST","STL","BLK"].includes(lbl);
+                                  const isKeyNHL=["G","A","PTS","+/-"].includes(lbl);
+                                  const isKey=isKeyNBA||isKeyNHL;
+                                  const val=s||"—";
+                                  const isZero=val==="0"||val==="0.0"||val==="—";
+                                  return(
+                                    <td key={si2} style={{
+                                      padding:"6px 6px",textAlign:"center",
+                                      color:isKey&&!isZero?"#E2E8F0":"#64748B",
+                                      fontWeight:isKey&&!isZero?700:400,
+                                      fontSize:isKey?12:11,
+                                      fontFamily:isKey?"'Orbitron',sans-serif":"'Rajdhani',sans-serif",
+                                    }}>{val}</td>
+                                  );
+                                })}
+                              </tr>
+                            );
+                          })}
+                          {/* Totals row */}
+                          {totals.length>0&&(
+                            <tr style={{borderTop:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.04)"}}>
+                              <td style={{padding:"5px 8px",fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>TOTALS</td>
+                              {totals.map((t,ti)=><td key={ti} style={{padding:"5px 6px",textAlign:"center",color:"#94A3B8",fontSize:11,fontWeight:700}}>{t||"—"}</td>)}
+                            </tr>
+                          )}
+                        </tbody>
                       </table>
                     </div>
                   </div>
