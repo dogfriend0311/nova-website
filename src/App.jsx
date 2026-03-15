@@ -5606,14 +5606,9 @@ function PlayerStatsPage({playerId,sport,onBack}){
     setTab("overview");
     const load=async()=>{
       try{
-        // Route through proxy for non-MLB to avoid CORS blocks
+        // Route all ESPN athlete calls through proxy to avoid CORS blocks
         const espnFetch=async(url)=>{
-          if(sport!=="mlb"){
-            // Use our proxy to bypass CORS
-            const r=await fetch(`/api/hyperbeam?espn_proxy=1&url=${encodeURIComponent(url)}`);
-            return r.ok?r.json():null;
-          }
-          const r=await fetch(url);
+          const r=await fetch(`/api/hyperbeam?espn_proxy=1&url=${encodeURIComponent(url)}`);
           return r.ok?r.json():null;
         };
         // Player bio + info
@@ -5623,9 +5618,9 @@ function PlayerStatsPage({playerId,sport,onBack}){
         const statData=await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}/stats`);
         if(statData)setStats(statData);
         // Game log
-        const logR=await fetch(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}/gamelog`);
-        if(logR.ok){
-          const ld=await logR.json();
+        const logData=await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}/gamelog`);
+        if(logData){
+          const ld=logData;
           const events=ld?.events||{};
           const cats=ld?.seasonTypes?.[0]?.categories||[];
           const rows=[];
