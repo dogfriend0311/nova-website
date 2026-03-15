@@ -273,6 +273,27 @@ export default async function handler(req, res) {
           return res.status(200).json({plays:[],error:e.message});
         }
       }
+      // ── ESPN proxy — bypass CORS for non-MLB sports ──
+      if(req.query.espn_proxy&&req.query.url){
+        try{
+          const targetUrl=decodeURIComponent(req.query.url);
+          // Only allow ESPN API URLs for safety
+          if(!targetUrl.includes("site.api.espn.com")&&!targetUrl.includes("api.espn.com")){
+            return res.status(400).json({error:"Only ESPN API URLs allowed"});
+          }
+          const r=await fetch(targetUrl,{
+            headers:{"User-Agent":"Mozilla/5.0","Accept":"application/json"},
+            signal:makeTimeout(10000),
+          });
+          if(!r.ok)return res.status(200).json(null);
+          const d=await r.json();
+          return res.status(200).json(d);
+        }catch(e){
+          console.error("ESPN proxy error:",e.message);
+          return res.status(200).json(null);
+        }
+      }
+
       return res.status(400).json({error:"Missing params"});
     }
 

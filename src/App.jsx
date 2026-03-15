@@ -2321,6 +2321,13 @@ function CommentImgUpload({onUpload}){
   const h=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>8*1024*1024){alert("Max 8MB");return;}setUp(true);await onUpload(f);setUp(false);e.target.value="";};
   return <><input type="file" ref={ref} accept="image/*" onChange={h} style={{display:"none"}}/><button onClick={()=>ref.current.click()} disabled={up} title="Attach photo" style={{background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.09)",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:12,color:"#64748B",display:"flex",alignItems:"center",gap:5,width:"fit-content"}}>{up?"⏳ Uploading...":"📷 Add Photo"}</button></>;
 }
+function playerHeadshotUrl(playerId,sport){
+  if(!playerId)return"";
+  if(sport==="mlb")return`https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/${playerId}/headshot/67/current`;
+  // ESPN combiner works for NFL/NBA/NHL and doesn't 404
+  const espnSport=sport==="nba"?"nba":sport==="nhl"?"nhl":sport==="nfl"?"nfl":"mlb";
+  return`https://a.espncdn.com/combiner/i?img=/i/headshots/${espnSport}/players/full/${playerId}.png&w=96&h=70&cb=1`;
+}
 function TeamLogo({espn,sport,size=22}){const [err,setErr]=useState(false);if(err)return <span style={{fontSize:size*.65}}>{sport==="mlb"?"⚾":sport==="nfl"?"🏈":sport==="nba"?"🏀":"🏒"}</span>;return <img src={`https://a.espncdn.com/i/teamlogos/${sport}/500/${espn}.png`} width={size} height={size} style={{objectFit:"contain",flexShrink:0}} onError={()=>setErr(true)}/>;}
 function TeamBadge({teamId}){
   const allTeams=[...MLB_TEAMS,...NFL_TEAMS,...NBA_TEAMS,...NHL_TEAMS];
@@ -5599,12 +5606,22 @@ function PlayerStatsPage({playerId,sport,onBack}){
     setTab("overview");
     const load=async()=>{
       try{
+        // Route through proxy for non-MLB to avoid CORS blocks
+        const espnFetch=async(url)=>{
+          if(sport!=="mlb"){
+            // Use our proxy to bypass CORS
+            const r=await fetch(`/api/hyperbeam?espn_proxy=1&url=${encodeURIComponent(url)}`);
+            return r.ok?r.json():null;
+          }
+          const r=await fetch(url);
+          return r.ok?r.json():null;
+        };
         // Player bio + info
-        const infoR=await fetch(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}`);
-        if(infoR.ok)setInfo(await infoR.json());
+        const infoData=await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}`);
+        if(infoData)setInfo(infoData);
         // Stats
-        const statR=await fetch(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}/stats`);
-        if(statR.ok)setStats(await statR.json());
+        const statData=await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}/stats`);
+        if(statData)setStats(statData);
         // Game log
         const logR=await fetch(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}/gamelog`);
         if(logR.ok){
@@ -5653,7 +5670,7 @@ function PlayerStatsPage({playerId,sport,onBack}){
 
   const pos=athlete.position?.displayName||athlete.position?.name||"";
   const team=athlete.team?.displayName||"";
-  const headshot=athlete.headshot?.href||`https://a.espncdn.com/i/headshots/${espnPath.split("/")[1]}/players/full/${playerId}.png`;
+  const headshot=athlete.headshot?.href||playerHeadshotUrl(playerId,sport);
   const birthDate=athlete.dateOfBirth||athlete.dob||"";
   const height=athlete.displayHeight||athlete.height||"";
   const weight=athlete.displayWeight||athlete.weight||"";
@@ -5873,7 +5890,8 @@ function PlayerSearchSection({sport,onSelectPlayer}){
           const d=await r.json();
           setResults((d.athletes||[]).map(a=>({id:String(a.id),name:a.name,team:a.team,position:a.position,sport})));
         } else {
-          const r=await fetch(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes?limit=10&searchTerm=${encodeURIComponent(q)}&active=true`);
+          const searchUrl=`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes?limit=10&searchTerm=${encodeURIComponent(q)}&active=true`;
+          const r=await fetch(`/api/hyperbeam?espn_proxy=1&url=${encodeURIComponent(searchUrl)}`);
           if(r.ok){
             const d=await r.json();
             const items=d.items||d.athletes||[];
@@ -5910,7 +5928,7 @@ function PlayerSearchSection({sport,onSelectPlayer}){
             <button key={p.id} onClick={()=>{onSelectPlayer(p.id,p.sport||sport);setQ("");setResults([]);}}
               style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 14px",background:"none",border:"none",borderBottom:"1px solid rgba(255,255,255,.05)",cursor:"pointer",textAlign:"left"}}>
               <div style={{width:32,height:32,borderRadius:"50%",overflow:"hidden",background:"rgba(255,255,255,.05)",flexShrink:0}}>
-                <img src={`https://a.espncdn.com/i/headshots/${espnPath.split("/")[1]}/players/full/${p.id}.png`}
+                <img src={playerHeadshotUrl(p.id,sport)}
                   style={{width:"100%",height:"100%",objectFit:"cover"}}
                   onError={e=>{e.target.style.display="none";}}/>
               </div>
@@ -5932,7 +5950,7 @@ function PlayerSearchSection({sport,onSelectPlayer}){
               <button key={p.id} onClick={()=>onSelectPlayer(p.id,sport)}
                 style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:20,background:"rgba(255,255,255,.04)",border:`1px solid ${ac}33`,cursor:"pointer",color:"#E2E8F0",fontSize:12}}>
                 <div style={{width:22,height:22,borderRadius:"50%",overflow:"hidden",background:"rgba(255,255,255,.05)",flexShrink:0}}>
-                  <img src={`https://a.espncdn.com/i/headshots/${espnPath.split("/")[1]}/players/full/${p.id}.png`}
+                  <img src={playerHeadshotUrl(p.id,sport)}
                     style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>e.target.style.display="none"}/>
                 </div>
                 {p.name.split(" ").pop()}
