@@ -458,32 +458,30 @@ function GameDetailPage({gameId,sport,navigate}){
   const[loading,setLoading]=useState(true);
   const[pbp,setPbp]=useState([]); // live play by play
   const[pbpLoading,setPbpLoading]=useState(false);
-  const[pbpTab,setPbpTab]=useState("pbp"); // pbp | scoring
+  const[pbpTab,setPbpTab]=useState("pbp"); // pbp | scoring | inning
+  const[pbpInning,setPbpInning]=useState(null); // null=all, or inning number
+  const[rawAtBats,setRawAtBats]=useState([]); // MLB: full at-bat objects with pitches
   const pbpRef=useRef(null);
-
-  const sportPath=sport==="mlb"?"baseball/mlb":sport==="nfl"?"football/nfl":sport==="nba"?"basketball/nba":"hockey/nhl";
 
   const loadPbp=async()=>{
     if(sport!=="mlb"&&sport!=="nba"&&sport!=="nhl")return;
     setPbpLoading(true);
     try{
       if(sport==="mlb"){
-        // Try ESPN gameId as MLB gamePk first (works most of the time for 2025+ games)
-        // Then fallback: search MLB schedule for the same date/teams to get the real gamePk
         let gamePk=gameId;
         let mlbData=null;
-        // Attempt 1: direct
+        // Attempt 1: ESPN gameId as gamePk
         try{
           const r=await fetch(`https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`,{signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),8000);return c.signal;})()});
           if(r.ok){const d=await r.json();if(d?.liveData?.plays?.allPlays?.length>0)mlbData=d;}
         }catch(e){}
-        // Attempt 2: look up via ESPN summary externalIds
+        // Attempt 2: ESPN externalIds
         if(!mlbData){
           try{
-            const espnR=await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/summary?event=${gameId}`);
-            if(espnR.ok){
-              const espnD=await espnR.json();
-              const extId=espnD?.header?.competitions?.[0]?.externalIds?.find(x=>x.provider==="mlbgamepk"||x.provider==="gamepk");
+            const eR=await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/summary?event=${gameId}`);
+            if(eR.ok){
+              const eD=await eR.json();
+              const extId=eD?.header?.competitions?.[0]?.externalIds?.find(x=>x.provider==="mlbgamepk"||x.provider==="gamepk");
               if(extId?.value&&extId.value!==gameId){
                 gamePk=extId.value;
                 const r2=await fetch(`https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`,{signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),8000);return c.signal;})()});
@@ -492,91 +490,172 @@ function GameDetailPage({gameId,sport,navigate}){
             }
           }catch(e){}
         }
-        // Attempt 3: search MLB schedule for the game date and find matching gamePk
+        // Attempt 3: schedule search by team name + date
         if(!mlbData&&game?.home?.name){
           try{
-            const gameDate=game.status?.includes("/")||/^\d{4}-\d{2}-\d{2}/.test(game.date||"")?
-              (game.date||new Date().toISOString()).slice(0,10):
-              new Date().toISOString().slice(0,10);
-            const schedR=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${gameDate}&gameType=R,P&fields=dates,games,gamePk,teams,home,away,name`);
-            if(schedR.ok){
-              const schedD=await schedR.json();
-              const homeKeyword=(game.home?.name||"").split(" ").pop().toLowerCase();
-              const awayKeyword=(game.away?.name||"").split(" ").pop().toLowerCase();
-              const match=(schedD.dates?.[0]?.games||[]).find(g=>{
+            const today=new Date();
+            // try today and past 3 days
+            for(let d=0;d<=3&&!mlbData;d++){
+              const dt=new Date(today);dt.setDate(dt.getDate()-d);
+              const dateStr=dt.toISOString().slice(0,10);
+              const sR=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&gameType=R,P,F,D,L,W`);
+              if(!sR.ok)continue;
+              const sD=await sR.json();
+              const hKw=(game.home?.name||"").split(" ").pop().toLowerCase();
+              const aKw=(game.away?.name||"").split(" ").pop().toLowerCase();
+              const match=(sD.dates?.[0]?.games||[]).find(g=>{
                 const h=(g.teams?.home?.team?.name||"").toLowerCase();
                 const a=(g.teams?.away?.team?.name||"").toLowerCase();
-                return (h.includes(homeKeyword)||a.includes(homeKeyword))&&
-                       (h.includes(awayKeyword)||a.includes(awayKeyword));
+                return(h.includes(hKw)||a.includes(hKw))&&(h.includes(aKw)||a.includes(aKw));
               });
               if(match?.gamePk){
-                const r3=await fetch(`https://statsapi.mlb.com/api/v1.1/game/${match.gamePk}/feed/live`,{signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),8000);return c.signal;})()});
+                const r3=await fetch(`https://statsapi.mlb.com/api/v1.1/game/${match.gamePk}/feed/live`,{signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),10000);return c.signal;})()});
                 if(r3.ok)mlbData=await r3.json();
               }
             }
           }catch(e){}
         }
         if(mlbData){
-          const mlbDataLocal=mlbData;
-          const allPlays=(mlbDataLocal.liveData?.plays?.allPlays||[]).slice().reverse();
-          const mapped=allPlays.slice(0,80).map(play=>({
-            id:play.atBatIndex,
-            inning:`${play.about?.halfInning==="top"?"▲":"▼"} ${play.about?.inning}`,
-            batter:play.matchup?.batter?.fullName||"",
-            pitcher:play.matchup?.pitcher?.fullName||"",
-            event:play.result?.event||"",
-            desc:play.result?.description||"",
-            rbi:play.result?.rbi||0,
-            outs:play.count?.outs??null,
-            isScoring:play.result?.rbi>0||["Home Run","Grand Slam","Stolen Base Home"].includes(play.result?.event||""),
-            isCurrent:play.about?.isTopInning!==undefined&&!play.about?.isComplete,
+          const allAtBats=mlbData.liveData?.plays?.allPlays||[];
+          // Store full at-bat data including pitches
+          const mapped=allAtBats.map(ab=>({
+            id:ab.atBatIndex,
+            inningNum:ab.about?.inning||1,
+            inning:`${ab.about?.halfInning==="top"?"▲":"▼"} ${ab.about?.inning}`,
+            isTop:ab.about?.halfInning==="top",
+            batter:ab.matchup?.batter?.fullName||"",
+            pitcher:ab.matchup?.pitcher?.fullName||"",
+            event:ab.result?.event||"",
+            desc:ab.result?.description||"",
+            rbi:ab.result?.rbi||0,
+            outs:ab.count?.outs??null,
+            isScoring:ab.result?.rbi>0||["Home Run","Grand Slam","Stolen Base Home"].includes(ab.result?.event||""),
+            isComplete:ab.about?.isComplete||false,
+            pitches:(ab.pitchIndex||[]).map(pi=>{
+              const p=ab.playEvents?.[pi];
+              if(!p)return null;
+              const pd=p.pitchData||{};
+              const hd=p.hitData||{};
+              return{
+                num:p.pitchNumber||pi+1,
+                type:p.details?.type?.description||p.type?.description||"",
+                call:p.details?.call?.description||p.details?.description||"",
+                callCode:p.details?.call?.code||p.details?.code||"",
+                velocity:pd.startSpeed?Math.round(pd.startSpeed):null,
+                spinRate:pd.breaks?.spinRate?Math.round(pd.breaks.spinRate):null,
+                px:pd.coordinates?.pX??null, // horizontal plate position
+                pz:pd.coordinates?.pZ??null, // vertical plate position
+                szTop:pd.strikeZoneTop??3.5,
+                szBot:pd.strikeZoneBottom??1.5,
+                // Hit data
+                hitDist:hd.totalDistance?Math.round(hd.totalDistance):null,
+                hitAngle:hd.launchAngle?Math.round(hd.launchAngle):null,
+                exitVelo:hd.launchSpeed?Math.round(hd.launchSpeed):null,
+                hitX:hd.coordinates?.coordX??null,
+                hitY:hd.coordinates?.coordY??null,
+                isInPlay:p.type==="X",
+                isBall:p.type==="B",
+                isStrike:p.type==="S",
+                balls:p.count?.balls??0,
+                strikes:p.count?.strikes??0,
+              };
+            }).filter(Boolean),
           }));
-          setPbp(mapped);
+          setRawAtBats(mapped.slice().reverse()); // newest first
+          // Simple PBP list for non-pitch view
+          setPbp(mapped.slice().reverse().map(ab=>({
+            id:ab.id,inning:ab.inning,inningNum:ab.inningNum,
+            batter:ab.batter,pitcher:ab.pitcher,event:ab.event,
+            desc:ab.desc,rbi:ab.rbi,outs:ab.outs,
+            isScoring:ab.isScoring,isComplete:ab.isComplete,
+          })));
         }
       } else if(sport==="nba"){
-        // ESPN play-by-play for NBA
-        const espnRes=await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${gameId}`);
-        if(espnRes.ok){
-          const espnData=await espnRes.json();
-          const rawPbp=espnData?.plays||[];
-          const mapped=rawPbp.slice().reverse().slice(0,100).map((play,i)=>({
+        const r=await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${gameId}`);
+        if(r.ok){
+          const d=await r.json();
+          const raw=d?.plays||[];
+          setPbp(raw.slice().reverse().map((p,i)=>({
             id:i,
-            period:play.period?.displayValue||`Q${play.period?.number||""}`,
-            clock:play.clock?.displayValue||"",
-            team:play.team?.displayName||play.team?.abbreviation||"",
-            desc:play.text||play.description||"",
-            awayScore:play.awayScore??null,
-            homeScore:play.homeScore??null,
-            isScoring:play.scoringPlay||false,
-            type:play.type?.text||play.type?.displayName||"",
-          }));
-          setPbp(mapped);
+            period:p.period?.displayValue||`Q${p.period?.number||""}`,
+            periodNum:p.period?.number||0,
+            clock:p.clock?.displayValue||"",
+            team:p.team?.abbreviation||p.team?.displayName||"",
+            desc:p.text||p.description||"",
+            awayScore:p.awayScore??null,
+            homeScore:p.homeScore??null,
+            isScoring:p.scoringPlay||false,
+            type:p.type?.text||p.type?.displayName||"",
+          })));
         }
       } else if(sport==="nhl"){
-        // ESPN play-by-play for NHL
-        try{
-          const espnRes=await fetch(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${gameId}`);
-          if(espnRes.ok){
-            const espnData=await espnRes.json();
-            const rawPbp=espnData?.plays||[];
-            const mapped=rawPbp.slice().reverse().slice(0,100).map((play,i)=>({
-              id:i,
-              period:play.period?.displayValue||`P${play.period?.number||""}`,
-              clock:play.clock?.displayValue||"",
-              team:play.team?.abbreviation||play.team?.displayName||"",
-              desc:play.text||play.description||"",
-              awayScore:play.awayScore??null,
-              homeScore:play.homeScore??null,
-              isScoring:play.scoringPlay||false,
-              type:play.type?.text||play.type?.displayName||"",
+        const r=await fetch(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${gameId}`);
+        if(r.ok){
+          const d=await r.json();
+          // ESPN NHL: plays array OR scoringPlays for goals
+          const raw=d?.plays||[];
+          // If no plays, fall back to scoring plays from main game data
+          const mapped=raw.length>0?raw.slice().reverse().map((p,i)=>({
+            id:i,
+            period:p.period?.displayValue||`P${p.period?.number||""}`,
+            periodNum:p.period?.number||0,
+            clock:p.clock?.displayValue||"",
+            team:p.team?.abbreviation||p.team?.displayName||"",
+            desc:p.text||p.description||"",
+            awayScore:p.awayScore??null,
+            homeScore:p.homeScore??null,
+            isScoring:!!(p.scoringPlay||p.type?.text==="Goal"||p.type?.id==="goal"||
+              (p.text||"").toLowerCase().includes("goal")||(p.type?.description||"").toLowerCase().includes("goal")),
+            type:p.type?.text||p.type?.displayName||"",
+          })):[];
+          // If no ESPN plays, build from game scoring plays
+          if(!mapped.length&&game?.scoringPlays?.length){
+            const fallback=game.scoringPlays.map((sp,i)=>({
+              id:i,period:sp.period||"",periodNum:1,clock:sp.clock||"",
+              team:sp.team||"",desc:sp.desc||"",
+              awayScore:sp.awayScore??null,homeScore:sp.homeScore??null,
+              isScoring:true,type:"Goal",
             }));
+            setPbp(fallback);
+          } else {
             setPbp(mapped);
           }
-        }catch(e){}
+        }
       }
     }catch(e){console.warn("PBP load error:",e.message);}
     setPbpLoading(false);
   };
+
+  // Inning/period list for navigation
+  const pbpPeriods=useMemo(()=>{
+    if(!pbp.length)return[];
+    const seen=new Set();const list=[];
+    pbp.forEach(p=>{
+      const key=sport==="mlb"?p.inningNum:p.periodNum;
+      if(key!=null&&!seen.has(key)){seen.add(key);list.push(key);}
+    });
+    return list.sort((a,b)=>a-b);
+  },[pbp,sport]);
+
+  const pbpFiltered=useMemo(()=>{
+    let list=pbp;
+    if(pbpInning!==null){
+      list=list.filter(p=>(sport==="mlb"?p.inningNum:p.periodNum)===pbpInning);
+    }
+    if(pbpTab==="scoring")list=list.filter(p=>p.isScoring);
+    return list;
+  },[pbp,pbpInning,pbpTab,sport]);
+
+  // Pitch zone colors
+  const pitchColor=(call)=>{
+    const c=(call||"").toLowerCase();
+    if(c.includes("ball")||c==="b")return"#3B82F6";
+    if(c.includes("strike")||c==="s"||c==="c"||c==="f"||c==="t")return"#EF4444";
+    if(c.includes("in play")||c==="x")return"#22C55E";
+    return"#94A3B8";
+  };
+
+
 
   useEffect(()=>{load();},[gameId]);
   useEffect(()=>{
@@ -902,16 +981,18 @@ function GameDetailPage({gameId,sport,navigate}){
           </Card>
         )}
 
-        {/* Scoring summary — all sports */}
-        {/* ── Live Play-by-Play (MLB + NBA + NHL) ── */}
+
+        {/* ── Play-by-Play (MLB pitch-by-pitch · NBA/NHL live) ── */}
         {(sport==="mlb"||sport==="nba"||sport==="nhl")&&(g.started||g.completed)&&(
           <Card style={{padding:"16px 18px"}} hover={false}>
-            {/* Tab row */}
-            <div style={{display:"flex",gap:6,marginBottom:14,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap"}}>
-              <div style={{display:"flex",gap:6}}>
-                {[["pbp",sport==="mlb"?"⚾ Play-by-Play":sport==="nhl"?"🏒 Play-by-Play":"🏀 Play-by-Play"],["scoring","🎯 Scoring Only"]].map(([t,l])=>(
+            {/* Header */}
+            <div style={{display:"flex",gap:6,marginBottom:12,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap"}}>
+              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                {[["pbp",sport==="mlb"?"⚾ At-Bats":sport==="nhl"?"🏒 All Plays":"🏀 All Plays"],
+                  ["scoring",sport==="mlb"?"🏃 Scoring":"🥅 Goals / Scores"]
+                ].map(([t,l])=>(
                   <button key={t} onClick={()=>setPbpTab(t)}
-                    style={{padding:"5px 13px",borderRadius:16,cursor:"pointer",fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700,
+                    style={{padding:"5px 12px",borderRadius:14,cursor:"pointer",fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700,
                       border:`1px solid ${pbpTab===t?"rgba(34,197,94,.45)":"rgba(255,255,255,.1)"}`,
                       background:pbpTab===t?"rgba(34,197,94,.1)":"rgba(255,255,255,.03)",
                       color:pbpTab===t?"#22C55E":"#64748B"}}>
@@ -919,70 +1000,130 @@ function GameDetailPage({gameId,sport,navigate}){
                   </button>
                 ))}
               </div>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                {!g.completed&&<div style={{display:"flex",alignItems:"center",gap:5,fontSize:9,color:"#22C55E",fontFamily:"'Orbitron',sans-serif"}}><div style={{width:6,height:6,borderRadius:"50%",background:"#22C55E",animation:"twinkle .9s ease-in-out infinite alternate"}}/> LIVE · AUTO-UPDATE</div>}
-                <button onClick={loadPbp} style={{padding:"4px 10px",borderRadius:8,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",color:"#64748B",fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif"}}>↻ Refresh</button>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                {!g.completed&&<div style={{display:"flex",alignItems:"center",gap:4,fontSize:9,color:"#22C55E",fontFamily:"'Orbitron',sans-serif"}}><div style={{width:5,height:5,borderRadius:"50%",background:"#22C55E",animation:"twinkle .9s ease-in-out infinite alternate"}}/>LIVE</div>}
+                <button onClick={loadPbp} style={{padding:"3px 9px",borderRadius:7,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",color:"#475569",fontSize:10,cursor:"pointer"}}>↻</button>
               </div>
             </div>
 
-            {pbpLoading&&pbp.length===0&&<div style={{textAlign:"center",padding:"24px 0",color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>Loading play-by-play...</div>}
-            {!pbpLoading&&pbp.length===0&&<div style={{textAlign:"center",padding:"16px 0",color:"#334155",fontSize:12}}>No play-by-play data yet — check back once the game starts</div>}
-
-            {/* MLB PBP */}
-            {sport==="mlb"&&pbp.length>0&&(
-              <div ref={pbpRef} style={{display:"flex",flexDirection:"column",gap:4,maxHeight:420,overflowY:"auto"}}>
-                {(pbpTab==="scoring"?pbp.filter(p=>p.isScoring):pbp).map((play,i)=>{
-                  const isCurrent=i===0&&!g.completed;
-                  const isScore=play.isScoring;
-                  return(
-                    <div key={play.id||i} style={{
-                      display:"flex",gap:10,padding:"9px 12px",borderRadius:8,
-                      background:isCurrent?"rgba(0,212,255,.07)":isScore?"rgba(34,197,94,.06)":"rgba(255,255,255,.02)",
-                      border:`1px solid ${isCurrent?"rgba(0,212,255,.25)":isScore?"rgba(34,197,94,.15)":"rgba(255,255,255,.05)"}`,
-                      alignItems:"flex-start",transition:"all .2s",
-                    }}>
-                      <div style={{minWidth:44,flexShrink:0}}>
-                        <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:isCurrent?"#00D4FF":isScore?"#22C55E":"#475569",fontWeight:700}}>{play.inning}</div>
-                        {play.outs!==null&&<div style={{fontSize:8,color:"#334155"}}>{play.outs} out{play.outs!==1?"s":""}</div>}
-                      </div>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:2,flexWrap:"wrap"}}>
-                          {play.batter&&<span style={{fontSize:10,fontWeight:700,color:"#E2E8F0",fontFamily:"'Orbitron',sans-serif"}}>{play.batter}</span>}
-                          {play.pitcher&&<span style={{fontSize:9,color:"#475569"}}>vs {play.pitcher}</span>}
-                        </div>
-                        {play.event&&<div style={{fontSize:9,color:isScore?"#22C55E":"#F59E0B",fontFamily:"'Orbitron',sans-serif",fontWeight:700,marginBottom:2}}>{play.event}{play.rbi>0?` · ${play.rbi} RBI`:""}</div>}
-                        <div style={{fontSize:11,color:"#94A3B8",lineHeight:1.4}}>{play.desc}</div>
-                      </div>
-                      {isCurrent&&<div style={{fontSize:8,color:"#00D4FF",fontFamily:"'Orbitron',sans-serif",fontWeight:700,flexShrink:0,animation:"twinkle .9s ease-in-out infinite alternate"}}>LIVE</div>}
-                    </div>
-                  );
-                })}
+            {/* Inning/Period navigation */}
+            {pbpPeriods.length>1&&(
+              <div style={{display:"flex",gap:5,marginBottom:12,overflowX:"auto",paddingBottom:4}}>
+                <button onClick={()=>setPbpInning(null)}
+                  style={{padding:"4px 10px",borderRadius:12,cursor:"pointer",fontSize:9,fontFamily:"'Orbitron',sans-serif",fontWeight:700,flexShrink:0,
+                    border:`1px solid ${pbpInning===null?"rgba(0,212,255,.4)":"rgba(255,255,255,.1)"}`,
+                    background:pbpInning===null?"rgba(0,212,255,.1)":"rgba(255,255,255,.03)",
+                    color:pbpInning===null?"#00D4FF":"#475569"}}>
+                  All
+                </button>
+                {pbpPeriods.map(p=>(
+                  <button key={p} onClick={()=>setPbpInning(p)}
+                    style={{padding:"4px 10px",borderRadius:12,cursor:"pointer",fontSize:9,fontFamily:"'Orbitron',sans-serif",fontWeight:700,flexShrink:0,
+                      border:`1px solid ${pbpInning===p?"rgba(0,212,255,.4)":"rgba(255,255,255,.1)"}`,
+                      background:pbpInning===p?"rgba(0,212,255,.1)":"rgba(255,255,255,.03)",
+                      color:pbpInning===p?"#00D4FF":"#475569"}}>
+                    {sport==="mlb"?`Inn ${p}`:sport==="nba"?`Q${p}`:`P${p}`}
+                  </button>
+                ))}
               </div>
             )}
 
-            {/* NHL PBP */}
-            {sport==="nhl"&&pbp.length>0&&(
-              <div ref={pbpRef} style={{display:"flex",flexDirection:"column",gap:4,maxHeight:420,overflowY:"auto"}}>
-                {(pbpTab==="scoring"?pbp.filter(p=>p.isScoring):pbp).map((play,i)=>{
-                  const isCurrent=i===0&&!g.completed;
-                  const isScore=play.isScoring;
-                  const score=play.awayScore!=null?`${play.awayScore}–${play.homeScore}`:"";
+            {pbpLoading&&pbp.length===0&&<div style={{textAlign:"center",padding:"20px 0",color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>Loading...</div>}
+            {!pbpLoading&&pbp.length===0&&<div style={{textAlign:"center",padding:"14px 0",color:"#334155",fontSize:12}}>No play-by-play data available for this game</div>}
+            {!pbpLoading&&pbp.length>0&&pbpFiltered.length===0&&<div style={{textAlign:"center",padding:"14px 0",color:"#334155",fontSize:12}}>No {pbpTab==="scoring"?"scoring plays":"plays"} in this {sport==="mlb"?"inning":"period"}</div>}
+
+            {/* MLB: pitch-by-pitch at-bat view */}
+            {sport==="mlb"&&pbpFiltered.length>0&&(
+              <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:520,overflowY:"auto"}}>
+                {pbpFiltered.map((ab,i)=>{
+                  const isScore=ab.isScoring;
+                  const isCurrent=i===0&&!g.completed&&!ab.isComplete;
+                  const fullAb=rawAtBats.find(r=>r.id===ab.id);
+                  const pitches=fullAb?.pitches||[];
                   return(
-                    <div key={i} style={{display:"flex",gap:10,padding:"8px 12px",borderRadius:8,
-                      background:isCurrent?"rgba(0,212,255,.08)":isScore?"rgba(34,197,94,.05)":"rgba(255,255,255,.02)",
-                      border:`1px solid ${isCurrent?"rgba(0,212,255,.3)":isScore?"rgba(34,197,94,.15)":"rgba(255,255,255,.05)"}`,
-                      alignItems:"center"}}>
-                      <div style={{minWidth:52,flexShrink:0}}>
-                        <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:isCurrent?"#00D4FF":"#475569",fontWeight:700}}>{play.period}</div>
-                        <div style={{fontSize:9,color:"#334155"}}>{play.clock}</div>
+                    <div key={ab.id||i} style={{
+                      borderRadius:10,border:`1px solid ${isCurrent?"rgba(0,212,255,.3)":isScore?"rgba(34,197,94,.2)":"rgba(255,255,255,.07)"}`,
+                      background:isCurrent?"rgba(0,212,255,.04)":isScore?"rgba(34,197,94,.04)":"rgba(255,255,255,.02)",
+                      overflow:"hidden",
+                    }}>
+                      {/* At-bat header */}
+                      <div style={{display:"flex",gap:8,padding:"8px 12px",alignItems:"center",borderBottom:pitches.length?"1px solid rgba(255,255,255,.05)":"none"}}>
+                        <div style={{minWidth:38,flexShrink:0}}>
+                          <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:isCurrent?"#00D4FF":isScore?"#22C55E":"#475569",fontWeight:700}}>{ab.inning}</div>
+                          {ab.outs!==null&&<div style={{fontSize:8,color:"#334155"}}>{ab.outs} out{ab.outs!==1?"s":""}</div>}
+                        </div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:"flex",gap:5,alignItems:"center",flexWrap:"wrap",marginBottom:1}}>
+                            <span style={{fontSize:11,fontWeight:700,color:"#E2E8F0",fontFamily:"'Orbitron',sans-serif"}}>{ab.batter}</span>
+                            {ab.pitcher&&<span style={{fontSize:9,color:"#475569"}}>vs {ab.pitcher}</span>}
+                          </div>
+                          {ab.event&&<div style={{fontSize:10,color:isScore?"#22C55E":"#F59E0B",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{ab.event}{ab.rbi>0?` · ${ab.rbi} RBI`:""}</div>}
+                          {ab.desc&&<div style={{fontSize:10,color:"#64748B",lineHeight:1.3,marginTop:1}}>{ab.desc}</div>}
+                        </div>
+                        {isCurrent&&<div style={{fontSize:8,color:"#00D4FF",fontFamily:"'Orbitron',sans-serif",fontWeight:700,flexShrink:0,animation:"twinkle .9s ease-in-out infinite alternate"}}>LIVE</div>}
                       </div>
-                      <div style={{flex:1,minWidth:0}}>
-                        {play.team&&<span style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",fontWeight:700,marginRight:6}}>{play.team}</span>}
-                        {play.type&&isScore&&<span style={{fontSize:9,color:"#F59E0B",fontFamily:"'Orbitron',sans-serif",marginRight:6}}>{play.type}</span>}
-                        <span style={{fontSize:11,color:"#94A3B8",lineHeight:1.4}}>{play.desc}</span>
-                      </div>
-                      {score&&<div style={{fontSize:12,fontWeight:900,color:isScore?"#22C55E":"#475569",flexShrink:0,fontFamily:"'Orbitron',sans-serif"}}>{score}</div>}
-                      {isCurrent&&<div style={{fontSize:8,color:"#00D4FF",fontFamily:"'Orbitron',sans-serif",fontWeight:700,flexShrink:0,animation:"twinkle .9s ease-in-out infinite alternate"}}>LIVE</div>}
+
+                      {/* Pitches row */}
+                      {pitches.length>0&&(
+                        <div style={{padding:"8px 12px",display:"flex",gap:6,alignItems:"flex-start",flexWrap:"wrap"}}>
+                          {/* Strike zone diagram */}
+                          <div style={{position:"relative",width:80,height:90,flexShrink:0}}>
+                            {/* Zone box */}
+                            <div style={{position:"absolute",left:14,top:8,width:52,height:65,border:"1px solid rgba(255,255,255,.2)",borderRadius:2,
+                              background:"rgba(255,255,255,.02)"}}>
+                              {/* 9-zone grid lines */}
+                              <div style={{position:"absolute",top:"33%",left:0,right:0,height:1,background:"rgba(255,255,255,.1)"}}/>
+                              <div style={{position:"absolute",top:"66%",left:0,right:0,height:1,background:"rgba(255,255,255,.1)"}}/>
+                              <div style={{position:"absolute",left:"33%",top:0,bottom:0,width:1,background:"rgba(255,255,255,.1)"}}/>
+                              <div style={{position:"absolute",left:"66%",top:0,bottom:0,width:1,background:"rgba(255,255,255,.1)"}}/>
+                            </div>
+                            {/* Plot each pitch */}
+                            {pitches.map((p,pi)=>{
+                              if(p.px===null||p.pz===null)return null;
+                              // px: -0.83 to 0.83 (plate width), map to 14-66px
+                              // pz: szBot to szTop, map to 73-8px (inverted)
+                              const xPct=(p.px+0.85)/(1.7);
+                              const yPct=1-(p.pz-p.szBot)/(p.szTop-p.szBot);
+                              const x=14+xPct*52;
+                              const y=8+Math.min(Math.max(yPct,0),1)*65;
+                              const col=pitchColor(p.callCode||p.call);
+                              const isLast=pi===pitches.length-1;
+                              return(
+                                <div key={pi} title={`${p.type} ${p.velocity?p.velocity+"mph":""} — ${p.call}`}
+                                  style={{position:"absolute",width:isLast?10:8,height:isLast?10:8,borderRadius:"50%",
+                                    background:col,left:x-4,top:y-4,
+                                    border:isLast?"2px solid rgba(255,255,255,.8)":"1px solid rgba(0,0,0,.4)",
+                                    fontSize:6,display:"flex",alignItems:"center",justifyContent:"center",
+                                    color:"rgba(0,0,0,.7)",fontWeight:900,zIndex:pi+1,
+                                    boxShadow:isLast?`0 0 6px ${col}`:undefined}}>
+                                  {pi+1}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Pitch list */}
+                          <div style={{flex:1,display:"flex",flexDirection:"column",gap:3,minWidth:0}}>
+                            {pitches.map((p,pi)=>{
+                              const col=pitchColor(p.callCode||p.call);
+                              const isInPlay=p.isInPlay;
+                              return(
+                                <div key={pi} style={{display:"flex",gap:5,alignItems:"center",fontSize:10,padding:"2px 0",
+                                  borderBottom:pi<pitches.length-1?"1px solid rgba(255,255,255,.04)":"none"}}>
+                                  <div style={{width:14,height:14,borderRadius:"50%",background:col,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,fontWeight:900,color:"rgba(0,0,0,.7)",flexShrink:0}}>{pi+1}</div>
+                                  <div style={{minWidth:70,fontSize:9,color:"#94A3B8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.type||"Pitch"}</div>
+                                  <div style={{fontSize:9,fontWeight:700,color:col,minWidth:50,fontFamily:"'Orbitron',sans-serif"}}>{p.call?.split("(")?.[0]?.trim()||""}</div>
+                                  {p.velocity&&<div style={{fontSize:9,color:"#F59E0B",fontFamily:"'Orbitron',sans-serif",flexShrink:0}}>{p.velocity}mph</div>}
+                                  {isInPlay&&p.exitVelo&&<div style={{fontSize:9,color:"#22C55E",flexShrink:0}}>{p.exitVelo}mph EV</div>}
+                                  {isInPlay&&p.hitDist&&<div style={{fontSize:9,color:"#22C55E",flexShrink:0}}>{p.hitDist}ft</div>}
+                                  {isInPlay&&p.hitAngle!=null&&<div style={{fontSize:9,color:"#22C55E",flexShrink:0}}>{p.hitAngle}° LA</div>}
+                                  <div style={{fontSize:8,color:"#334155",marginLeft:"auto",flexShrink:0}}>{p.balls}-{p.strikes}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -990,30 +1131,55 @@ function GameDetailPage({gameId,sport,navigate}){
             )}
 
             {/* NBA PBP */}
-            {sport==="nba"&&pbp.length>0&&(
-              <div ref={pbpRef} style={{display:"flex",flexDirection:"column",gap:4,maxHeight:420,overflowY:"auto"}}>
-                {(pbpTab==="scoring"?pbp.filter(p=>p.isScoring):pbp).map((play,i)=>{
+            {sport==="nba"&&pbpFiltered.length>0&&(
+              <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:460,overflowY:"auto"}}>
+                {pbpFiltered.map((play,i)=>{
                   const isCurrent=i===0&&!g.completed;
                   const isScore=play.isScoring;
                   const score=play.awayScore!=null?`${play.awayScore}–${play.homeScore}`:"";
                   return(
-                    <div key={i} style={{
-                      display:"flex",gap:10,padding:"8px 12px",borderRadius:8,
-                      background:isCurrent?"rgba(59,130,246,.08)":isScore?"rgba(34,197,94,.05)":"rgba(255,255,255,.02)",
-                      border:`1px solid ${isCurrent?"rgba(59,130,246,.3)":isScore?"rgba(34,197,94,.15)":"rgba(255,255,255,.05)"}`,
-                      alignItems:"center",
-                    }}>
-                      <div style={{minWidth:52,flexShrink:0}}>
+                    <div key={i} style={{display:"flex",gap:10,padding:"7px 10px",borderRadius:7,
+                      background:isCurrent?"rgba(59,130,246,.07)":isScore?"rgba(34,197,94,.05)":"rgba(255,255,255,.02)",
+                      border:`1px solid ${isCurrent?"rgba(59,130,246,.25)":isScore?"rgba(34,197,94,.15)":"rgba(255,255,255,.05)"}`,
+                      alignItems:"center"}}>
+                      <div style={{minWidth:46,flexShrink:0}}>
                         <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:isCurrent?"#3B82F6":"#475569",fontWeight:700}}>{play.period}</div>
-                        <div style={{fontSize:9,color:"#334155"}}>{play.clock}</div>
+                        <div style={{fontSize:8,color:"#334155"}}>{play.clock}</div>
                       </div>
                       <div style={{flex:1,minWidth:0}}>
-                        {play.team&&<span style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",fontWeight:700,marginRight:6}}>{play.team}</span>}
-                        {play.type&&isScore&&<span style={{fontSize:9,color:"#F59E0B",fontFamily:"'Orbitron',sans-serif",marginRight:6}}>{play.type}</span>}
-                        <span style={{fontSize:11,color:"#94A3B8",lineHeight:1.4}}>{play.desc}</span>
+                        {play.team&&<span style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:"#00D4FF",fontWeight:700,marginRight:5}}>{play.team}</span>}
+                        {isScore&&play.type&&<span style={{fontSize:9,color:"#F59E0B",fontFamily:"'Orbitron',sans-serif",marginRight:5}}>{play.type}</span>}
+                        <span style={{fontSize:11,color:isScore?"#E2E8F0":"#64748B",lineHeight:1.3}}>{play.desc}</span>
                       </div>
                       {score&&<div style={{fontSize:12,fontWeight:900,color:isScore?"#22C55E":"#475569",flexShrink:0,fontFamily:"'Orbitron',sans-serif"}}>{score}</div>}
-                      {isCurrent&&<div style={{fontSize:8,color:"#3B82F6",fontFamily:"'Orbitron',sans-serif",fontWeight:700,flexShrink:0,animation:"twinkle .9s ease-in-out infinite alternate"}}>LIVE</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* NHL PBP */}
+            {sport==="nhl"&&pbpFiltered.length>0&&(
+              <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:460,overflowY:"auto"}}>
+                {pbpFiltered.map((play,i)=>{
+                  const isCurrent=i===0&&!g.completed;
+                  const isScore=play.isScoring;
+                  const score=play.awayScore!=null?`${play.awayScore}–${play.homeScore}`:"";
+                  return(
+                    <div key={i} style={{display:"flex",gap:10,padding:"7px 10px",borderRadius:7,
+                      background:isScore?"rgba(34,197,94,.07)":"rgba(255,255,255,.02)",
+                      border:`1px solid ${isScore?"rgba(34,197,94,.25)":"rgba(255,255,255,.06)"}`,
+                      alignItems:"center"}}>
+                      <div style={{minWidth:46,flexShrink:0}}>
+                        <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:isScore?"#22C55E":"#475569",fontWeight:700}}>{play.period}</div>
+                        <div style={{fontSize:8,color:"#334155"}}>{play.clock}</div>
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        {play.team&&<span style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:isScore?"#F59E0B":"#64748B",fontWeight:isScore?700:400,marginRight:5}}>{play.team}</span>}
+                        <span style={{fontSize:11,color:isScore?"#E2E8F0":"#64748B",lineHeight:1.3}}>{play.desc}</span>
+                      </div>
+                      {score&&isScore&&<div style={{fontSize:13,fontWeight:900,color:"#22C55E",flexShrink:0,fontFamily:"'Orbitron',sans-serif"}}>{score}</div>}
+                      {isScore&&<div style={{fontSize:8,color:"#22C55E",fontFamily:"'Orbitron',sans-serif",fontWeight:700,flexShrink:0}}>GOAL</div>}
                     </div>
                   );
                 })}
@@ -1021,6 +1187,7 @@ function GameDetailPage({gameId,sport,navigate}){
             )}
           </Card>
         )}
+
 
         {(g.started||g.completed)&&g.scoringPlays?.length>0&&(
           <Card style={{padding:"16px 18px"}} hover={false}>
