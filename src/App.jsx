@@ -2324,9 +2324,9 @@ function CommentImgUpload({onUpload}){
 function playerHeadshotUrl(playerId,sport){
   if(!playerId)return"";
   if(sport==="mlb")return`https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/${playerId}/headshot/67/current`;
-  // ESPN combiner works for NFL/NBA/NHL and doesn't 404
-  const espnSport=sport==="nba"?"nba":sport==="nhl"?"nhl":sport==="nfl"?"nfl":"mlb";
-  return`https://a.espncdn.com/combiner/i?img=/i/headshots/${espnSport}/players/full/${playerId}.png&w=96&h=70&cb=1`;
+  // ESPN CDN direct URL — works for most players, component handles 404 with onError
+  const espnSport=sport==="nba"?"nba":sport==="nhl"?"nhl":sport==="nfl"?"nfl":"baseball";
+  return`https://a.espncdn.com/i/headshots/${espnSport}/players/full/${playerId}.png`;
 }
 function TeamLogo({espn,sport,size=22}){const [err,setErr]=useState(false);if(err)return <span style={{fontSize:size*.65}}>{sport==="mlb"?"⚾":sport==="nfl"?"🏈":sport==="nba"?"🏀":"🏒"}</span>;return <img src={`https://a.espncdn.com/i/teamlogos/${sport}/500/${espn}.png`} width={size} height={size} style={{objectFit:"contain",flexShrink:0}} onError={()=>setErr(true)}/>;}
 function TeamBadge({teamId}){
@@ -5604,42 +5604,99 @@ function PlayerStatsPage({playerId,sport,onBack}){
     if(!playerId)return;
     setLoading(true);
     setTab("overview");
+    setInfo(null);setStats(null);setGamelog([]);
     const load=async()=>{
       try{
-        // Route all ESPN athlete calls through proxy to avoid CORS blocks
-        const espnFetch=async(url)=>{
+        const proxy=async(url)=>{
           const r=await fetch(`/api/hyperbeam?espn_proxy=1&url=${encodeURIComponent(url)}`);
           return r.ok?r.json():null;
         };
-        // Player bio + info
-        const infoData=await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}`);
-        if(infoData)setInfo(infoData);
-        // Stats
-        const statData=await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}/stats`);
-        if(statData)setStats(statData);
-        // Game log
-        const logData=await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}/gamelog`);
-        if(logData){
-          const ld=logData;
-          const events=ld?.events||{};
-          const cats=ld?.seasonTypes?.[0]?.categories||[];
-          const rows=[];
-          Object.entries(events).forEach(([eid,ev])=>{
-            const statsArr=cats.map(cat=>{
-              const statEntry=cat.events?.find(e=>e.eventId===eid);
-              return{catName:cat.name||"",labels:cat.labels||[],values:statEntry?.stats||[]};
+
+        if(sport==="mlb"){
+          // MLB Stats API — reliable, no CORS issues, full data
+          const [personData,statSeasonData,statLogData]=await Promise.all([
+            fetch(`https://statsapi.mlb.com/api/v1/people/${playerId}?hydrate=currentTeam,team,stats(type=season,season=2025),education,transactions`).then(r=>r.ok?r.json():null).catch(()=>null),
+            fetch(`https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=season,career&leagueListId=mlb_hist&group=hitting,pitching,fielding&sportId=1`).then(r=>r.ok?r.json():null).catch(()=>null),
+            fetch(`https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&season=2025&group=hitting,pitching&sportId=1`).then(r=>r.ok?r.json():null).catch(()=>null),
+          ]);
+          if(personData?.people?.[0]){
+            const p=personData.people[0];
+            // Normalize into the same shape the component expects
+            setInfo({
+              athlete:{
+                id:p.id,
+                displayName:p.fullName,
+                fullName:p.fullName,
+                jersey:p.primaryNumber||"",
+                position:{displayName:p.primaryPosition?.name||"",name:p.primaryPosition?.name||"",abbreviation:p.primaryPosition?.abbreviation||""},
+                team:{displayName:p.currentTeam?.name||"",id:p.currentTeam?.id},
+                headshot:{href:`https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_426,q_auto:best/v1/people/${playerId}/headshot/67/current`},
+                displayHeight:p.height||"",
+                displayWeight:p.weight?`${p.weight} lbs`:"",
+                dateOfBirth:p.birthDate||"",
+                birthPlace:{city:p.birthCity||"",state:p.birthStateProvince||"",country:p.birthCountry||""},
+                college:{name:p.draftInfo?.school||""},
+                experience:{years:p.mlbDebutDate?new Date().getFullYear()-parseInt(p.mlbDebutDate.slice(0,4)):null},
+                debut:p.mlbDebutDate||"",
+                status:{type:{name:p.active?"active":"inactive",description:p.active?"Active":"Inactive"}},
+              }
             });
-            rows.push({
-              date:ev.gameDate||ev.date||"",
-              opponent:ev.opponent?.displayName||ev.opponent?.abbreviation||"",
-              result:ev.gameResult||"",
-              homeAway:ev.homeAway||"",
-              stats:statsArr,
+          }
+          // Build stats display from MLB Stats API splits
+          if(statSeasonData?.stats?.length){
+            const cats=statSeasonData.stats.map(sg=>{
+              const splits=sg.splits||[];
+              const season=splits.find(s=>s.type?.displayName==="Regular Season")||splits[0];
+              if(!season?.stat)return null;
+              const entries=Object.entries(season.stat);
+              return{
+                displayName:`${sg.group?.displayName||"Stats"} — ${season.season||"2025"}`,
+                displayNames:entries.map(([k])=>k.replace(/([A-Z])/g," $1").toUpperCase().trim()),
+                labels:entries.map(([k])=>k.toUpperCase().slice(0,6)),
+                totals:entries.map(([,v])=>typeof v==="number"&&!Number.isInteger(v)?v.toFixed(3):String(v??"")),
+              };
+            }).filter(Boolean);
+            setStats({splits:cats});
+          }
+          // Game log
+          if(statLogData?.stats?.[0]?.splits){
+            const splits=statLogData.stats[0].splits;
+            const rows=splits.slice(0,30).map(s=>({
+              date:s.date||"",
+              opponent:s.opponent?.name||s.opponent?.abbreviation||"",
+              result:"",
+              homeAway:s.isHome?"home":"away",
+              stats:[{
+                labels:Object.keys(s.stat||{}),
+                values:Object.values(s.stat||{}).map(v=>typeof v==="number"&&!Number.isInteger(v)?v.toFixed(3):String(v??"")),
+              }],
+            }));
+            setGamelog(rows);
+          }
+        } else {
+          // NBA / NHL / NFL — ESPN via proxy
+          const [infoData,statData,logData]=await Promise.all([
+            proxy(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}`),
+            proxy(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}/stats`),
+            proxy(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}/gamelog`),
+          ]);
+          if(infoData)setInfo(infoData);
+          if(statData)setStats(statData);
+          if(logData){
+            const events=logData?.events||{};
+            const cats=logData?.seasonTypes?.[0]?.categories||[];
+            const rows=[];
+            Object.entries(events).forEach(([eid,ev])=>{
+              const statsArr=cats.map(cat=>{
+                const statEntry=cat.events?.find(e=>e.eventId===eid);
+                return{catName:cat.name||"",labels:cat.labels||[],values:statEntry?.stats||[]};
+              });
+              rows.push({date:ev.gameDate||ev.date||"",opponent:ev.opponent?.displayName||ev.opponent?.abbreviation||"",result:ev.gameResult||"",homeAway:ev.homeAway||"",stats:statsArr});
             });
-          });
-          setGamelog(rows.slice(0,30));
+            setGamelog(rows.slice(0,30));
+          }
         }
-      }catch(e){console.warn(e);}
+      }catch(e){console.warn("PlayerStats load error:",e);}
       setLoading(false);
     };
     load();
@@ -5717,26 +5774,25 @@ function PlayerStatsPage({playerId,sport,onBack}){
       {tab==="overview"&&(
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
           {(stats?.splits||stats?.categories||[]).map((cat,ci)=>{
-            const labels=cat.labels||cat.names||[];
-            const values=cat.stats||cat.values||[];
-            if(!labels.length&&!values.length)return null;
-            // Try to get current season stats
-            const displayNames=cat.displayNames||labels;
-            const displayVals=cat.totals||values;
+            // Handle both MLB Stats API format and ESPN format
+            const labels=cat.displayNames||cat.labels||cat.names||[];
+            const values=cat.totals||cat.stats||cat.values||[];
+            if(!labels.length)return null;
+            // Filter out non-useful labels
+            const useful=labels.map((l,li)=>({l,v:values[li]})).filter(({l,v})=>
+              v!==undefined&&v!==null&&v!==""&&v!=="-.--"&&v!=="---"&&l.length>0
+            );
+            if(!useful.length)return null;
             return(
               <Card key={ci} style={{padding:"14px 16px"}} hover={false}>
-                <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".12em",marginBottom:10}}>{cat.displayName||cat.name||`STATS ${ci+1}`}</div>
-                <div style={{display:"grid",gridTemplateColumns:mob?"repeat(3,1fr)":"repeat(auto-fill,minmax(110px,1fr))",gap:10}}>
-                  {displayNames.slice(0,24).map((label,li)=>{
-                    const val=displayVals[li];
-                    if(val===undefined||val===null)return null;
-                    return(
-                      <div key={li} style={{textAlign:"center",padding:"8px 4px",borderRadius:8,background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.05)"}}>
-                        <div style={{fontSize:mob?14:18,fontWeight:900,color:ac,fontFamily:"'Orbitron',sans-serif",marginBottom:2}}>{val||"—"}</div>
-                        <div style={{fontSize:8,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".08em"}}>{label}</div>
-                      </div>
-                    );
-                  })}
+                <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".12em",marginBottom:12,fontWeight:700}}>{cat.displayName||cat.name||`STATS ${ci+1}`}</div>
+                <div style={{display:"grid",gridTemplateColumns:mob?"repeat(3,1fr)":"repeat(auto-fill,minmax(100px,1fr))",gap:8}}>
+                  {useful.slice(0,30).map(({l,v},li)=>(
+                    <div key={li} style={{textAlign:"center",padding:"10px 6px",borderRadius:8,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)"}}>
+                      <div style={{fontSize:mob?15:18,fontWeight:900,color:ac,fontFamily:"'Orbitron',sans-serif",marginBottom:3,lineHeight:1}}>{v||"—"}</div>
+                      <div style={{fontSize:8,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".06em",lineHeight:1.2}}>{String(l).slice(0,12)}</div>
+                    </div>
+                  ))}
                 </div>
               </Card>
             );
@@ -5900,11 +5956,40 @@ function PlayerSearchSection({sport,onSelectPlayer}){
   },[q,sport]);
 
   // Top players by sport for quick access
+  // MLB: MLB Stats API IDs | NBA/NHL/NFL: ESPN IDs
   const TOP_PLAYERS={
-    mlb:[{id:"660271",name:"Aaron Judge"},{id:"660271",name:"Shohei Ohtani"},{id:"664023",name:"Mookie Betts"},{id:"621566",name:"Freddie Freeman"},{id:"677594",name:"Juan Soto"},{id:"670541",name:"Yordan Alvarez"}],
-    nba:[{id:"1966",name:"LeBron James"},{id:"4066261",name:"Nikola Jokic"},{id:"3202",name:"Stephen Curry"},{id:"3136193",name:"Giannis Antetokounmpo"},{id:"4066328",name:"Luka Doncic"},{id:"4431679",name:"Shai Gilgeous-Alexander"}],
-    nhl:[{id:"3114727",name:"Connor McDavid"},{id:"3041954",name:"Nathan MacKinnon"},{id:"3114732",name:"Leon Draisaitl"},{id:"3900177",name:"Auston Matthews"},{id:"4697890",name:"Nikita Kucherov"}],
-    nfl:[{id:"3139477",name:"Patrick Mahomes"},{id:"3054211",name:"Josh Allen"},{id:"4241389",name:"Lamar Jackson"},{id:"3916387",name:"Justin Jefferson"},{id:"4035538",name:"Tyreek Hill"}],
+    mlb:[
+      {id:"592450",name:"Mookie Betts",hs:"592450"},
+      {id:"592518",name:"Aaron Judge",hs:"592518"},
+      {id:"660271",name:"Shohei Ohtani",hs:"660271"},
+      {id:"444482",name:"Freddie Freeman",hs:"444482"},
+      {id:"665742",name:"Juan Soto",hs:"665742"},
+      {id:"670541",name:"Yordan Alvarez",hs:"670541"},
+      {id:"682998",name:"Gunnar Henderson",hs:"682998"},
+      {id:"677951",name:"Bobby Witt Jr.",hs:"677951"},
+    ],
+    nba:[
+      {id:"1966",name:"LeBron James",hs:"1966"},
+      {id:"4066261",name:"Nikola Jokic",hs:"4066261"},
+      {id:"3202",name:"Stephen Curry",hs:"3202"},
+      {id:"3136193",name:"Giannis",hs:"3136193"},
+      {id:"4066328",name:"Luka Doncic",hs:"4066328"},
+      {id:"4431679",name:"SGA",hs:"4431679"},
+    ],
+    nhl:[
+      {id:"3114727",name:"McDavid",hs:"3114727"},
+      {id:"3041954",name:"MacKinnon",hs:"3041954"},
+      {id:"3114732",name:"Draisaitl",hs:"3114732"},
+      {id:"3900177",name:"Matthews",hs:"3900177"},
+      {id:"4697890",name:"Kucherov",hs:"4697890"},
+    ],
+    nfl:[
+      {id:"3139477",name:"Mahomes",hs:"3139477"},
+      {id:"3054211",name:"Josh Allen",hs:"3054211"},
+      {id:"4241389",name:"Lamar Jackson",hs:"4241389"},
+      {id:"3916387",name:"J. Jefferson",hs:"3916387"},
+      {id:"4035538",name:"Tyreek Hill",hs:"4035538"},
+    ],
   };
 
   return(
