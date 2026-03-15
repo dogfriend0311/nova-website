@@ -262,8 +262,8 @@ function PredictPage({cu,users,setUsers,navigate}){
           onFirst:!!situation?.onFirst,onSecond:!!situation?.onSecond,onThird:!!situation?.onThird,
           currentPitcher,currentBatter,
           period,clock,
-          awayProb:{name:awayProb?.athlete?.displayName,era:awayProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value},
-          homeProb:{name:homeProb?.athlete?.displayName,era:homeProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value},
+          awayProb:{name:awayProb?.athlete?.displayName,era:awayProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value,playerId:awayProb?.athlete?.id},
+          homeProb:{name:homeProb?.athlete?.displayName,era:homeProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value,playerId:homeProb?.athlete?.id},
           injuries,winPitcher:winPitcher?{name:winPitcher.athlete?.displayName,wins:winPitcher.stats?.find?.(s=>s.name==="wins")?.value,losses:winPitcher.stats?.find?.(s=>s.name==="losses")?.value}:null,
           losePitcher:losePitcher?{name:losePitcher.athlete?.displayName,wins:losePitcher.stats?.find?.(s=>s.name==="wins")?.value,losses:losePitcher.stats?.find?.(s=>s.name==="losses")?.value}:null,
           savePitcher:savePitcher?{name:savePitcher.athlete?.displayName,saves:savePitcher.stats?.find?.(s=>s.name==="saves")?.value}:null,
@@ -775,8 +775,8 @@ function GameDetailPage({gameId,sport,navigate}){
         outs:sit?.outs??null,balls:sit?.balls??null,strikes:sit?.strikes??null,
         onFirst:!!sit?.onFirst,onSecond:!!sit?.onSecond,onThird:!!sit?.onThird,
         currentPitcher,currentBatter,
-        awayProb:{name:awayProb?.athlete?.displayName,era:awayProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value},
-        homeProb:{name:homeProb?.athlete?.displayName,era:homeProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value},
+        awayProb:{name:awayProb?.athlete?.displayName,era:awayProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value,playerId:awayProb?.athlete?.id},
+        homeProb:{name:homeProb?.athlete?.displayName,era:homeProb?.athlete?.statistics?.find(s=>s.name==="ERA")?.value,playerId:homeProb?.athlete?.id},
         leaders:d?.leaders||comp?.leaders||[],
         boxTeams:d?.boxscore?.teams||[],
         boxPlayers:d?.boxscore?.players||[],
@@ -915,7 +915,8 @@ function GameDetailPage({gameId,sport,navigate}){
               {[{side:"Away",team:g.away.abbr,p:g.awayProb},{side:"Home",team:g.home.abbr,p:g.homeProb}].map(({side,team,p})=>(
                 <div key={side} style={{background:"rgba(255,255,255,.03)",borderRadius:10,padding:"12px 14px",border:"1px solid rgba(255,255,255,.07)"}}>
                   <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:4}}>{team} ({side})</div>
-                  <div style={{fontSize:15,fontWeight:700,color:"#E2E8F0"}}>{p?.name||"TBD"}</div>
+                  <div onClick={p?.playerId?()=>navigate("stats",{playerId:p.playerId,sport:g.sport}):undefined}
+                    style={{fontSize:15,fontWeight:700,color:p?.playerId?"#00D4FF":"#E2E8F0",cursor:p?.playerId?"pointer":"default"}}>{p?.name||"TBD"}</div>
                   {p?.era&&<div style={{fontSize:12,color:"#94A3B8",marginTop:2}}>ERA: {p.era}</div>}
                 </div>
               ))}
@@ -2161,6 +2162,7 @@ function HomePage({discordUrl,staffUsers,nav,users}){
     {p:"predict",icon:"🎯",label:"Predictions",color:"#22C55E",desc:"Make your picks on upcoming games before they happen. Track your accuracy and climb the predictions leaderboard."},
     {p:"trivia",icon:"🧠",label:"Trivia",color:"#A855F7",desc:"Challenge yourself with sports trivia across 4 sports and 3 difficulty levels. MVP years, stat records, championships and more."},
     {p:"leaderboard",icon:"🏆",label:"Leaderboard",color:"#F97316",desc:"See who's on top — ranked by followers, trivia score, predictions accuracy, and most liked comments."},
+    {p:"stats",icon:"📊",label:"Stats Center",color:"#94A3B8",desc:"Live scores, player stats, game logs, standings and play-by-play across MLB, NBA, NHL, and NFL — all in one place."},
     {p:"messages",icon:"💬",label:"Messages",color:"#38BDF8",desc:"Slide into DMs, create group chats, share clips and GIFs, and hop on voice calls with other Nova members."},
   ];
 
@@ -4105,7 +4107,7 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
   const[gamesOpen,setGamesOpen]=useState(false);
   const gamesRef=useRef(null);
   const GAMES_PAGES=["predict","trivia","leaderboard","cards"];
-  const dTabs=[["home","Home"],["members","Members"],["news","📰 News"],["feed","🎬 Feed"]];
+  const dTabs=[["home","Home"],["members","Members"],["news","📰 News"],["feed","🎬 Feed"],["stats","📊 Stats"]];
   const mTabs=[{p:"home",icon:"🏠",lbl:"Home"},{p:"news",icon:"📰",lbl:"News"},{p:"feed",icon:"🎬",lbl:"Feed"},{p:"members",icon:"👥",lbl:"Members"},{p:"messages",icon:"💬",lbl:"DMs",badge:msgUnread}];
   // Close dropdown on outside click
   useEffect(()=>{
@@ -5556,6 +5558,536 @@ function AddLinkClipModal({onAdd,onClose}){
     </div>
   );
 }
+
+// ─── ESPN-Style Stats Page ─────────────────────────────────────────────────────
+
+const STATS_SPORTS=[
+  {id:"mlb",label:"MLB",icon:"⚾",espnPath:"baseball/mlb",color:"#22C55E"},
+  {id:"nba",label:"NBA",icon:"🏀",espnPath:"basketball/nba",color:"#F59E0B"},
+  {id:"nhl",label:"NHL",icon:"🏒",espnPath:"hockey/nhl",color:"#00D4FF"},
+  {id:"nfl",label:"NFL",icon:"🏈",espnPath:"football/nfl",color:"#EF4444"},
+];
+
+function useESPN(path,deps=[]){
+  const[data,setData]=useState(null);
+  const[loading,setLoading]=useState(false);
+  useEffect(()=>{
+    if(!path)return;
+    setLoading(true);
+    fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}`)
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{setData(d);setLoading(false);})
+      .catch(()=>setLoading(false));
+  },deps);
+  return{data,loading};
+}
+
+// ── Player Stats Page ────────────────────────────────────────────────────────
+function PlayerStatsPage({playerId,sport,onBack}){
+  const mob=useIsMobile();
+  const[info,setInfo]=useState(null);
+  const[stats,setStats]=useState(null);
+  const[splits,setSplits]=useState(null);
+  const[gamelog,setGamelog]=useState([]);
+  const[tab,setTab]=useState("overview");
+  const[loading,setLoading]=useState(true);
+  const espnPath=STATS_SPORTS.find(s=>s.id===sport)?.espnPath||"baseball/mlb";
+
+  useEffect(()=>{
+    if(!playerId)return;
+    setLoading(true);
+    setTab("overview");
+    const load=async()=>{
+      try{
+        // Player bio + info
+        const infoR=await fetch(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}`);
+        if(infoR.ok)setInfo(await infoR.json());
+        // Stats
+        const statR=await fetch(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}/stats`);
+        if(statR.ok)setStats(await statR.json());
+        // Game log
+        const logR=await fetch(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}/gamelog`);
+        if(logR.ok){
+          const ld=await logR.json();
+          const events=ld?.events||{};
+          const cats=ld?.seasonTypes?.[0]?.categories||[];
+          const rows=[];
+          Object.entries(events).forEach(([eid,ev])=>{
+            const statsArr=cats.map(cat=>{
+              const statEntry=cat.events?.find(e=>e.eventId===eid);
+              return{catName:cat.name||"",labels:cat.labels||[],values:statEntry?.stats||[]};
+            });
+            rows.push({
+              date:ev.gameDate||ev.date||"",
+              opponent:ev.opponent?.displayName||ev.opponent?.abbreviation||"",
+              result:ev.gameResult||"",
+              homeAway:ev.homeAway||"",
+              stats:statsArr,
+            });
+          });
+          setGamelog(rows.slice(0,30));
+        }
+      }catch(e){console.warn(e);}
+      setLoading(false);
+    };
+    load();
+  },[playerId,sport]);
+
+  const athlete=info?.athlete||info;
+  const ac=STATS_SPORTS.find(s=>s.id===sport)?.color||"#00D4FF";
+
+  if(loading)return(
+    <div style={{textAlign:"center",padding:"60px 20px"}}>
+      <div className="spin" style={{fontSize:28,display:"inline-block",marginBottom:10}}>⚙️</div>
+      <div style={{color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>Loading player stats...</div>
+    </div>
+  );
+
+  if(!athlete)return(
+    <div style={{textAlign:"center",padding:60}}>
+      <div style={{fontSize:36,marginBottom:10}}>🔍</div>
+      <div style={{color:"#334155",fontSize:13}}>Player not found</div>
+      <button onClick={onBack} style={{marginTop:12,padding:"8px 18px",borderRadius:8,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#94A3B8",cursor:"pointer",fontSize:12}}>← Back</button>
+    </div>
+  );
+
+  const pos=athlete.position?.displayName||athlete.position?.name||"";
+  const team=athlete.team?.displayName||"";
+  const headshot=athlete.headshot?.href||`https://a.espncdn.com/i/headshots/${espnPath.split("/")[1]}/players/full/${playerId}.png`;
+  const birthDate=athlete.dateOfBirth||athlete.dob||"";
+  const height=athlete.displayHeight||athlete.height||"";
+  const weight=athlete.displayWeight||athlete.weight||"";
+  const experience=athlete.experience?.years;
+  const college=athlete.college?.shortName||athlete.college?.name||"";
+  const jersey=athlete.jersey||"";
+
+  return(
+    <div style={{maxWidth:900,margin:"0 auto",padding:mob?"12px 10px 100px":"20px 20px 80px"}}>
+      <button onClick={onBack} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:12,marginBottom:16,display:"flex",alignItems:"center",gap:5,fontFamily:"'Orbitron',sans-serif"}}>← BACK</button>
+
+      {/* Player hero */}
+      <div style={{background:`linear-gradient(135deg,${ac}18,rgba(0,0,0,.3))`,border:`1px solid ${ac}33`,borderRadius:16,padding:mob?"14px":"20px 24px",marginBottom:16,display:"flex",gap:16,alignItems:"flex-start",flexWrap:"wrap"}}>
+        <img src={headshot} style={{width:mob?72:96,height:mob?72:96,borderRadius:"50%",objectFit:"cover",objectPosition:"top",background:"rgba(255,255,255,.08)",flexShrink:0,border:`3px solid ${ac}44`}}
+          onError={e=>{e.target.src=`https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/${playerId}/headshot/67/current`;}}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:4}}>
+            <h1 style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?16:22,fontWeight:900,color:"#E2E8F0",margin:0}}>{athlete.displayName||athlete.fullName||""}</h1>
+            {jersey&&<span style={{fontSize:13,color:ac,fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>#{jersey}</span>}
+          </div>
+          <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:8}}>
+            <span style={{fontSize:12,color:ac,fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{pos}</span>
+            {team&&<span style={{fontSize:12,color:"#64748B"}}>· {team}</span>}
+          </div>
+          <div style={{display:"flex",gap:14,flexWrap:"wrap",fontSize:11,color:"#475569"}}>
+            {height&&<span>📏 {height}</span>}
+            {weight&&<span>⚖️ {weight}</span>}
+            {birthDate&&<span>🎂 {birthDate.slice(0,10)}</span>}
+            {college&&<span>🎓 {college}</span>}
+            {experience!=null&&<span>⭐ {experience} yr{experience!==1?"s":""} exp</span>}
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{display:"flex",gap:5,marginBottom:16,flexWrap:"wrap"}}>
+        {[["overview","📊 Overview"],["gamelog","📅 Game Log"],["splits","📈 Splits"]].map(([t,l])=>(
+          <button key={t} onClick={()=>setTab(t)}
+            style={{padding:"7px 14px",borderRadius:18,cursor:"pointer",fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700,
+              border:`1px solid ${tab===t?ac+"88":"rgba(255,255,255,.1)"}`,
+              background:tab===t?ac+"18":"rgba(255,255,255,.03)",
+              color:tab===t?ac:"#64748B"}}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {/* Overview — season stats */}
+      {tab==="overview"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          {(stats?.splits||stats?.categories||[]).map((cat,ci)=>{
+            const labels=cat.labels||cat.names||[];
+            const values=cat.stats||cat.values||[];
+            if(!labels.length&&!values.length)return null;
+            // Try to get current season stats
+            const displayNames=cat.displayNames||labels;
+            const displayVals=cat.totals||values;
+            return(
+              <Card key={ci} style={{padding:"14px 16px"}} hover={false}>
+                <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".12em",marginBottom:10}}>{cat.displayName||cat.name||`STATS ${ci+1}`}</div>
+                <div style={{display:"grid",gridTemplateColumns:mob?"repeat(3,1fr)":"repeat(auto-fill,minmax(110px,1fr))",gap:10}}>
+                  {displayNames.slice(0,24).map((label,li)=>{
+                    const val=displayVals[li];
+                    if(val===undefined||val===null)return null;
+                    return(
+                      <div key={li} style={{textAlign:"center",padding:"8px 4px",borderRadius:8,background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.05)"}}>
+                        <div style={{fontSize:mob?14:18,fontWeight:900,color:ac,fontFamily:"'Orbitron',sans-serif",marginBottom:2}}>{val||"—"}</div>
+                        <div style={{fontSize:8,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".08em"}}>{label}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            );
+          })}
+          {/* Bio card */}
+          {(athlete.birthPlace?.city||athlete.birthPlace?.country)&&(
+            <Card style={{padding:"14px 16px"}} hover={false}>
+              <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".12em",marginBottom:10}}>BIO</div>
+              <div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(3,1fr)",gap:8,fontSize:12,color:"#94A3B8"}}>
+                {athlete.birthPlace?.city&&<div><span style={{color:"#475569",fontSize:10}}>Hometown</span><br/>{athlete.birthPlace.city}{athlete.birthPlace.state?`, ${athlete.birthPlace.state}`:""}</div>}
+                {athlete.birthPlace?.country&&<div><span style={{color:"#475569",fontSize:10}}>Country</span><br/>{athlete.birthPlace.country}</div>}
+                {athlete.debut&&<div><span style={{color:"#475569",fontSize:10}}>Debut</span><br/>{athlete.debut}</div>}
+                {athlete.status?.type?.description&&<div><span style={{color:"#475569",fontSize:10}}>Status</span><br/><span style={{color:athlete.status.type.name==="active"?"#22C55E":"#EF4444"}}>{athlete.status.type.description}</span></div>}
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Game Log */}
+      {tab==="gamelog"&&(
+        <Card style={{padding:"14px 16px"}} hover={false}>
+          {gamelog.length===0&&<Empty icon="📅" msg="No game log available"/>}
+          {gamelog.length>0&&(()=>{
+            const firstCat=gamelog[0]?.stats?.[0];
+            const labels=firstCat?.labels||[];
+            return(
+              <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:mob?10:11,minWidth:Math.max(400,labels.length*60+160)}}>
+                  <thead>
+                    <tr style={{borderBottom:"1px solid rgba(255,255,255,.1)"}}>
+                      <td style={{padding:"6px 8px",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:9,minWidth:80}}>DATE</td>
+                      <td style={{padding:"6px 8px",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:9,minWidth:90}}>OPP</td>
+                      <td style={{padding:"6px 8px",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:9}}>RESULT</td>
+                      {labels.slice(0,15).map((l,li)=>(
+                        <td key={li} style={{padding:"6px 6px",textAlign:"center",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:9,whiteSpace:"nowrap"}}>{l}</td>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gamelog.map((row,ri)=>{
+                      const vals=row.stats?.[0]?.values||[];
+                      const isW=row.result?.includes("W");
+                      const isL=row.result?.includes("L");
+                      return(
+                        <tr key={ri} style={{background:ri%2===0?"rgba(255,255,255,.02)":"transparent",borderBottom:"1px solid rgba(255,255,255,.03)"}}>
+                          <td style={{padding:"5px 8px",color:"#64748B",fontSize:10,whiteSpace:"nowrap"}}>{row.date?.slice(0,10)||"—"}</td>
+                          <td style={{padding:"5px 8px",color:"#E2E8F0",fontSize:10,fontWeight:600}}>{row.homeAway==="home"?"vs":"@"} {row.opponent}</td>
+                          <td style={{padding:"5px 8px",fontSize:10,fontWeight:700,color:isW?"#22C55E":isL?"#EF4444":"#94A3B8"}}>{row.result||"—"}</td>
+                          {vals.slice(0,15).map((v,vi)=>(
+                            <td key={vi} style={{padding:"5px 6px",textAlign:"center",color:"#94A3B8",fontSize:10}}>{v||"—"}</td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+        </Card>
+      )}
+
+      {/* Splits */}
+      {tab==="splits"&&(
+        <div style={{textAlign:"center",padding:"40px 20px"}}>
+          <div style={{fontSize:32,marginBottom:10}}>📈</div>
+          <div style={{color:"#475569",fontSize:13}}>Splits coming soon</div>
+          <div style={{color:"#334155",fontSize:11,marginTop:4}}>Home/Away, Day/Night, vs RHP/LHP splits</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── ESPN Scores section ──────────────────────────────────────────────────────
+function ESPNScores({sport,navigate}){
+  const mob=useIsMobile();
+  const espnPath=STATS_SPORTS.find(s=>s.id===sport)?.espnPath||"baseball/mlb";
+  const{data,loading}=useESPN(`${espnPath}/scoreboard`,[sport]);
+  const ac=STATS_SPORTS.find(s=>s.id===sport)?.color||"#00D4FF";
+
+  const events=data?.events||[];
+
+  if(loading)return<div style={{textAlign:"center",padding:"40px 0",color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>Loading scores...</div>;
+  if(!events.length)return<Empty icon={STATS_SPORTS.find(s=>s.id===sport)?.icon||"🏆"} msg="No games today"/>;
+
+  return(
+    <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"repeat(auto-fill,minmax(320px,1fr))",gap:10}}>
+      {events.map(ev=>{
+        const comp=ev.competitions?.[0];
+        const home=comp?.competitors?.find(c=>c.homeAway==="home");
+        const away=comp?.competitors?.find(c=>c.homeAway==="away");
+        const st=comp?.status?.type;
+        const isLive=st?.name==="STATUS_IN_PROGRESS";
+        const isFinal=st?.completed;
+        const statusText=st?.shortDetail||st?.description||"Scheduled";
+        const homeWin=isFinal&&parseInt(home?.score||0)>parseInt(away?.score||0);
+        const awayWin=isFinal&&parseInt(away?.score||0)>parseInt(home?.score||0);
+        return(
+          <div key={ev.id} onClick={()=>navigate("game",{id:ev.id,sport})}
+            style={{background:"rgba(255,255,255,.03)",border:`1px solid ${isLive?"rgba(34,197,94,.3)":"rgba(255,255,255,.07)"}`,borderRadius:12,padding:"12px 14px",cursor:"pointer",transition:"all .2s"}}
+            onMouseEnter={e=>e.currentTarget.style.borderColor=ac+"55"}
+            onMouseLeave={e=>e.currentTarget.style.borderColor=isLive?"rgba(34,197,94,.3)":"rgba(255,255,255,.07)"}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <span style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",color:isLive?"#22C55E":isFinal?"#475569":"#00D4FF",fontWeight:700,padding:"2px 8px",borderRadius:10,background:isLive?"rgba(34,197,94,.1)":isFinal?"rgba(71,85,105,.1)":"rgba(0,212,255,.08)",border:`1px solid ${isLive?"rgba(34,197,94,.3)":isFinal?"rgba(71,85,105,.2)":"rgba(0,212,255,.2)"}`}}>
+                {isLive?"🔴 LIVE ·":isFinal?"✅ FINAL ·":"🕐"} {statusText}
+              </span>
+              <span style={{fontSize:9,color:"#334155"}}>📊 Stats</span>
+            </div>
+            {[{team:away,isWinner:awayWin},{team:home,isWinner:homeWin}].map(({team,isWinner},ti)=>(
+              <div key={ti} style={{display:"flex",alignItems:"center",gap:10,padding:"5px 0",opacity:isFinal&&!isWinner?.7:1}}>
+                {team?.team?.logo?<img src={team.team.logo} style={{width:24,height:24,objectFit:"contain",flexShrink:0}} onError={e=>e.target.style.display="none"}/>:<span style={{width:24,height:24,display:"inline-block"}}/>}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:isWinner?700:500,color:isWinner?"#E2E8F0":"#94A3B8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{team?.team?.displayName||"TBD"}</div>
+                  <div style={{fontSize:10,color:"#334155"}}>{team?.records?.[0]?.summary||""}</div>
+                </div>
+                <div style={{fontSize:18,fontWeight:900,color:isWinner?"#E2E8F0":"#64748B",fontFamily:"'Orbitron',sans-serif",minWidth:32,textAlign:"right"}}>{(isLive||isFinal)?team?.score||"0":"—"}</div>
+                {isWinner&&<div style={{fontSize:10,color:"#22C55E"}}>▶</div>}
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Player Search ─────────────────────────────────────────────────────────────
+function PlayerSearchSection({sport,onSelectPlayer}){
+  const mob=useIsMobile();
+  const[q,setQ]=useState("");
+  const[results,setResults]=useState([]);
+  const[searching,setSearching]=useState(false);
+  const espnPath=STATS_SPORTS.find(s=>s.id===sport)?.espnPath||"baseball/mlb";
+  const ac=STATS_SPORTS.find(s=>s.id===sport)?.color||"#00D4FF";
+
+  useEffect(()=>{
+    if(q.length<2){setResults([]);return;}
+    const t=setTimeout(async()=>{
+      setSearching(true);
+      try{
+        // Use our proxy for MLB (MLB Stats API), ESPN for others
+        if(sport==="mlb"){
+          const r=await fetch(`/api/hyperbeam?search=${encodeURIComponent(q)}&sport=mlb`);
+          const d=await r.json();
+          setResults((d.athletes||[]).map(a=>({id:String(a.id),name:a.name,team:a.team,position:a.position,sport})));
+        } else {
+          const r=await fetch(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes?limit=10&searchTerm=${encodeURIComponent(q)}&active=true`);
+          if(r.ok){
+            const d=await r.json();
+            const items=d.items||d.athletes||[];
+            setResults(items.slice(0,10).map(a=>({id:String(a.id),name:a.displayName||a.fullName||"",team:a.team?.displayName||"",position:a.position?.abbreviation||a.position?.name||"",sport})));
+          }
+        }
+      }catch(e){setResults([]);}
+      setSearching(false);
+    },350);
+    return()=>clearTimeout(t);
+  },[q,sport]);
+
+  // Top players by sport for quick access
+  const TOP_PLAYERS={
+    mlb:[{id:"660271",name:"Aaron Judge"},{id:"660271",name:"Shohei Ohtani"},{id:"664023",name:"Mookie Betts"},{id:"621566",name:"Freddie Freeman"},{id:"677594",name:"Juan Soto"},{id:"670541",name:"Yordan Alvarez"}],
+    nba:[{id:"1966",name:"LeBron James"},{id:"4066261",name:"Nikola Jokic"},{id:"3202",name:"Stephen Curry"},{id:"3136193",name:"Giannis Antetokounmpo"},{id:"4066328",name:"Luka Doncic"},{id:"4431679",name:"Shai Gilgeous-Alexander"}],
+    nhl:[{id:"3114727",name:"Connor McDavid"},{id:"3041954",name:"Nathan MacKinnon"},{id:"3114732",name:"Leon Draisaitl"},{id:"3900177",name:"Auston Matthews"},{id:"4697890",name:"Nikita Kucherov"}],
+    nfl:[{id:"3139477",name:"Patrick Mahomes"},{id:"3054211",name:"Josh Allen"},{id:"4241389",name:"Lamar Jackson"},{id:"3916387",name:"Justin Jefferson"},{id:"4035538",name:"Tyreek Hill"}],
+  };
+
+  return(
+    <div>
+      <div style={{position:"relative",marginBottom:results.length||searching?0:20}}>
+        <input value={q} onChange={e=>setQ(e.target.value)} placeholder={`Search any ${sport.toUpperCase()} player…`}
+          style={{paddingRight:36}}/>
+        {searching&&<div style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",fontSize:14}} className="spin">⚙️</div>}
+      </div>
+
+      {/* Search results dropdown */}
+      {(results.length>0||searching)&&q.length>=2&&(
+        <div style={{background:"linear-gradient(160deg,#0c1220,#0d1528)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,marginTop:4,marginBottom:16,overflow:"hidden",boxShadow:"0 12px 36px rgba(0,0,0,.7)"}}>
+          {searching&&<div style={{padding:"10px 14px",fontSize:11,color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>Searching...</div>}
+          {results.map(p=>(
+            <button key={p.id} onClick={()=>{onSelectPlayer(p.id,p.sport||sport);setQ("");setResults([]);}}
+              style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 14px",background:"none",border:"none",borderBottom:"1px solid rgba(255,255,255,.05)",cursor:"pointer",textAlign:"left"}}>
+              <div style={{width:32,height:32,borderRadius:"50%",overflow:"hidden",background:"rgba(255,255,255,.05)",flexShrink:0}}>
+                <img src={`https://a.espncdn.com/i/headshots/${espnPath.split("/")[1]}/players/full/${p.id}.png`}
+                  style={{width:"100%",height:"100%",objectFit:"cover"}}
+                  onError={e=>{e.target.style.display="none";}}/>
+              </div>
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{p.name}</div>
+                <div style={{fontSize:10,color:"#475569"}}>{p.position}{p.team?` · ${p.team}`:""}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Quick picks */}
+      {!q&&TOP_PLAYERS[sport]&&(
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:9,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".12em",marginBottom:10}}>POPULAR PLAYERS</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {TOP_PLAYERS[sport].map(p=>(
+              <button key={p.id} onClick={()=>onSelectPlayer(p.id,sport)}
+                style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:20,background:"rgba(255,255,255,.04)",border:`1px solid ${ac}33`,cursor:"pointer",color:"#E2E8F0",fontSize:12}}>
+                <div style={{width:22,height:22,borderRadius:"50%",overflow:"hidden",background:"rgba(255,255,255,.05)",flexShrink:0}}>
+                  <img src={`https://a.espncdn.com/i/headshots/${espnPath.split("/")[1]}/players/full/${p.id}.png`}
+                    style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>e.target.style.display="none"}/>
+                </div>
+                {p.name.split(" ").pop()}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main Stats Page ───────────────────────────────────────────────────────────
+function StatsPage({navigate,initPlayer,initSport}){
+  const mob=useIsMobile();
+  const[sport,setSport]=useState(initSport||"mlb");
+  const[section,setSection]=useState(initPlayer?"player":"scores"); // scores | players | standings
+  const[selectedPlayer,setSelectedPlayer]=useState(initPlayer||null);
+  const[standingsData,setStandingsData]=useState(null);
+  const[standingsLoading,setStandingsLoading]=useState(false);
+  const ac=STATS_SPORTS.find(s=>s.id===sport)?.color||"#00D4FF";
+
+  // Handle external navigation (from PredictPage clicking a player)
+  useEffect(()=>{
+    if(initPlayer){setSelectedPlayer(initPlayer);setSection("player");if(initSport)setSport(initSport);}
+  },[initPlayer,initSport]);
+
+  const selectPlayer=(pid,sp)=>{
+    setSelectedPlayer(pid);
+    if(sp)setSport(sp);
+    setSection("player");
+  };
+
+  const loadStandings=async(sp)=>{
+    setStandingsLoading(true);
+    try{
+      const path=STATS_SPORTS.find(s=>s.id===sp)?.espnPath||"baseball/mlb";
+      const r=await fetch(`https://site.api.espn.com/apis/v2/sports/${path}/standings`);
+      if(r.ok)setStandingsData(await r.json());
+    }catch(e){}
+    setStandingsLoading(false);
+  };
+
+  useEffect(()=>{
+    if(section==="standings")loadStandings(sport);
+  },[section,sport]);
+
+  if(section==="player"&&selectedPlayer){
+    return<PlayerStatsPage playerId={selectedPlayer} sport={sport} onBack={()=>{setSection("players");setSelectedPlayer(null);}}/>;
+  }
+
+  return(
+    <div style={{maxWidth:1080,margin:"0 auto",padding:mob?"12px 10px 100px":"20px 20px 80px"}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:10}}>
+        <div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?16:22,fontWeight:900,background:"linear-gradient(135deg,#E2E8F0,#94A3B8)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:2}}>📊 STATS CENTER</div>
+          <div style={{fontSize:11,color:"#334155"}}>Live scores · Player stats · Standings</div>
+        </div>
+      </div>
+
+      {/* Sport tabs */}
+      <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
+        {STATS_SPORTS.map(s=>(
+          <button key={s.id} onClick={()=>{setSport(s.id);setSection("scores");}}
+            style={{padding:"7px 16px",borderRadius:20,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,flexShrink:0,
+              border:`1px solid ${sport===s.id?s.color+"88":"rgba(255,255,255,.1)"}`,
+              background:sport===s.id?s.color+"18":"rgba(255,255,255,.03)",
+              color:sport===s.id?s.color:"#64748B"}}>
+            {s.icon} {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Section tabs */}
+      <div style={{display:"flex",gap:5,marginBottom:16,borderBottom:"1px solid rgba(255,255,255,.07)",paddingBottom:12}}>
+        {[["scores","🏟️ Scores"],["players","👤 Players"],["standings","🏆 Standings"]].map(([s,l])=>(
+          <button key={s} onClick={()=>setSection(s)}
+            style={{padding:"6px 14px",borderRadius:8,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,
+              border:"none",background:section===s?"rgba(255,255,255,.08)":"none",
+              color:section===s?"#E2E8F0":"#475569"}}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {/* Scores */}
+      {section==="scores"&&<ESPNScores sport={sport} navigate={navigate}/>}
+
+      {/* Players */}
+      {section==="players"&&(
+        <div>
+          <PlayerSearchSection sport={sport} onSelectPlayer={selectPlayer}/>
+        </div>
+      )}
+
+      {/* Standings */}
+      {section==="standings"&&(
+        <div>
+          {standingsLoading&&<div style={{textAlign:"center",padding:"40px 0",color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>Loading standings...</div>}
+          {!standingsLoading&&standingsData&&(()=>{
+            const groups=standingsData.children||standingsData.standings?.entries||[];
+            if(!groups.length)return<Empty icon="🏆" msg="Standings not available"/>;
+            return(
+              <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                {groups.slice(0,8).map((group,gi)=>{
+                  const entries=group.standings?.entries||group.entries||[];
+                  if(!entries.length)return null;
+                  return(
+                    <Card key={gi} style={{padding:"14px 16px"}} hover={false}>
+                      <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:ac,letterSpacing:".12em",marginBottom:10,fontWeight:700}}>{group.name||group.abbreviation||`Division ${gi+1}`}</div>
+                      <div style={{overflowX:"auto"}}>
+                        <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:300}}>
+                          <thead>
+                            <tr style={{borderBottom:"1px solid rgba(255,255,255,.08)"}}>
+                              <td style={{padding:"5px 8px",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:9,minWidth:130}}>TEAM</td>
+                              {(entries[0]?.stats||[]).slice(0,8).map((s,si)=>(
+                                <td key={si} style={{padding:"5px 6px",textAlign:"center",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:9}}>{s.shortDisplayName||s.abbreviation||s.name}</td>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {entries.map((entry,ei)=>{
+                              const team=entry.team;
+                              return(
+                                <tr key={ei} style={{background:ei%2===0?"rgba(255,255,255,.02)":"transparent",borderBottom:"1px solid rgba(255,255,255,.03)"}}>
+                                  <td style={{padding:"6px 8px"}}>
+                                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                                      {team?.logos?.[0]?.href&&<img src={team.logos[0].href} style={{width:18,height:18,objectFit:"contain"}} onError={e=>e.target.style.display="none"}/>}
+                                      <span style={{fontSize:11,fontWeight:600,color:"#E2E8F0"}}>{team?.displayName||team?.name||"—"}</span>
+                                    </div>
+                                  </td>
+                                  {(entry.stats||[]).slice(0,8).map((s,si)=>(
+                                    <td key={si} style={{padding:"6px 6px",textAlign:"center",color:"#94A3B8",fontSize:11}}>{s.displayValue||s.value||"—"}</td>
+                                  ))}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          {!standingsLoading&&!standingsData&&<Empty icon="🏆" msg="No standings data available"/>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // ─── Dashboard ─────────────────────────────────────────────────────────────────
 function DashboardPage({cu,users,setUsers,navigate}){
   const mob=useIsMobile();
@@ -6231,6 +6763,7 @@ export default function App(){
   const[page,setPage]=useState("home");
   const[profileId,setProfileId]=useState(null);
   const[gameRef,setGameRef]=useState(null);
+  const[statsPlayerRef,setStatsPlayerRef]=useState(null);
   const[showLogin,setShowLogin]=useState(false);
   const[showRegister,setShowRegister]=useState(false);
   const[notifs,setNotifs]=useState([]);
@@ -6289,6 +6822,7 @@ export default function App(){
   const nav=(p,id,opts={})=>{
     if(p==="profile"&&id){setProfileId(id);}
     if(p==="game"&&id){setGameRef(id);} // id = {id, sport}
+    if(p==="stats"&&id?.playerId){setStatsPlayerRef(id);} // id = {playerId, sport}
     setNavOpts(opts||{});
     setPage(p);
   };
@@ -6340,6 +6874,7 @@ export default function App(){
     if(page==="feed")return <FeedPage users={users} cu={cu} likes={likes} onLike={handleLike} navigate={nav}/>;
     if(page==="game"&&gameRef)return <GameDetailPage gameId={gameRef.id} sport={gameRef.sport} navigate={nav}/>;
     if(page==="predict")return <PredictPage cu={cu} users={users} setUsers={setUsers} navigate={nav}/>;
+    if(page==="stats")return <StatsPage navigate={nav} initPlayer={statsPlayerRef?.id||null} initSport={statsPlayerRef?.sport||null}/>;
     if(page==="cards")return <CardsPage cu={cu}/>;
     if(page==="trivia")return <TriviaPage cu={cu}/>;
     if(page==="leaderboard")return <LeaderboardPage users={users} navigate={nav}/>;
