@@ -671,6 +671,8 @@ function GameDetailPage({gameId,sport,navigate}){
     }
   },[gameId,sport]);
 
+  const sportPath=sport==="mlb"?"baseball/mlb":sport==="nfl"?"football/nfl":sport==="nba"?"basketball/nba":"hockey/nhl";
+
   const load=async(quiet=false)=>{
     if(!quiet)setLoading(true);
     try{
