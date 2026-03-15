@@ -2324,9 +2324,9 @@ function CommentImgUpload({onUpload}){
 function playerHeadshotUrl(playerId,sport){
   if(!playerId)return"";
   if(sport==="mlb")return`https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/${playerId}/headshot/67/current`;
-  // ESPN CDN direct URL — works for most players, component handles 404 with onError
-  const espnSport=sport==="nba"?"nba":sport==="nhl"?"nhl":sport==="nfl"?"nfl":"baseball";
-  return`https://a.espncdn.com/i/headshots/${espnSport}/players/full/${playerId}.png`;
+  // ESPN uses different CDN paths — try multiple via component onError fallback chain
+  // Primary: new ESPN CDN format
+  return`https://a.espncdn.com/combiner/i?img=/i/headshots/${sport}/players/full/${playerId}.png&w=350&h=254&cb=1`;
 }
 function TeamLogo({espn,sport,size=22}){const [err,setErr]=useState(false);if(err)return <span style={{fontSize:size*.65}}>{sport==="mlb"?"⚾":sport==="nfl"?"🏈":sport==="nba"?"🏀":"🏒"}</span>;return <img src={`https://a.espncdn.com/i/teamlogos/${sport}/500/${espn}.png`} width={size} height={size} style={{objectFit:"contain",flexShrink:0}} onError={()=>setErr(true)}/>;}
 function TeamBadge({teamId}){
@@ -5642,21 +5642,29 @@ function PlayerStatsPage({playerId,sport,onBack}){
               }
             });
           }
-          // Build stats display from MLB Stats API splits
+          // Build stats display — separate 2025 season from career
           if(statSeasonData?.stats?.length){
-            const cats=statSeasonData.stats.map(sg=>{
+            const cats=[];
+            statSeasonData.stats.forEach(sg=>{
               const splits=sg.splits||[];
-              const season=splits.find(s=>s.type?.displayName==="Regular Season")||splits[0];
-              if(!season?.stat)return null;
-              const entries=Object.entries(season.stat);
-              return{
-                displayName:`${sg.group?.displayName||"Stats"} — ${season.season||"2025"}`,
-                displayNames:entries.map(([k])=>k.replace(/([A-Z])/g," $1").toUpperCase().trim()),
-                labels:entries.map(([k])=>k.toUpperCase().slice(0,6)),
-                totals:entries.map(([,v])=>typeof v==="number"&&!Number.isInteger(v)?v.toFixed(3):String(v??"")),
+              // 2025 season split
+              const season2025=splits.find(s=>s.season==="2025"&&(s.type?.displayName==="Regular Season"||s.type?.gameType==="R"));
+              // Career split
+              const career=splits.find(s=>!s.season||s.type?.displayName==="Career"||s.stat?.gamesPlayed>200);
+              const fmt=(s,label)=>{
+                if(!s?.stat)return null;
+                const entries=Object.entries(s.stat).filter(([,v])=>v!==null&&v!==undefined);
+                return{
+                  displayName:`${sg.group?.displayName?.toUpperCase()||"STATS"} — ${label}`,
+                  displayNames:entries.map(([k])=>k.replace(/([A-Z])/g," $1").toUpperCase().trim()),
+                  totals:entries.map(([,v])=>typeof v==="number"&&!Number.isInteger(v)?v.toFixed(3):String(v??"")),
+                };
               };
-            }).filter(Boolean);
-            setStats({splits:cats});
+              if(season2025)cats.push(fmt(season2025,"2025 Season"));
+              if(career&&career!==season2025)cats.push(fmt(career,"Career"));
+              if(!season2025&&!career&&splits[0])cats.push(fmt(splits[0],"Stats"));
+            });
+            setStats({splits:cats.filter(Boolean)});
           }
           // Game log
           if(statLogData?.stats?.[0]?.splits){
@@ -5680,8 +5688,45 @@ function PlayerStatsPage({playerId,sport,onBack}){
             proxy(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}/stats`),
             proxy(`https://site.api.espn.com/apis/site/v2/sports/${espnPath}/athletes/${playerId}/gamelog`),
           ]);
-          if(infoData)setInfo(infoData);
-          if(statData)setStats(statData);
+          // ESPN returns {athlete:{...}} — normalize so component always gets athlete key
+          if(infoData){
+            const normalized=infoData.athlete?infoData:{athlete:infoData};
+            // Extract headshot from ESPN data if available
+            const ath=normalized.athlete||{};
+            if(ath.headshot?.href)ath._headshotHref=ath.headshot.href;
+            setInfo(normalized);
+          }
+          // Stats: ESPN returns {categories:[{displayName,labels,totals}]} or {splits:[...]}
+          if(statData){
+            // Normalize ESPN stats to {splits:[{displayName, displayNames, labels, totals, _isCurrent, _isCareer}]}
+            const rawCats=statData.categories||statData.splits||[];
+            // ESPN stats endpoint has seasonTypes array too
+            const seasonTypes=statData.seasonTypes||[];
+            let cats=[];
+            if(seasonTypes.length){
+              seasonTypes.forEach(st=>{
+                (st.categories||[]).forEach(cat=>{
+                  const isCurrent=st.type?.name==="regular"||st.displayName?.includes("2025")||st.displayName?.includes("Season");
+                  const isCareer=st.type?.name==="total"||st.displayName?.toLowerCase().includes("career")||st.displayName?.toLowerCase().includes("total");
+                  cats.push({
+                    displayName:`${cat.displayName||cat.name||"Stats"} — ${isCareer?"Career":st.displayName||"2025"}`,
+                    labels:cat.labels||[],
+                    displayNames:cat.labels||[],
+                    totals:cat.totals||cat.stats||[],
+                    _isCareer:isCareer,
+                  });
+                });
+              });
+            } else {
+              cats=rawCats.map(cat=>({
+                displayName:cat.displayName||cat.name||"Stats",
+                labels:cat.labels||[],
+                displayNames:cat.labels||[],
+                totals:cat.totals||cat.stats||[],
+              }));
+            }
+            setStats({splits:cats});
+          }
           if(logData){
             const events=logData?.events||{};
             const cats=logData?.seasonTypes?.[0]?.categories||[];
@@ -5722,7 +5767,7 @@ function PlayerStatsPage({playerId,sport,onBack}){
 
   const pos=athlete.position?.displayName||athlete.position?.name||"";
   const team=athlete.team?.displayName||"";
-  const headshot=athlete.headshot?.href||playerHeadshotUrl(playerId,sport);
+  const headshot=athlete._headshotHref||athlete.headshot?.href||playerHeadshotUrl(playerId,sport);
   const birthDate=athlete.dateOfBirth||athlete.dob||"";
   const height=athlete.displayHeight||athlete.height||"";
   const weight=athlete.displayWeight||athlete.weight||"";
