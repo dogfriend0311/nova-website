@@ -463,54 +463,70 @@ function GameDetailPage({gameId,sport,navigate}){
   const[rawAtBats,setRawAtBats]=useState([]); // MLB: full at-bat objects with pitches
   const pbpRef=useRef(null);
 
-  const loadPbp=async()=>{
+  const loadPbp=async(gameState)=>{
     if(sport!=="mlb"&&sport!=="nba"&&sport!=="nhl")return;
+    // gameState param lets us pass game data before state settles
+    const gData=gameState||game;
     setPbpLoading(true);
     try{
       if(sport==="mlb"){
         let gamePk=gameId;
         let mlbData=null;
-        // Attempt 1: ESPN gameId as gamePk
+        // Attempt 1: ESPN gameId IS often the MLB gamePk directly — try it
         try{
-          const r=await fetch(`https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`,{signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),8000);return c.signal;})()});
+          const r=await fetch(`https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`,{signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),10000);return c.signal;})()});
           if(r.ok){const d=await r.json();if(d?.liveData?.plays?.allPlays?.length>0)mlbData=d;}
         }catch(e){}
-        // Attempt 2: ESPN externalIds
+        // Attempt 2: look up real gamePk via ESPN summary externalIds
         if(!mlbData){
           try{
             const eR=await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/summary?event=${gameId}`);
             if(eR.ok){
               const eD=await eR.json();
-              const extId=eD?.header?.competitions?.[0]?.externalIds?.find(x=>x.provider==="mlbgamepk"||x.provider==="gamepk");
-              if(extId?.value&&extId.value!==gameId){
+              const extId=eD?.header?.competitions?.[0]?.externalIds?.find(x=>
+                x.provider==="mlbgamepk"||x.provider==="gamepk"||x.provider==="mlb");
+              if(extId?.value&&String(extId.value)!==String(gameId)){
                 gamePk=extId.value;
-                const r2=await fetch(`https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`,{signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),8000);return c.signal;})()});
+                const r2=await fetch(`https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`,{signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),10000);return c.signal;})()});
                 if(r2.ok)mlbData=await r2.json();
               }
             }
           }catch(e){}
         }
-        // Attempt 3: schedule search by team name + date
-        if(!mlbData&&game?.home?.name){
+        // Attempt 3: search MLB schedule — include ALL game types (spring training=S, regular=R, postseason=P etc)
+        if(!mlbData){
           try{
             const today=new Date();
-            // try today and past 3 days
-            for(let d=0;d<=3&&!mlbData;d++){
+            for(let d=0;d<=5&&!mlbData;d++){
               const dt=new Date(today);dt.setDate(dt.getDate()-d);
               const dateStr=dt.toISOString().slice(0,10);
-              const sR=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&gameType=R,P,F,D,L,W`);
+              // S=spring training, R=regular, P=postseason, F=wild card, D=division, L=LCS, W=world series
+              const sR=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&gameType=S,R,P,F,D,L,W`);
               if(!sR.ok)continue;
               const sD=await sR.json();
-              const hKw=(game.home?.name||"").split(" ").pop().toLowerCase();
-              const aKw=(game.away?.name||"").split(" ").pop().toLowerCase();
-              const match=(sD.dates?.[0]?.games||[]).find(g=>{
-                const h=(g.teams?.home?.team?.name||"").toLowerCase();
-                const a=(g.teams?.away?.team?.name||"").toLowerCase();
-                return(h.includes(hKw)||a.includes(hKw))&&(h.includes(aKw)||a.includes(aKw));
-              });
-              if(match?.gamePk){
-                const r3=await fetch(`https://statsapi.mlb.com/api/v1.1/game/${match.gamePk}/feed/live`,{signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),10000);return c.signal;})()});
-                if(r3.ok)mlbData=await r3.json();
+              const allGames=(sD.dates?.[0]?.games||[]);
+              if(!allGames.length)continue;
+              // Match by team name keywords if we have game data
+              let match=null;
+              if(gData?.home?.name){
+                const hKw=(gData.home.name||"").split(" ").pop().toLowerCase();
+                const aKw=(gData.away?.name||"").split(" ").pop().toLowerCase();
+                match=allGames.find(g=>{
+                  const h=(g.teams?.home?.team?.name||"").toLowerCase();
+                  const a=(g.teams?.away?.team?.name||"").toLowerCase();
+                  return(h.includes(hKw)||a.includes(hKw))&&(h.includes(aKw)||a.includes(aKw));
+                });
+              }
+              // If no name match, try all games on that date (pick one that has plays)
+              const candidates=match?[match]:allGames.slice(0,10);
+              for(const cg of candidates){
+                if(!cg.gamePk)continue;
+                try{
+                  const r3=await fetch(`https://statsapi.mlb.com/api/v1.1/game/${cg.gamePk}/feed/live`,{signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),10000);return c.signal;})()});
+                  if(!r3.ok)continue;
+                  const d3=await r3.json();
+                  if(d3?.liveData?.plays?.allPlays?.length>0){mlbData=d3;break;}
+                }catch(e){}
               }
             }
           }catch(e){}
@@ -664,11 +680,12 @@ function GameDetailPage({gameId,sport,navigate}){
     return()=>clearInterval(t);
   },[gameId]);
   useEffect(()=>{
+    // loadPbp with no args on mount — game state may not be ready yet, 
+    // load() will call it again with fresh game data
     loadPbp();
-    if(sport==="mlb"||sport==="nba"||sport==="nhl"){
-      const t=setInterval(()=>loadPbp(),20000);
-      return()=>clearInterval(t);
-    }
+    const interval=sport==="mlb"||sport==="nba"||sport==="nhl"?
+      setInterval(()=>loadPbp(),20000):null;
+    return()=>{if(interval)clearInterval(interval);};
   },[gameId,sport]);
 
   const sportPath=sport==="mlb"?"baseball/mlb":sport==="nfl"?"football/nfl":sport==="nba"?"basketball/nba":"hockey/nhl";
@@ -771,6 +788,9 @@ function GameDetailPage({gameId,sport,navigate}){
         injuries:d?.injuries||[],
         drives:d?.drives?.previous||[],
       });
+      // Call loadPbp with fresh game data so attempt 3 has team names
+      const freshGame={home:{name:home?.team?.displayName},away:{name:away?.team?.displayName}};
+      loadPbp(freshGame);
     }catch(e){console.error(e);}
     if(!quiet)setLoading(false);
   };
