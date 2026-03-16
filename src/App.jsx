@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import NFFLPage from "./NFFLPage";
 
 const SUPABASE_URL = "https://expzaiduzjehvyfclnnj.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4cHphaWR1emplaHZ5ZmNsbm5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2OTUwNTQsImV4cCI6MjA4ODI3MTA1NH0.ZZrWRASkBWha6XDuw23bazoXK224diM0HTlgPkdLCy0";
@@ -4114,7 +4115,7 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
   const[gamesOpen,setGamesOpen]=useState(false);
   const gamesRef=useRef(null);
   const GAMES_PAGES=["predict","trivia","leaderboard","cards"];
-  const dTabs=[["home","Home"],["members","Members"],["news","📰 News"],["feed","🎬 Feed"],["stats","📊 Stats"]];
+  const dTabs=[["home","Home"],["members","Members"],["news","📰 News"],["feed","🎬 Feed"],["stats","📊 Stats"],["nffl","🏈 NFFL"]];
   const mTabs=[{p:"home",icon:"🏠",lbl:"Home"},{p:"news",icon:"📰",lbl:"News"},{p:"feed",icon:"🎬",lbl:"Feed"},{p:"members",icon:"👥",lbl:"Members"},{p:"messages",icon:"💬",lbl:"DMs",badge:msgUnread}];
   // Close dropdown on outside click
   useEffect(()=>{
@@ -7019,6 +7020,7 @@ export default function App(){
     if(page==="predict")return <PredictPage cu={cu} users={users} setUsers={setUsers} navigate={nav}/>;
     if(page==="stats")return <StatsPage navigate={nav} initPlayer={statsPlayerRef?.id||null} initSport={statsPlayerRef?.sport||null}/>;
     if(page==="cards")return <CardsPage cu={cu}/>;
+    if(page==="nffl")return <NFFLPage supabaseUrl={SUPABASE_URL} supabaseKey={SUPABASE_ANON_KEY} sb={sb} nav={nav}/>;
     if(page==="trivia")return <TriviaPage cu={cu}/>;
     if(page==="leaderboard")return <LeaderboardPage users={users} navigate={nav}/>;
     if(page==="messages")return <MessagesPage cu={cu} users={users} conversations={conversations} setConversations={setConversations} messages={messages} setMessages={setMessages}/>;
