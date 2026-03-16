@@ -6965,7 +6965,7 @@ function NFFLDashPlayers(){
               <NFFLAvatar robloxId={p.roblox_id} size={36}/>
               <div>
                 <div style={{fontWeight:700,color:"white",fontSize:13,fontFamily:NF.font}}>{p.name}</div>
-                <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",fontFamily:NF.font}}>{p.team||"No team"}{p.positions?` · ${p.positions}`:.""}</div>
+                <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",fontFamily:NF.font}}>{p.team||"No team"}{p.positions?` · ${p.positions}`:""}</div>
               </div>
             </div>
             <div style={{display:"flex",gap:6}}>
