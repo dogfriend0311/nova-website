@@ -6335,7 +6335,7 @@ function DashboardPage({cu,users,setUsers,navigate}){
         ))}
       </div>
       <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
-        {[["members","👥 Members"],["badges","🏅 Badges"],["roles","⭐ Roles"],["stars","⭐ Stars"],["announce","📢 Announce"]].map(([t,l])=>(
+        {[["members","👥 Members"],["badges","🏅 Badges"],["roles","⭐ Roles"],["stars","⭐ Stars"],["announce","📢 Announce"],["nffl-players","🏈 NFFL Players"],["nffl-stats","🏈 NFFL Stats"],["nffl-feed","🏈 NFFL Feed"],["nffl-boxscores","🏈 NFFL Box Scores"],["nffl-transactions","🏈 NFFL Transactions"]].map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t)} style={{padding:"8px 16px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"rgba(245,158,11,.5)":"rgba(255,255,255,.1)"}`,background:tab===t?"rgba(245,158,11,.12)":"rgba(255,255,255,.03)",color:tab===t?"#F59E0B":"#64748B",transition:"all .2s"}}>{l}</button>
         ))}
       </div>
@@ -6537,6 +6537,21 @@ function DashboardPage({cu,users,setUsers,navigate}){
             </div>
           )}
         </div>
+      )}
+      {tab==="nffl-players"&&(
+        <NFFLDashPlayers/>
+      )}
+      {tab==="nffl-stats"&&(
+        <NFFLDashStats/>
+      )}
+      {tab==="nffl-feed"&&(
+        <NFFLDashFeed/>
+      )}
+      {tab==="nffl-boxscores"&&(
+        <NFFLDashBoxScores/>
+      )}
+      {tab==="nffl-transactions"&&(
+        <NFFLDashTransactions/>
       )}
     </div>
   );
@@ -6847,6 +6862,462 @@ function NewsPage({cu,users,addNotif,navOpts={}}){
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ─── NFFL Shared Config ────────────────────────────────────────────────────────
+const NFFL_URL="https://eutwfcypgyqzvtdkflcg.supabase.co";
+const NFFL_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1dHdmY3lwZ3lxenZ0ZGtmbGNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODk3NTAsImV4cCI6MjA4OTI2NTc1MH0.tTtpD6HTs8k5QgMCVf7qXCrHWy63asXzghpJywlTkDA";
+const nfflH=(extra={})=>({apikey:NFFL_KEY,Authorization:`Bearer ${NFFL_KEY}`,"Content-Type":"application/json",...extra});
+const nfflGet=async(table,q="")=>{try{const r=await fetch(`${NFFL_URL}/rest/v1/${table}${q}`,{headers:nfflH()});return r.ok?r.json():null;}catch(e){return null;}};
+const nfflMut=async(table,q,body,method="POST")=>{try{const r=await fetch(`${NFFL_URL}/rest/v1/${table}${q}`,{method,headers:nfflH({Prefer:"return=representation"}),body:JSON.stringify(body)});return r.ok?r.json():null;}catch(e){return null;}};
+const nfflDel=async(table,q)=>{try{await fetch(`${NFFL_URL}/rest/v1/${table}${q}`,{method:"DELETE",headers:nfflH()});}catch(e){}};
+
+const NF={
+  font:"'Orbitron',sans-serif",
+  amber:"#F59E0B",
+  inp:{width:"100%",padding:"8px 12px",borderRadius:8,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.05)",color:"white",fontSize:12,outline:"none",boxSizing:"border-box",fontFamily:"'Orbitron',sans-serif"},
+  btn:(active)=>({padding:"7px 18px",borderRadius:20,cursor:active===false?"not-allowed":"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${active?"rgba(245,158,11,.5)":"rgba(255,255,255,.1)"}`,background:active?"rgba(245,158,11,.12)":"rgba(255,255,255,.03)",color:active?"#F59E0B":"#64748B",transition:"all .2s"}),
+  card:{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(245,158,11,0.15)",borderRadius:10,padding:"1rem",marginBottom:8},
+  label:{fontSize:10,color:"rgba(255,255,255,0.4)",fontFamily:"'Orbitron',sans-serif",display:"block",marginBottom:3,letterSpacing:1},
+  msg:(ok)=>({padding:"8px 12px",borderRadius:8,background:ok?"rgba(0,255,136,0.1)":"rgba(255,100,100,0.1)",border:`1px solid ${ok?"rgba(0,255,136,0.3)":"rgba(255,100,100,0.3)"}`,color:ok?"#00ff88":"#ff6666",fontSize:12,marginBottom:"0.75rem",fontFamily:"'Orbitron',sans-serif"}),
+};
+
+// ─── NFFL Roblox Avatar ────────────────────────────────────────────────────────
+function NFFLAvatar({robloxId,size=36}){
+  const[url,setUrl]=useState(null);
+  useEffect(()=>{
+    if(!robloxId)return;
+    fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${robloxId}&size=420x420&format=Png&isCircular=false`)
+      .then(r=>r.json()).then(d=>{if(d?.data?.[0]?.imageUrl)setUrl(d.data[0].imageUrl);}).catch(()=>{});
+  },[robloxId]);
+  return(
+    <div style={{width:size,height:size,borderRadius:"50%",overflow:"hidden",background:"rgba(255,255,255,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*0.4,border:"1px solid rgba(245,158,11,0.3)",flexShrink:0}}>
+      {url?<img src={url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setUrl(null)}/>:"🏈"}
+    </div>
+  );
+}
+
+// ─── NFFL Dashboard: Players ───────────────────────────────────────────────────
+function NFFLDashPlayers(){
+  const empty={name:"",team:"",positions:"",bio:"",roblox_id:"",song_url:"",photo_url:""};
+  const[players,setPlayers]=useState([]);
+  const[form,setForm]=useState(empty);
+  const[editId,setEditId]=useState(null);
+  const[showForm,setShowForm]=useState(false);
+  const[msg,setMsg]=useState(null);
+
+  useEffect(()=>{load();},[]);
+  const load=()=>nfflGet("players","?order=name.asc").then(d=>{if(d)setPlayers(d);});
+  const flash=(m,ok=true)=>{setMsg({m,ok});setTimeout(()=>setMsg(null),3000);};
+
+  const save=async()=>{
+    const res=editId
+      ?await nfflMut("players",`?id=eq.${editId}`,form,"PATCH")
+      :await nfflMut("players","",form,"POST");
+    if(res){flash("Saved!");setForm(empty);setEditId(null);setShowForm(false);load();}
+    else flash("Error saving.",false);
+  };
+
+  const del=async(id)=>{
+    if(!confirm("Delete player?"))return;
+    await nfflDel("players",`?id=eq.${id}`);
+    load();
+  };
+
+  return(
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <span style={{color:"white",fontFamily:NF.font,fontSize:13,fontWeight:700}}>NFFL Players</span>
+        <button onClick={()=>{setForm(empty);setEditId(null);setShowForm(!showForm);}} style={NF.btn(true)}>
+          {showForm?"Cancel":"+ Add Player"}
+        </button>
+      </div>
+
+      {msg&&<div style={NF.msg(msg.ok)}>{msg.m}</div>}
+
+      {showForm&&(
+        <div style={{...NF.card,marginBottom:12}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+            {[["name","Name *"],["team","Team"],["positions","Positions (e.g. QB, WR)"],["roblox_id","Roblox User ID"],["song_url","Spotify Embed URL"],["photo_url","Photo URL"]].map(([k,l])=>(
+              <div key={k}>
+                <label style={NF.label}>{l}</label>
+                <input value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})} style={NF.inp}/>
+              </div>
+            ))}
+          </div>
+          <div style={{marginBottom:8}}>
+            <label style={NF.label}>Bio</label>
+            <textarea value={form.bio} onChange={e=>setForm({...form,bio:e.target.value})} rows={3} style={{...NF.inp,resize:"vertical"}}/>
+          </div>
+          <button onClick={save} disabled={!form.name} style={NF.btn(!!form.name)}>
+            {editId?"Save Changes":"Add Player"}
+          </button>
+        </div>
+      )}
+
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        {players.length===0&&<p style={{color:"rgba(255,255,255,0.3)",fontSize:12,fontFamily:NF.font}}>No players yet.</p>}
+        {players.map(p=>(
+          <div key={p.id} style={{...NF.card,display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <NFFLAvatar robloxId={p.roblox_id} size={36}/>
+              <div>
+                <div style={{fontWeight:700,color:"white",fontSize:13,fontFamily:NF.font}}>{p.name}</div>
+                <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",fontFamily:NF.font}}>{p.team||"No team"}{p.positions?` · ${p.positions}`:.""}</div>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              <button onClick={()=>{setForm({name:p.name||"",team:p.team||"",positions:p.positions||"",bio:p.bio||"",roblox_id:p.roblox_id||"",song_url:p.song_url||"",photo_url:p.photo_url||""});setEditId(p.id);setShowForm(true);}} style={NF.btn(true)}>Edit</button>
+              <button onClick={()=>del(p.id)} style={{...NF.btn(true),color:"#ff6666",borderColor:"rgba(255,100,100,0.3)"}}>Del</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── NFFL Dashboard: Stats ─────────────────────────────────────────────────────
+function NFFLDashStats(){
+  const defs={
+    passing:["completions","attempts","passing_yards","touchdowns","interceptions","longest_pass","sacks","passer_rating"],
+    rushing:["carries","rushing_yards","yards_per_carry","rushing_tds","longest_run","fumbles"],
+    receiving:["receptions","targets","receiving_yards","yards_per_reception","receiving_tds","longest_reception","drops"],
+    defensive:["tackles","solo_tackles","sacks","interceptions","forced_fumbles","fumble_recoveries","passes_defended","defensive_tds","safeties"],
+    kicking:["field_goals_made","field_goals_attempted","longest_fg","extra_points_made","extra_points_attempted","punts","punt_yards","avg_punt_distance"],
+  };
+  const[players,setPlayers]=useState([]);
+  const[pid,setPid]=useState("");
+  const[season,setSeason]=useState("current");
+  const[cat,setCat]=useState("passing");
+  const[stats,setStats]=useState({});
+  const[statsId,setStatsId]=useState(null);
+  const[msg,setMsg]=useState(null);
+
+  useEffect(()=>{nfflGet("players","?order=name.asc").then(d=>{if(d)setPlayers(d);});},[]);
+  useEffect(()=>{if(pid)fetchStats();},[pid,season,cat]);
+
+  const fetchStats=async()=>{
+    const d=await nfflGet(`${cat}_stats`,`?player_id=eq.${pid}&season=eq.${season}`);
+    if(d&&d[0]){setStats(d[0]);setStatsId(d[0].id);}
+    else{setStats({});setStatsId(null);}
+  };
+
+  const save=async()=>{
+    const payload={...stats,player_id:pid,season};
+    delete payload.id;
+    const res=statsId
+      ?await nfflMut(`${cat}_stats`,`?id=eq.${statsId}`,payload,"PATCH")
+      :await nfflMut(`${cat}_stats`,"",payload,"POST");
+    if(res){setMsg({m:"Stats saved!",ok:true});fetchStats();}
+    else setMsg({m:"Error saving.",ok:false});
+    setTimeout(()=>setMsg(null),3000);
+  };
+
+  const fmt=k=>k.replace(/_/g," ").replace(/\b\w/g,l=>l.toUpperCase());
+
+  return(
+    <div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+        <select value={pid} onChange={e=>setPid(e.target.value)} style={{...NF.inp,maxWidth:200}}>
+          <option value="">Select player</option>
+          {players.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        {["current","career"].map(s=>(
+          <button key={s} onClick={()=>setSeason(s)} style={NF.btn(season===s)}>
+            {s==="current"?"Current":"Career"}
+          </button>
+        ))}
+      </div>
+
+      {pid&&(
+        <>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+            {Object.keys(defs).map(c=>(
+              <button key={c} onClick={()=>setCat(c)} style={NF.btn(cat===c)}>{c}</button>
+            ))}
+          </div>
+          {msg&&<div style={NF.msg(msg.ok)}>{msg.m}</div>}
+          <div style={NF.card}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:8}}>
+              {defs[cat].map(f=>(
+                <div key={f}>
+                  <label style={NF.label}>{fmt(f)}</label>
+                  <input type="number" value={stats[f]??""}onChange={e=>setStats({...stats,[f]:e.target.value})} placeholder="0" style={NF.inp}/>
+                </div>
+              ))}
+            </div>
+            <button onClick={save} style={{...NF.btn(true),marginTop:12}}>Save Stats</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── NFFL Dashboard: Feed ──────────────────────────────────────────────────────
+function NFFLDashFeed(){
+  const[plays,setPlays]=useState([]);
+  const[games,setGames]=useState([]);
+  const[form,setForm]=useState({game_id:"",player_name:"",play_text:"",yards:"",field_position:"",team:""});
+  const[saving,setSaving]=useState(false);
+  const[msg,setMsg]=useState(null);
+
+  useEffect(()=>{load();},[]);
+  const load=async()=>{
+    const[p,g]=await Promise.all([
+      nfflGet("game_feed","?order=created_at.desc&limit=30"),
+      nfflGet("box_scores","?order=created_at.desc")
+    ]);
+    if(p)setPlays(p);
+    if(g)setGames(g);
+  };
+
+  const post=async()=>{
+    if(!form.play_text.trim()){setMsg({m:"Play text required",ok:false});return;}
+    setSaving(true);
+    const payload={
+      play_text:form.play_text.trim(),
+      player_name:form.player_name.trim()||null,
+      game_id:form.game_id||null,
+      yards:form.yards!=""?parseInt(form.yards):null,
+      field_position:form.field_position.trim()||null,
+      team:form.team.trim()||null,
+    };
+    const res=await nfflMut("game_feed","",payload,"POST");
+    if(res){
+      setMsg({m:"Play posted!",ok:true});
+      setForm(f=>({...f,player_name:"",play_text:"",yards:"",field_position:"",team:""}));
+      load();
+    }else setMsg({m:"Failed to post play.",ok:false});
+    setSaving(false);
+    setTimeout(()=>setMsg(null),3000);
+  };
+
+  const del=async(id)=>{
+    await nfflDel("game_feed",`?id=eq.${id}`);
+    load();
+  };
+
+  return(
+    <div>
+      <div style={NF.card}>
+        <div style={{fontFamily:NF.font,fontSize:12,fontWeight:700,color:NF.amber,marginBottom:10,letterSpacing:1}}>POST A PLAY</div>
+        {msg&&<div style={NF.msg(msg.ok)}>{msg.m}</div>}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+          <div>
+            <label style={NF.label}>GAME</label>
+            <select value={form.game_id} onChange={e=>setForm({...form,game_id:e.target.value})} style={NF.inp}>
+              <option value="">No game</option>
+              {games.map(g=><option key={g.game_id} value={g.game_id}>{g.away_team} vs {g.home_team}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={NF.label}>PLAYER NAME</label>
+            <input value={form.player_name} onChange={e=>setForm({...form,player_name:e.target.value})} placeholder="e.g. John Smith" style={NF.inp}/>
+          </div>
+          <div>
+            <label style={NF.label}>YARDS</label>
+            <input type="number" value={form.yards} onChange={e=>setForm({...form,yards:e.target.value})} placeholder="0" style={NF.inp}/>
+          </div>
+          <div>
+            <label style={NF.label}>FIELD POSITION</label>
+            <input value={form.field_position} onChange={e=>setForm({...form,field_position:e.target.value})} placeholder="e.g. OPP 35" style={NF.inp}/>
+          </div>
+        </div>
+        <div style={{marginBottom:10}}>
+          <label style={NF.label}>PLAY DESCRIPTION ✱</label>
+          <textarea value={form.play_text} onChange={e=>setForm({...form,play_text:e.target.value})} placeholder="e.g. rushes for a TOUCHDOWN!" rows={3} style={{...NF.inp,resize:"vertical"}}/>
+        </div>
+        <button onClick={post} disabled={saving||!form.play_text.trim()} style={NF.btn(!saving&&!!form.play_text.trim())}>
+          {saving?"Posting...":"📡 Post Play"}
+        </button>
+      </div>
+
+      <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",fontFamily:NF.font,letterSpacing:1,marginBottom:6}}>RECENT PLAYS ({plays.length})</div>
+      {plays.map(play=>(
+        <div key={play.id} style={{...NF.card,display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+          <div style={{flex:1}}>
+            {play.player_name&&<span style={{color:NF.amber,fontWeight:700,fontSize:12,fontFamily:NF.font}}>{play.player_name} </span>}
+            <span style={{color:"rgba(255,255,255,0.7)",fontSize:12}}>{play.play_text}</span>
+            <div style={{display:"flex",gap:8,marginTop:3}}>
+              {play.yards!=null&&<span style={{fontSize:10,color:"rgba(255,255,255,0.3)"}}>{play.yards>0?"":""}  {play.yards} yds</span>}
+              {play.field_position&&<span style={{fontSize:10,color:"rgba(255,255,255,0.3)"}}>📍{play.field_position}</span>}
+            </div>
+          </div>
+          <button onClick={()=>del(play.id)} style={{...NF.btn(true),color:"#ff6666",borderColor:"rgba(255,100,100,0.3)",padding:"3px 10px",flexShrink:0}}>Del</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── NFFL Dashboard: Box Scores ────────────────────────────────────────────────
+function NFFLDashBoxScores(){
+  const empty={game_id:"",home_team:"",away_team:"",home_q1:0,home_q2:0,home_q3:0,home_q4:0,away_q1:0,away_q2:0,away_q3:0,away_q4:0,home_total:0,away_total:0,status:"upcoming"};
+  const[games,setGames]=useState([]);
+  const[form,setForm]=useState(empty);
+  const[editId,setEditId]=useState(null);
+  const[showForm,setShowForm]=useState(false);
+  const[msg,setMsg]=useState(null);
+
+  useEffect(()=>{load();},[]);
+  const load=()=>nfflGet("box_scores","?order=created_at.desc").then(d=>{if(d)setGames(d);});
+
+  const calcTotals=f=>({
+    ...f,
+    home_total:["home_q1","home_q2","home_q3","home_q4"].reduce((a,k)=>a+Number(f[k]||0),0),
+    away_total:["away_q1","away_q2","away_q3","away_q4"].reduce((a,k)=>a+Number(f[k]||0),0),
+  });
+
+  const save=async()=>{
+    const payload=calcTotals(form);
+    const res=editId
+      ?await nfflMut("box_scores",`?id=eq.${editId}`,payload,"PATCH")
+      :await nfflMut("box_scores","",payload,"POST");
+    if(res){setMsg({m:"Saved!",ok:true});setForm(empty);setEditId(null);setShowForm(false);load();}
+    else setMsg({m:"Error saving.",ok:false});
+    setTimeout(()=>setMsg(null),3000);
+  };
+
+  const del=async(id)=>{
+    if(!confirm("Delete game?"))return;
+    await nfflDel("box_scores",`?id=eq.${id}`);
+    load();
+  };
+
+  return(
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <span style={{color:"white",fontFamily:NF.font,fontSize:13,fontWeight:700}}>Box Scores</span>
+        <button onClick={()=>{setForm(empty);setEditId(null);setShowForm(!showForm);}} style={NF.btn(true)}>
+          {showForm?"Cancel":"+ New Game"}
+        </button>
+      </div>
+      {msg&&<div style={NF.msg(msg.ok)}>{msg.m}</div>}
+
+      {showForm&&(
+        <div style={{...NF.card,marginBottom:12}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
+            {[["game_id","Game ID","week1-game1"],["home_team","Home Team","Team A"],["away_team","Away Team","Team B"]].map(([k,l,ph])=>(
+              <div key={k}>
+                <label style={NF.label}>{l}</label>
+                <input value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})} placeholder={ph} style={NF.inp}/>
+              </div>
+            ))}
+          </div>
+          {[["HOME","home"],["AWAY","away"]].map(([label,pre])=>(
+            <div key={pre} style={{display:"grid",gridTemplateColumns:"50px 1fr 1fr 1fr 1fr",gap:6,alignItems:"center",marginBottom:6}}>
+              <span style={{color:"rgba(255,255,255,0.6)",fontSize:11,fontFamily:NF.font,fontWeight:700}}>{label}</span>
+              {["q1","q2","q3","q4"].map(q=>(
+                <div key={q}>
+                  <label style={{...NF.label,textAlign:"center"}}>{q.toUpperCase()}</label>
+                  <input type="number" value={form[`${pre}_${q}`]} onChange={e=>setForm({...form,[`${pre}_${q}`]:e.target.value})} style={{...NF.inp,textAlign:"center"}}/>
+                </div>
+              ))}
+            </div>
+          ))}
+          <div style={{marginTop:8}}>
+            <label style={NF.label}>STATUS</label>
+            <select value={form.status} onChange={e=>setForm({...form,status:e.target.value})} style={{...NF.inp,maxWidth:160}}>
+              <option value="upcoming">Upcoming</option>
+              <option value="live">Live</option>
+              <option value="final">Final</option>
+            </select>
+          </div>
+          <button onClick={save} style={{...NF.btn(true),marginTop:10}}>Save Game</button>
+        </div>
+      )}
+
+      {games.map(g=>(
+        <div key={g.id} style={{...NF.card,display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+          <div>
+            <div style={{fontWeight:700,color:"white",fontSize:13,fontFamily:NF.font}}>{g.away_team} vs {g.home_team}</div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",fontFamily:NF.font}}>{g.away_total} – {g.home_total} · {g.status}</div>
+          </div>
+          <div style={{display:"flex",gap:6}}>
+            <button onClick={()=>{setForm(g);setEditId(g.id);setShowForm(true);}} style={NF.btn(true)}>Edit</button>
+            <button onClick={()=>del(g.id)} style={{...NF.btn(true),color:"#ff6666",borderColor:"rgba(255,100,100,0.3)"}}>Del</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── NFFL Dashboard: Transactions ──────────────────────────────────────────────
+function NFFLDashTransactions(){
+  const empty={type:"Signing",player_name:"",team_from:"",team_to:"",notes:""};
+  const[txs,setTxs]=useState([]);
+  const[form,setForm]=useState(empty);
+  const[msg,setMsg]=useState(null);
+
+  useEffect(()=>{load();},[]);
+  const load=()=>nfflGet("transactions","?order=created_at.desc").then(d=>{if(d)setTxs(d);});
+
+  const post=async()=>{
+    const res=await nfflMut("transactions","",form,"POST");
+    if(res){setMsg({m:"Posted!",ok:true});setForm(empty);load();}
+    else setMsg({m:"Error posting.",ok:false});
+    setTimeout(()=>setMsg(null),3000);
+  };
+
+  const del=async(id)=>{
+    if(!confirm("Delete?"))return;
+    await nfflDel("transactions",`?id=eq.${id}`);
+    load();
+  };
+
+  const typeColor={Signing:"#00ff88",Trade:"#378ADD",Promotion:"#AFA9EC",Release:"#ff6666",Other:"rgba(255,255,255,0.5)"};
+
+  return(
+    <div>
+      <div style={NF.card}>
+        <div style={{fontFamily:NF.font,fontSize:12,fontWeight:700,color:NF.amber,marginBottom:10,letterSpacing:1}}>POST TRANSACTION</div>
+        {msg&&<div style={NF.msg(msg.ok)}>{msg.m}</div>}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+          <div>
+            <label style={NF.label}>TYPE</label>
+            <select value={form.type} onChange={e=>setForm({...form,type:e.target.value})} style={NF.inp}>
+              {["Signing","Trade","Promotion","Release","Other"].map(t=><option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={NF.label}>PLAYER</label>
+            <input value={form.player_name} onChange={e=>setForm({...form,player_name:e.target.value})} placeholder="Player name" style={NF.inp}/>
+          </div>
+          <div>
+            <label style={NF.label}>FROM TEAM</label>
+            <input value={form.team_from} onChange={e=>setForm({...form,team_from:e.target.value})} placeholder="Previous team" style={NF.inp}/>
+          </div>
+          <div>
+            <label style={NF.label}>TO TEAM</label>
+            <input value={form.team_to} onChange={e=>setForm({...form,team_to:e.target.value})} placeholder="New team" style={NF.inp}/>
+          </div>
+        </div>
+        <div style={{marginBottom:10}}>
+          <label style={NF.label}>NOTES</label>
+          <textarea value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} rows={2} style={{...NF.inp,resize:"vertical"}}/>
+        </div>
+        <button onClick={post} disabled={!form.player_name} style={NF.btn(!!form.player_name)}>Post Transaction</button>
+      </div>
+
+      {txs.map(tx=>{
+        const col=typeColor[tx.type]||"rgba(255,255,255,0.4)";
+        return(
+          <div key={tx.id} style={{...NF.card,borderLeft:`3px solid ${col}`,display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+            <div>
+              <span style={{fontSize:10,color:col,fontWeight:700,fontFamily:NF.font}}>{tx.type}</span>
+              <span style={{color:"white",fontWeight:600,fontSize:12,fontFamily:NF.font,marginLeft:8}}>{tx.player_name}</span>
+              {tx.team_to&&<span style={{color:"rgba(255,255,255,0.4)",fontSize:11}}> → {tx.team_to}</span>}
+              {tx.notes&&<div style={{color:"rgba(255,255,255,0.4)",fontSize:11,fontStyle:"italic"}}>{tx.notes}</div>}
+            </div>
+            <button onClick={()=>del(tx.id)} style={{...NF.btn(true),color:"#ff6666",borderColor:"rgba(255,100,100,0.3)",padding:"3px 10px"}}>Del</button>
+          </div>
+        );
+      })}
     </div>
   );
 }
