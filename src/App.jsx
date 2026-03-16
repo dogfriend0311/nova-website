@@ -6867,8 +6867,8 @@ function NewsPage({cu,users,addNotif,navOpts={}}){
 }
 
 // ─── NFFL Shared Config ────────────────────────────────────────────────────────
-const NFFL_URL="https://eutwfcypgyqzvtdkflcg.supabase.co";
-const NFFL_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1dHdmY3lwZ3lxenZ0ZGtmbGNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODk3NTAsImV4cCI6MjA4OTI2NTc1MH0.tTtpD6HTs8k5QgMCVf7qXCrHWy63asXzghpJywlTkDA";
+const NFFL_URL = "https://expzaiduzjehvyfclnnj.supabase.co";
+const NFFL_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4cHphaWR1emplaHZ5ZmNsbm5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2OTUwNTQsImV4cCI6MjA4ODI3MTA1NH0.ZZrWRASkBWha6XDuw23bazoXK224diM0HTlgPkdLCy0";
 const nfflH=(extra={})=>({apikey:NFFL_KEY,Authorization:`Bearer ${NFFL_KEY}`,"Content-Type":"application/json",...extra});
 const nfflGet=async(table,q="")=>{try{const r=await fetch(`${NFFL_URL}/rest/v1/${table}${q}`,{headers:nfflH()});return r.ok?r.json():null;}catch(e){return null;}};
 const nfflMut=async(table,q,body,method="POST")=>{try{const r=await fetch(`${NFFL_URL}/rest/v1/${table}${q}`,{method,headers:nfflH({Prefer:"return=representation"}),body:JSON.stringify(body)});return r.ok?r.json():null;}catch(e){return null;}};
