@@ -43,16 +43,19 @@ function RobloxAvatar({ robloxId, size = 60 }) {
   const [url, setUrl] = useState(null);
   useEffect(() => {
     if (!robloxId) return;
-    fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${robloxId}&size=420x420&format=Png&isCircular=false`)
+    fetch(`/api/roblox-avatar?userId=${robloxId}`)
       .then(r => r.json())
-      .then(d => { if (d?.data?.[0]?.imageUrl) setUrl(d.data[0].imageUrl); })
+      .then(d => { if (d.imageUrl) setUrl(d.imageUrl); })
       .catch(() => {});
   }, [robloxId]);
   return (
     <div style={{ ...S.avatar(size), margin: "0 auto 0.75rem" }}>
-      {url ? <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={() => setUrl(null)} /> : "🏈"}
+      {url
+        ? <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={() => setUrl(null)} />
+        : "🏈"}
     </div>
   );
+}
 }
 
 function StatCard({ title, rows }) {

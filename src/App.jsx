@@ -6889,8 +6889,8 @@ function NFFLAvatar({robloxId,size=36}){
   const[url,setUrl]=useState(null);
   useEffect(()=>{
     if(!robloxId)return;
-    fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${robloxId}&size=420x420&format=Png&isCircular=false`)
-      .then(r=>r.json()).then(d=>{if(d?.data?.[0]?.imageUrl)setUrl(d.data[0].imageUrl);}).catch(()=>{});
+    fetch(`/api/roblox-avatar?userId=${robloxId}`)
+      .then(r=>r.json()).then(d=>{if(d.imageUrl)setUrl(d.imageUrl);}).catch(()=>{});
   },[robloxId]);
   return(
     <div style={{width:size,height:size,borderRadius:"50%",overflow:"hidden",background:"rgba(255,255,255,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*0.4,border:"1px solid rgba(245,158,11,0.3)",flexShrink:0}}>
