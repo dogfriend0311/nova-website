@@ -56,7 +56,6 @@ function RobloxAvatar({ robloxId, size = 60 }) {
     </div>
   );
 }
-}
 
 function StatCard({ title, rows }) {
   if (!rows || rows.every(r => !r.value)) return null;
