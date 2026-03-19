@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import NFFLPage from "./NFFLPage";
 
 const SUPABASE_URL = "https://expzaiduzjehvyfclnnj.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4cHphaWR1emplaHZ5ZmNsbm5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2OTUwNTQsImV4cCI6MjA4ODI3MTA1NH0.ZZrWRASkBWha6XDuw23bazoXK224diM0HTlgPkdLCy0";
@@ -84,7 +83,7 @@ const extractMedal   = u => { const m=u.match(/clips\/(\d+)/); return m?m[1]:nul
 const fmtTime = ts => { const d=Math.floor((Date.now()-ts)/1000); if(d<60)return"just now"; if(d<3600)return`${Math.floor(d/60)}m ago`; if(d<86400)return`${Math.floor(d/3600)}h ago`; return new Date(ts).toLocaleDateString("en-US",{month:"short",day:"numeric"}); };
 const fmtAgo  = fmtTime;
 const fmtMsg  = ts => new Date(ts).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
-const ROLE_COLOR  = { Owner:"#F59E0B", Moderator:"#00D4FF", "Event Host":"#A78BFA", Helper:"#34D399" };
+const ROLE_COLOR  = { Owner:"#F59E0B", "Co-owner":"#FB923C", Moderator:"#00D4FF", "Event Host":"#A78BFA", Helper:"#34D399" };
 const STATUS_META = { online:{color:"#22C55E",label:"Online"}, idle:{color:"#EAB308",label:"Idle"}, dnd:{color:"#EF4444",label:"Do Not Disturb"}, offline:{color:"#6B7280",label:"Offline"} };
 const SOCIAL_ICONS = {
   roblox:    <svg width="16" height="16" viewBox="0 0 512 512" fill="currentColor"><path d="M117.53 0L0 394.47 394.47 512 512 117.53zm177.39 289.73l-94.66-28.46 28.46-94.66 94.66 28.46z"/></svg>,
@@ -2157,13 +2156,15 @@ function HomePage({discordUrl,staffUsers,nav,users}){
 
   const NAV_PAGES=[
     {p:"members",icon:"👥",label:"Members",color:"#00D4FF",desc:"Browse every Nova member, see their stats, teams, and profiles. Follow your favorites and connect with the community."},
-    {p:"news",icon:"📰",label:"News",color:"#F59E0B",desc:"Stay up to date with the latest breaking sports news across MLB, NFL, NBA, and NHL all in one place."},
+
     {p:"feed",icon:"🎬",label:"Clips Feed",color:"#EC4899",desc:"Watch and share highlight clips from the community. React, comment, and show love to the best plays."},
     {p:"cards",icon:"⚾",label:"Nova Cards",color:"#F59E0B",desc:"Collect MLB player and team cards, open packs for real 2025 play cards, level up your cards and flex them on your profile."},
-    {p:"predict",icon:"🎯",label:"Predictions",color:"#22C55E",desc:"Make your picks on upcoming games before they happen. Track your accuracy and climb the predictions leaderboard."},
+
     {p:"trivia",icon:"🧠",label:"Trivia",color:"#A855F7",desc:"Challenge yourself with sports trivia across 4 sports and 3 difficulty levels. MVP years, stat records, championships and more."},
     {p:"leaderboard",icon:"🏆",label:"Leaderboard",color:"#F97316",desc:"See who's on top — ranked by followers, trivia score, predictions accuracy, and most liked comments."},
-    {p:"stats",icon:"📊",label:"Stats Center",color:"#94A3B8",desc:"Live scores, player stats, game logs, standings and play-by-play across MLB, NBA, NHL, and NFL — all in one place."},
+    {p:"hub",icon:"📊",label:"Hub",color:"#00D4FF",desc:"News, live scores, player stats, game logs, standings and predictions all in one place — across MLB, NBA, NHL, and NFL."},
+    {p:"nffl",icon:"🏈",label:"NFFL",color:"#F59E0B",desc:"Nova Football Fusion League — player stats, game feed, transactions and rosters for our community football league."},
+    {p:"nbbl",icon:"⚾",label:"NBBL",color:"#22C55E",desc:"Nova Baseball League — hitting stats, pitching stats, fielding stats and game feed for our community baseball league."},
     {p:"messages",icon:"💬",label:"Messages",color:"#38BDF8",desc:"Slide into DMs, create group chats, share clips and GIFs, and hop on voice calls with other Nova members."},
   ];
 
@@ -3451,7 +3452,7 @@ function MyCardsTab({cu,cards,plays,onCustomize,onPin,onApply}){
         return(
           <Card key={card.id} style={{padding:14,border:isSelected?"1px solid rgba(0,212,255,.5)":undefined}}>
             <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
-              <CardDisplay type={card.card_type} name={card.card_name} totalRating={card.total_play_rating||0} customName={card.custom_name||undefined} customBorder={card.custom_border||undefined} customBg={card.custom_bg||undefined} customEffect={card.custom_effect||undefined} size="sm" pinned={card.pinned} serial={card.serial} headshot={card.custom_headshot||card.headshot_url}/>
+              <CardDisplay type={card.card_type} name={card.card_name} headshot={card.headshot_url} totalRating={card.total_play_rating||0} customName={card.custom_name||undefined} customBorder={card.custom_border||undefined} customBg={card.custom_bg||undefined} customEffect={card.custom_effect||undefined} size="sm" pinned={card.pinned} serial={card.serial} headshot={card.custom_headshot||card.headshot_url}/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:12,fontWeight:700,fontFamily:"'Orbitron',sans-serif",color:"#E2E8F0",marginBottom:1}}>{card.custom_name||card.card_name}</div>
                 {card.custom_name&&<div style={{fontSize:10,color:"#475569",marginBottom:4}}>{card.card_name}</div>}
@@ -4113,13 +4114,20 @@ function CardsPage({cu}){
 function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onClearNotifs,onMarkOneNotif,users,msgUnread}){
   const mob=useIsMobile();
   const[gamesOpen,setGamesOpen]=useState(false);
+  const[leaguesOpen,setLeaguesOpen]=useState(false);
   const gamesRef=useRef(null);
-  const GAMES_PAGES=["predict","trivia","leaderboard","cards"];
-  const dTabs=[["home","Home"],["members","Members"],["news","📰 News"],["feed","🎬 Feed"],["stats","📊 Stats"],["nffl","🏈 NFFL"]];
-  const mTabs=[{p:"home",icon:"🏠",lbl:"Home"},{p:"news",icon:"📰",lbl:"News"},{p:"feed",icon:"🎬",lbl:"Feed"},{p:"members",icon:"👥",lbl:"Members"},{p:"messages",icon:"💬",lbl:"DMs",badge:msgUnread}];
-  // Close dropdown on outside click
+  const leaguesRef=useRef(null);
+  const GAMES_PAGES=["trivia","leaderboard","cards"];
+  const HUB_PAGES=["hub","stats","news","predict"];
+  const LEAGUE_PAGES=["nffl","nbbl"];
+  const dTabs=[["home","Home"],["members","Members"],["feed","🎬 Feed"]];
+  const mTabs=[{p:"home",icon:"🏠",lbl:"Home"},{p:"hub",icon:"📊",lbl:"Hub"},{p:"feed",icon:"🎬",lbl:"Feed"},{p:"members",icon:"👥",lbl:"Members"},{p:"messages",icon:"💬",lbl:"DMs",badge:msgUnread}];
+  // Close dropdowns on outside click
   useEffect(()=>{
-    const h=(e)=>{if(gamesRef.current&&!gamesRef.current.contains(e.target))setGamesOpen(false);};
+    const h=(e)=>{
+      if(gamesRef.current&&!gamesRef.current.contains(e.target))setGamesOpen(false);
+      if(leaguesRef.current&&!leaguesRef.current.contains(e.target))setLeaguesOpen(false);
+    };
     document.addEventListener("mousedown",h);
     return()=>document.removeEventListener("mousedown",h);
   },[]);
@@ -4134,6 +4142,27 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
           {!mob&&(
             <div style={{display:"flex",gap:1,alignItems:"center"}}>
               {dTabs.map(([p,l])=><button key={p} onClick={()=>nav(p)} style={{background:page===p?"rgba(0,212,255,.09)":"none",border:page===p?"1px solid rgba(0,212,255,.2)":"1px solid transparent",cursor:"pointer",padding:"4px 11px",borderRadius:8,fontFamily:"'Rajdhani',sans-serif",fontSize:13,fontWeight:600,color:page===p?"#00D4FF":"#94A3B8",transition:"all .2s",whiteSpace:"nowrap"}}>{l}</button>)}
+              {/* Hub tab — News + Stats + Predict */}
+              <button onClick={()=>nav("hub")} style={{background:HUB_PAGES.includes(page)?"rgba(0,212,255,.09)":"none",border:HUB_PAGES.includes(page)?"1px solid rgba(0,212,255,.2)":"1px solid transparent",cursor:"pointer",padding:"4px 11px",borderRadius:8,fontFamily:"'Rajdhani',sans-serif",fontSize:13,fontWeight:600,color:HUB_PAGES.includes(page)?"#00D4FF":"#94A3B8",transition:"all .2s",whiteSpace:"nowrap"}}>📊 Hub</button>
+              {/* Leagues dropdown */}
+              <div ref={leaguesRef} style={{position:"relative"}}>
+                <button onClick={()=>setLeaguesOpen(o=>!o)} style={{background:LEAGUE_PAGES.includes(page)?"rgba(239,68,68,.09)":"none",border:LEAGUE_PAGES.includes(page)?"1px solid rgba(239,68,68,.25)":"1px solid transparent",cursor:"pointer",padding:"4px 11px",borderRadius:8,fontFamily:"'Rajdhani',sans-serif",fontSize:13,fontWeight:600,color:LEAGUE_PAGES.includes(page)?"#EF4444":"#94A3B8",transition:"all .2s",display:"flex",alignItems:"center",gap:5}}>
+                  🏆 Leagues <span style={{fontSize:9,opacity:.7,transition:"transform .2s",transform:leaguesOpen?"rotate(180deg)":"rotate(0deg)",display:"inline-block"}}>▼</span>
+                </button>
+                {leaguesOpen&&(
+                  <div style={{position:"absolute",top:"calc(100% + 8px)",left:0,background:"linear-gradient(160deg,#0c1220,#10172a)",border:"1px solid rgba(239,68,68,.25)",borderRadius:12,padding:6,minWidth:170,zIndex:200,boxShadow:"0 16px 40px rgba(0,0,0,.7)"}}>
+                    {[["nffl","🏈","#F59E0B","NFFL","Nova Football Fusion League"],["nbbl","⚾","#22C55E","NBBL","Nova Baseball League"]].map(([p,icon,col,label,sub])=>(
+                      <button key={p} onClick={()=>{nav(p);setLeaguesOpen(false);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"9px 12px",borderRadius:8,background:page===p?col+"18":"none",border:"none",cursor:"pointer",textAlign:"left",transition:"background .15s"}}>
+                        <span style={{fontSize:18,flexShrink:0}}>{icon}</span>
+                        <div>
+                          <div style={{fontSize:12,fontWeight:700,fontFamily:"'Rajdhani',sans-serif",color:page===p?col:"#E2E8F0"}}>{label}</div>
+                          <div style={{fontSize:10,color:"#475569"}}>{sub}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               {/* Games dropdown */}
               <div ref={gamesRef} style={{position:"relative"}}>
                 <button onClick={()=>setGamesOpen(o=>!o)} style={{background:GAMES_PAGES.includes(page)?"rgba(168,85,247,.09)":"none",border:GAMES_PAGES.includes(page)?"1px solid rgba(168,85,247,.25)":"1px solid transparent",cursor:"pointer",padding:"4px 11px",borderRadius:8,fontFamily:"'Rajdhani',sans-serif",fontSize:13,fontWeight:600,color:GAMES_PAGES.includes(page)?"#A855F7":"#94A3B8",transition:"all .2s",display:"flex",alignItems:"center",gap:5}}>
@@ -4141,7 +4170,7 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
                 </button>
                 {gamesOpen&&(
                   <div style={{position:"absolute",top:"calc(100% + 8px)",left:0,background:"linear-gradient(160deg,#0c1220,#10172a)",border:"1px solid rgba(168,85,247,.25)",borderRadius:12,padding:6,minWidth:160,zIndex:200,boxShadow:"0 16px 40px rgba(0,0,0,.7)"}}>
-                    {[["cards","⚾","Nova Cards","Collect & level up MLB player cards"],["predict","🎯","Predictions","Make picks on upcoming games"],["trivia","🧠","Trivia","Test your sports knowledge"],["leaderboard","🏆","Leaderboard","Top members ranked"]].map(([p,icon,label,desc])=>(
+                    {[["cards","⚾","Nova Cards","Collect & level up MLB player cards"],["trivia","🧠","Trivia","Test your sports knowledge"],["leaderboard","🏆","Leaderboard","Top members ranked"]].map(([p,icon,label,desc])=>(
                       <button key={p} onClick={()=>{nav(p);setGamesOpen(false);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"9px 12px",borderRadius:8,background:page===p?"rgba(168,85,247,.12)":"none",border:"none",cursor:"pointer",textAlign:"left",transition:"background .15s"}}>
                         <span style={{fontSize:18,flexShrink:0}}>{icon}</span>
                         <div>
@@ -4153,7 +4182,7 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
                   </div>
                 )}
               </div>
-              {cu?.is_owner&&<button onClick={()=>nav("dashboard")} style={{background:page==="dashboard"?"rgba(245,158,11,.09)":"none",border:page==="dashboard"?"1px solid rgba(245,158,11,.2)":"1px solid transparent",cursor:"pointer",padding:"4px 11px",borderRadius:8,fontFamily:"'Rajdhani',sans-serif",fontSize:13,fontWeight:600,color:page==="dashboard"?"#F59E0B":"#94A3B8"}}>⚡ Dashboard</button>}
+              {(cu?.is_owner||cu?.staff_role==="Co-owner")&&<button onClick={()=>nav("dashboard")} style={{background:page==="dashboard"?"rgba(245,158,11,.09)":"none",border:page==="dashboard"?"1px solid rgba(245,158,11,.2)":"1px solid transparent",cursor:"pointer",padding:"4px 11px",borderRadius:8,fontFamily:"'Rajdhani',sans-serif",fontSize:13,fontWeight:600,color:page==="dashboard"?"#F59E0B":"#94A3B8"}}>⚡ Dashboard</button>}
             </div>
           )}
         </div>
@@ -4175,7 +4204,7 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
                 {!mob&&<span style={{maxWidth:90,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cu.display_name}</span>}
               </button>
               {!mob&&<Btn variant="muted" size="sm" onClick={onLogout}>Out</Btn>}
-              {mob&&cu?.is_owner&&<button onClick={()=>nav("dashboard")} style={{background:"none",border:"1px solid rgba(245,158,11,.3)",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:11,color:"#F59E0B",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>⚡</button>}
+              {mob&&(cu?.is_owner||cu?.staff_role==="Co-owner")&&<button onClick={()=>nav("dashboard")} style={{background:"none",border:"1px solid rgba(245,158,11,.3)",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:11,color:"#F59E0B",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>⚡</button>}
             </>
           ) : (
             <>
@@ -4201,6 +4230,11 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
             <span className="mob-tab-icon">🎮</span>
             <span className="mob-tab-label" style={{color:GAMES_PAGES.includes(page)?"#A855F7":"#475569"}}>Games</span>
           </button>
+          {/* Leagues button on mobile */}
+          <button className="mob-tab" onClick={()=>setLeaguesOpen(o=>!o)} style={{color:LEAGUE_PAGES.includes(page)?"#EF4444":"#475569"}}>
+            <span className="mob-tab-icon">🏆</span>
+            <span className="mob-tab-label" style={{color:LEAGUE_PAGES.includes(page)?"#EF4444":"#475569"}}>Leagues</span>
+          </button>
         </div>
       )}
       {/* Mobile games sheet */}
@@ -4208,12 +4242,29 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
         <div style={{position:"fixed",inset:0,zIndex:300,background:"rgba(0,0,0,.7)"}} onClick={()=>setGamesOpen(false)}>
           <div style={{position:"absolute",bottom:70,left:0,right:0,background:"linear-gradient(160deg,#0c1220,#10172a)",borderTop:"1px solid rgba(168,85,247,.25)",borderRadius:"20px 20px 0 0",padding:"20px 16px"}} onClick={e=>e.stopPropagation()}>
             <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#475569",letterSpacing:".12em",marginBottom:14}}>🎮 GAMES</div>
-            {[["cards","⚾","Nova Cards","Collect & level up MLB player cards"],["predict","🎯","Predictions","Make picks on upcoming games"],["trivia","🧠","Trivia","Test your sports knowledge"],["leaderboard","🏆","Leaderboard","Top members ranked"]].map(([p,icon,label,desc])=>(
+            {[["cards","⚾","Nova Cards","Collect & level up MLB player cards"],["trivia","🧠","Trivia","Test your sports knowledge"],["leaderboard","🏆","Leaderboard","Top members ranked"]].map(([p,icon,label,desc])=>(
               <button key={p} onClick={()=>{nav(p);setGamesOpen(false);}} style={{display:"flex",alignItems:"center",gap:12,width:"100%",padding:"12px 14px",borderRadius:12,background:page===p?"rgba(168,85,247,.12)":"rgba(255,255,255,.03)",border:"1px solid "+(page===p?"rgba(168,85,247,.3)":"rgba(255,255,255,.06)"),marginBottom:8,cursor:"pointer",textAlign:"left"}}>
                 <span style={{fontSize:22}}>{icon}</span>
                 <div>
                   <div style={{fontSize:14,fontWeight:700,fontFamily:"'Rajdhani',sans-serif",color:page===p?"#A855F7":"#E2E8F0"}}>{label}</div>
                   <div style={{fontSize:11,color:"#475569"}}>{desc}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* Mobile leagues sheet */}
+      {mob&&leaguesOpen&&(
+        <div style={{position:"fixed",inset:0,zIndex:300,background:"rgba(0,0,0,.7)"}} onClick={()=>setLeaguesOpen(false)}>
+          <div style={{position:"absolute",bottom:70,left:0,right:0,background:"linear-gradient(160deg,#0c1220,#10172a)",borderTop:"1px solid rgba(239,68,68,.25)",borderRadius:"20px 20px 0 0",padding:"20px 16px"}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#475569",letterSpacing:".12em",marginBottom:14}}>🏆 LEAGUES</div>
+            {[["nffl","🏈","#F59E0B","NFFL","Nova Football Fusion League"],["nbbl","⚾","#22C55E","NBBL","Nova Baseball League"]].map(([p,icon,col,label,sub])=>(
+              <button key={p} onClick={()=>{nav(p);setLeaguesOpen(false);}} style={{display:"flex",alignItems:"center",gap:12,width:"100%",padding:"12px 14px",borderRadius:12,background:page===p?col+"18":"rgba(255,255,255,.03)",border:"1px solid "+(page===p?col+"44":"rgba(255,255,255,.06)"),marginBottom:8,cursor:"pointer",textAlign:"left"}}>
+                <span style={{fontSize:22}}>{icon}</span>
+                <div>
+                  <div style={{fontSize:14,fontWeight:700,fontFamily:"'Rajdhani',sans-serif",color:page===p?col:"#E2E8F0"}}>{label}</div>
+                  <div style={{fontSize:11,color:"#475569"}}>{sub}</div>
                 </div>
               </button>
             ))}
@@ -6232,6 +6283,319 @@ function StatsPage({navigate,initPlayer,initSport}){
 }
 
 
+
+// ─── Hub Page (News + Stats + Predict combined) ────────────────────────────────
+function HubPage({cu,users,setUsers,navigate}){
+  const mob=useIsMobile();
+  const[tab,setTab]=useState("stats");
+  const TABS=[
+    {id:"stats",  icon:"📊",label:"Stats"},
+    {id:"news",   icon:"📰",label:"News"},
+    {id:"predict",icon:"🎯",label:"Predict"},
+  ];
+  return(
+    <div style={{maxWidth:1080,margin:"0 auto",paddingTop:mob?8:16}}>
+      {/* Sub-tab bar */}
+      <div style={{display:"flex",gap:0,borderBottom:"1px solid rgba(255,255,255,.07)",marginBottom:0,padding:mob?"0 12px":"0 20px"}}>
+        {TABS.map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)}
+            style={{padding:"10px 18px",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:mob?9:11,fontWeight:700,
+              border:"none",background:"none",
+              borderBottom:`2px solid ${tab===t.id?"#00D4FF":"transparent"}`,
+              color:tab===t.id?"#00D4FF":"#475569",
+              transition:"all .18s",letterSpacing:".06em",whiteSpace:"nowrap"}}>
+            {t.icon} {t.label}
+          </button>
+        ))}
+      </div>
+      {tab==="stats"  &&<StatsPage navigate={navigate}/>}
+      {tab==="news"   &&<NewsPage cu={cu} users={users} addNotif={()=>{}} navOpts={{}}/>}
+      {tab==="predict"&&<PredictPage cu={cu} users={users} setUsers={setUsers} navigate={navigate}/>}
+    </div>
+  );
+}
+
+
+// ─── NFFL Page (Nova Football Fusion League) ─────────────────────────────────
+function NFFLPage({cu,users,navigate}){
+  const mob=useIsMobile();
+  const isAdmin=cu?.is_owner||cu?.staff_role==="Co-owner";
+  const[tab,setTab]=useState("feed");
+  const[feed,setFeed]=useState([]);
+  const[players,setPlayers]=useState([]);
+  const[loading,setLoading]=useState(true);
+
+  useEffect(()=>{
+    const load=async()=>{
+      const [f,p]=await Promise.all([
+        sb.get("nova_nffl_feed","?order=ts.desc&limit=50"),
+        sb.get("nova_nffl_players","?order=name.asc"),
+      ]);
+      setFeed(f||[]);setPlayers(p||[]);setLoading(false);
+    };
+    load();
+  },[]);
+
+  const TABS=[{id:"feed",label:"📢 Game Feed"},{id:"roster",label:"👥 Roster"},{id:"stats",label:"📊 Stats"}];
+  if(isAdmin)TABS.push({id:"manage",label:"⚙️ Manage"});
+
+  return(
+    <div style={{maxWidth:1080,margin:"0 auto",padding:mob?"12px 10px 100px":"20px 20px 80px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+        <span style={{fontSize:28}}>🏈</span>
+        <div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?16:22,fontWeight:900,color:"#F59E0B",letterSpacing:".06em"}}>NFFL</div>
+          <div style={{fontSize:11,color:"#475569"}}>Nova Football Fusion League</div>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:5,marginBottom:18,borderBottom:"1px solid rgba(255,255,255,.07)",paddingBottom:10}}>
+        {TABS.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{padding:"7px 14px",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,border:"none",background:"none",borderBottom:`2px solid ${tab===t.id?"#F59E0B":"transparent"}`,color:tab===t.id?"#F59E0B":"#475569",transition:"all .18s"}}>{t.label}</button>)}
+      </div>
+      {loading&&<div style={{textAlign:"center",padding:60,color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>Loading NFFL data...</div>}
+      {!loading&&tab==="feed"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {feed.length===0&&<Empty icon="🏈" msg="No game feed posts yet — check back soon!"/>}
+          {feed.map((f,i)=>(
+            <Card key={i} style={{padding:"14px 16px"}} hover={false}>
+              <div style={{fontSize:11,color:"#F59E0B",fontFamily:"'Orbitron',sans-serif",fontWeight:700,marginBottom:4}}>{f.title||"Update"}</div>
+              <div style={{fontSize:13,color:"#94A3B8",lineHeight:1.5}}>{f.content||""}</div>
+              <div style={{fontSize:9,color:"#334155",marginTop:8,fontFamily:"'Orbitron',sans-serif"}}>{f.ts?new Date(f.ts).toLocaleDateString():""}</div>
+            </Card>
+          ))}
+        </div>
+      )}
+      {!loading&&tab==="roster"&&(
+        <div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(auto-fill,minmax(200px,1fr))",gap:10}}>
+          {players.length===0&&<Empty icon="👥" msg="No players added yet"/>}
+          {players.map((p,i)=>(
+            <Card key={i} style={{padding:"14px 16px",textAlign:"center"}}>
+              <div style={{fontSize:32,marginBottom:6}}>{p.position==="QB"?"🎯":p.position==="RB"?"💨":p.position==="WR"?"📡":p.position==="TE"?"🔒":p.position==="K"?"⚽":"🏈"}</div>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0",marginBottom:2}}>{p.name||"—"}</div>
+              <div style={{fontSize:10,color:"#F59E0B"}}>{p.position||""}</div>
+              <div style={{fontSize:10,color:"#475569"}}>{p.team||""}</div>
+            </Card>
+          ))}
+        </div>
+      )}
+      {!loading&&tab==="stats"&&(
+        <div>
+          <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+            {["Passing","Rushing","Receiving","Defense","Kicking"].map(cat=>(
+              <button key={cat} style={{padding:"6px 14px",borderRadius:16,background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.3)",color:"#F59E0B",fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{cat}</button>
+            ))}
+          </div>
+          <Empty icon="📊" msg="Stats coming soon — add players and game results first"/>
+        </div>
+      )}
+      {!loading&&tab==="manage"&&isAdmin&&(
+        <Card style={{padding:"18px 20px"}} hover={false}>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,color:"#F59E0B",marginBottom:14,fontWeight:700}}>⚙️ NFFL MANAGEMENT</div>
+          <div style={{fontSize:12,color:"#64748B",lineHeight:1.6}}>
+            Post game feed updates, manage player roster, and record stats here.<br/>
+            Full management panel coming soon — contact owner to set up game data.
+          </div>
+          <PostFeedForm league="nffl" onPost={post=>setFeed(p=>[post,...p])} cu={cu}/>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ─── NBBL Page (Nova Baseball League) ─────────────────────────────────────────
+function NBBLPage({cu,users,navigate}){
+  const mob=useIsMobile();
+  const isAdmin=cu?.is_owner||cu?.staff_role==="Co-owner";
+  const[tab,setTab]=useState("feed");
+  const[feed,setFeed]=useState([]);
+  const[players,setPlayers]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[statCat,setStatCat]=useState("hitting");
+
+  useEffect(()=>{
+    const load=async()=>{
+      const [f,p]=await Promise.all([
+        sb.get("nova_nbbl_feed","?order=ts.desc&limit=50"),
+        sb.get("nova_nbbl_players","?order=name.asc"),
+      ]);
+      setFeed(f||[]);setPlayers(p||[]);setLoading(false);
+    };
+    load();
+  },[]);
+
+  const TABS=[{id:"feed",label:"📢 Game Feed"},{id:"roster",label:"👥 Roster"},{id:"stats",label:"📊 Stats"}];
+  if(isAdmin)TABS.push({id:"manage",label:"⚙️ Manage"});
+
+  // Stat categories with their relevant columns
+  const STAT_CATS={
+    hitting:{label:"⚾ Hitting",color:"#22C55E",cols:["G","AB","R","H","2B","3B","HR","RBI","BB","SO","SB","AVG","OBP","SLG","OPS"]},
+    pitching:{label:"⚾ Pitching",color:"#3B82F6",cols:["G","GS","W","L","SV","IP","H","R","ER","BB","SO","ERA","WHIP","K9","BB9"]},
+    fielding:{label:"🧤 Fielding",color:"#A855F7",cols:["G","GS","PO","A","E","DP","FLD%","INN"]},
+  };
+
+  return(
+    <div style={{maxWidth:1080,margin:"0 auto",padding:mob?"12px 10px 100px":"20px 20px 80px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+        <span style={{fontSize:28}}>⚾</span>
+        <div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?16:22,fontWeight:900,color:"#22C55E",letterSpacing:".06em"}}>NBBL</div>
+          <div style={{fontSize:11,color:"#475569"}}>Nova Baseball League</div>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:5,marginBottom:18,borderBottom:"1px solid rgba(255,255,255,.07)",paddingBottom:10}}>
+        {TABS.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{padding:"7px 14px",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,border:"none",background:"none",borderBottom:`2px solid ${tab===t.id?"#22C55E":"transparent"}`,color:tab===t.id?"#22C55E":"#475569",transition:"all .18s"}}>{t.label}</button>)}
+      </div>
+      {loading&&<div style={{textAlign:"center",padding:60,color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>Loading NBBL data...</div>}
+      {!loading&&tab==="feed"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {feed.length===0&&<Empty icon="⚾" msg="No game feed posts yet — check back soon!"/>}
+          {feed.map((f,i)=>(
+            <Card key={i} style={{padding:"14px 16px"}} hover={false}>
+              <div style={{fontSize:11,color:"#22C55E",fontFamily:"'Orbitron',sans-serif",fontWeight:700,marginBottom:4}}>{f.title||"Update"}</div>
+              <div style={{fontSize:13,color:"#94A3B8",lineHeight:1.5}}>{f.content||""}</div>
+              <div style={{fontSize:9,color:"#334155",marginTop:8,fontFamily:"'Orbitron',sans-serif"}}>{f.ts?new Date(f.ts).toLocaleDateString():""}</div>
+            </Card>
+          ))}
+        </div>
+      )}
+      {!loading&&tab==="roster"&&(
+        <div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(auto-fill,minmax(200px,1fr))",gap:10}}>
+          {players.length===0&&<Empty icon="👥" msg="No players added yet"/>}
+          {players.map((p,i)=>{
+            const posEmoji={P:"⚾",C:"🎯",SP:"🔥",RP:"💨","1B":"🧤","2B":"⚡","3B":"💥","SS":"🌟","LF":"👈","CF":"🎪","RF":"👉","DH":"💪"}[p.position]||"⚾";
+            return(
+              <Card key={i} style={{padding:"14px 16px",textAlign:"center"}}>
+                <div style={{fontSize:32,marginBottom:6}}>{posEmoji}</div>
+                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0",marginBottom:2}}>{p.name||"—"}</div>
+                <div style={{fontSize:10,color:"#22C55E"}}>{p.position||""}</div>
+                <div style={{fontSize:10,color:"#475569"}}>{p.team||""}</div>
+                {p.jersey&&<div style={{fontSize:10,color:"#334155"}}>#{p.jersey}</div>}
+              </Card>
+            );
+          })}
+        </div>
+      )}
+      {!loading&&tab==="stats"&&(
+        <div>
+          {/* Stat category picker */}
+          <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+            {Object.entries(STAT_CATS).map(([k,v])=>(
+              <button key={k} onClick={()=>setStatCat(k)}
+                style={{padding:"7px 16px",borderRadius:18,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,
+                  border:`1px solid ${statCat===k?v.color+"88":"rgba(255,255,255,.1)"}`,
+                  background:statCat===k?v.color+"18":"rgba(255,255,255,.03)",
+                  color:statCat===k?v.color:"#64748B"}}>
+                {v.label}
+              </button>
+            ))}
+          </div>
+          {/* Stats table */}
+          {(()=>{
+            const cat=STAT_CATS[statCat];
+            const statPlayers=players.filter(p=>p[`${statCat}_stats`]||p.stats);
+            if(!statPlayers.length)return<Empty icon="📊" msg={`No ${statCat} stats recorded yet`}/>;
+            return(
+              <Card style={{padding:"14px 16px"}} hover={false}>
+                <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:400}}>
+                    <thead>
+                      <tr style={{borderBottom:"1px solid rgba(255,255,255,.1)"}}>
+                        <td style={{padding:"6px 8px",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:9,minWidth:130}}>PLAYER</td>
+                        {cat.cols.map(c=><td key={c} style={{padding:"6px 6px",textAlign:"center",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:9}}>{c}</td>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {statPlayers.map((p,pi)=>{
+                        const s=p[`${statCat}_stats`]||p.stats||{};
+                        return(
+                          <tr key={pi} style={{background:pi%2===0?"rgba(255,255,255,.02)":"transparent",borderBottom:"1px solid rgba(255,255,255,.03)"}}>
+                            <td style={{padding:"6px 8px"}}>
+                              <div style={{fontWeight:600,color:"#E2E8F0"}}>{p.name}</div>
+                              <div style={{fontSize:9,color:"#475569"}}>{p.position} · {p.team}</div>
+                            </td>
+                            {cat.cols.map(c=><td key={c} style={{padding:"6px 6px",textAlign:"center",color:"#94A3B8",fontSize:11}}>{s[c]??s[c.toLowerCase()]??"—"}</td>)}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            );
+          })()}
+        </div>
+      )}
+      {!loading&&tab==="manage"&&isAdmin&&(
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <Card style={{padding:"18px 20px"}} hover={false}>
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,color:"#22C55E",marginBottom:14,fontWeight:700}}>⚙️ NBBL MANAGEMENT</div>
+            <PostFeedForm league="nbbl" onPost={post=>setFeed(p=>[post,...p])} cu={cu}/>
+          </Card>
+          <Card style={{padding:"18px 20px"}} hover={false}>
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,color:"#22C55E",marginBottom:14,fontWeight:700}}>➕ ADD PLAYER</div>
+            <AddLeaguePlayer league="nbbl" onAdd={p=>setPlayers(prev=>[...prev,p])} cu={cu}/>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Shared: post to league game feed
+function PostFeedForm({league,onPost,cu}){
+  const[title,setTitle]=useState("");
+  const[content,setContent]=useState("");
+  const[saving,setSaving]=useState(false);
+  const submit=async()=>{
+    if(!content.trim())return;
+    setSaving(true);
+    const post={id:gid(),title:title.trim(),content:content.trim(),author_id:cu?.id,author_name:cu?.display_name,ts:Date.now()};
+    await sb.post(`nova_${league}_feed`,post);
+    onPost(post);setTitle("");setContent("");setSaving(false);
+  };
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+      <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Post title (optional)…"/>
+      <textarea value={content} onChange={e=>setContent(e.target.value)} placeholder="Game update, score, highlights…" rows={3} style={{resize:"vertical"}}/>
+      <Btn onClick={submit} disabled={saving||!content.trim()}>{saving?"Posting…":"📢 Post Update"}</Btn>
+    </div>
+  );
+}
+
+// Shared: add player to league roster
+function AddLeaguePlayer({league,onAdd,cu}){
+  const[name,setName]=useState("");
+  const[position,setPosition]=useState("");
+  const[team,setTeam]=useState("");
+  const[jersey,setJersey]=useState("");
+  const[saving,setSaving]=useState(false);
+  const isBaseball=league==="nbbl";
+  const baseballPos=["P","C","1B","2B","3B","SS","LF","CF","RF","DH","SP","RP"];
+  const footballPos=["QB","RB","WR","TE","K","DEF","OL","DL","LB","CB","S"];
+  const positions=isBaseball?baseballPos:footballPos;
+  const submit=async()=>{
+    if(!name.trim()||!position)return;
+    setSaving(true);
+    const player={id:gid(),name:name.trim(),position,team:team.trim(),jersey:jersey.trim(),added_by:cu?.id,ts:Date.now()};
+    await sb.post(`nova_${league}_players`,player);
+    onAdd(player);setName("");setPosition("");setTeam("");setJersey("");setSaving(false);
+  };
+  return(
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+      <div style={{gridColumn:"1/-1"}}><Lbl>Player Name</Lbl><input value={name} onChange={e=>setName(e.target.value)} placeholder="Full name…"/></div>
+      <div><Lbl>Position</Lbl>
+        <select value={position} onChange={e=>setPosition(e.target.value)} style={{width:"100%"}}>
+          <option value="">Pick…</option>
+          {positions.map(p=><option key={p} value={p}>{p}</option>)}
+        </select>
+      </div>
+      <div><Lbl>Team</Lbl><input value={team} onChange={e=>setTeam(e.target.value)} placeholder="Team name…"/></div>
+      <div><Lbl>Jersey #</Lbl><input value={jersey} onChange={e=>setJersey(e.target.value)} placeholder="#"/></div>
+      <div style={{gridColumn:"1/-1"}}><Btn onClick={submit} disabled={saving||!name.trim()||!position}>{saving?"Adding…":"➕ Add Player"}</Btn></div>
+    </div>
+  );
+}
+
+
 // ─── Dashboard ─────────────────────────────────────────────────────────────────
 function DashboardPage({cu,users,setUsers,navigate}){
   const mob=useIsMobile();
@@ -6247,7 +6611,8 @@ function DashboardPage({cu,users,setUsers,navigate}){
   const[starMsg,setStarMsg]=useState(null);
   const[starBalances,setStarBalances]=useState({});
   const[starLoading,setStarLoading]=useState(false);
-  if(!cu?.is_owner)return<div style={{padding:"100px 20px",textAlign:"center",color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>⛔ Access Denied</div>;
+  const isCoOwner=cu?.staff_role==="Co-owner";
+  if(!cu?.is_owner&&!isCoOwner)return<div style={{padding:"100px 20px",textAlign:"center",color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>⛔ Access Denied</div>;
 
   const loadStarBalance=async(uid)=>{
     if(starBalances[uid]!==undefined)return;
@@ -6335,7 +6700,7 @@ function DashboardPage({cu,users,setUsers,navigate}){
         ))}
       </div>
       <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
-        {[["members","👥 Members"],["badges","🏅 Badges"],["roles","⭐ Roles"],["stars","⭐ Stars"],["announce","📢 Announce"],["nffl-players","🏈 NFFL Players"],["nffl-stats","🏈 NFFL Stats"],["nffl-feed","🏈 NFFL Feed"],["nffl-boxscores","🏈 NFFL Box Scores"],["nffl-transactions","🏈 NFFL Transactions"]].map(([t,l])=>(
+        {[["members","👥 Members"],["badges","🏅 Badges"],["roles","⭐ Roles"],["stars","⭐ Stars"],["announce","📢 Announce"]].map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t)} style={{padding:"8px 16px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"rgba(245,158,11,.5)":"rgba(255,255,255,.1)"}`,background:tab===t?"rgba(245,158,11,.12)":"rgba(255,255,255,.03)",color:tab===t?"#F59E0B":"#64748B",transition:"all .2s"}}>{l}</button>
         ))}
       </div>
@@ -6537,21 +6902,6 @@ function DashboardPage({cu,users,setUsers,navigate}){
             </div>
           )}
         </div>
-      )}
-      {tab==="nffl-players"&&(
-        <NFFLDashPlayers/>
-      )}
-      {tab==="nffl-stats"&&(
-        <NFFLDashStats/>
-      )}
-      {tab==="nffl-feed"&&(
-        <NFFLDashFeed/>
-      )}
-      {tab==="nffl-boxscores"&&(
-        <NFFLDashBoxScores/>
-      )}
-      {tab==="nffl-transactions"&&(
-        <NFFLDashTransactions/>
       )}
     </div>
   );
@@ -6866,462 +7216,6 @@ function NewsPage({cu,users,addNotif,navOpts={}}){
   );
 }
 
-// ─── NFFL Shared Config ────────────────────────────────────────────────────────
-const NFFL_URL = "https://expzaiduzjehvyfclnnj.supabase.co";
-const NFFL_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4cHphaWR1emplaHZ5ZmNsbm5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2OTUwNTQsImV4cCI6MjA4ODI3MTA1NH0.ZZrWRASkBWha6XDuw23bazoXK224diM0HTlgPkdLCy0";
-const nfflH=(extra={})=>({apikey:NFFL_KEY,Authorization:`Bearer ${NFFL_KEY}`,"Content-Type":"application/json",...extra});
-const nfflGet=async(table,q="")=>{try{const r=await fetch(`${NFFL_URL}/rest/v1/${table}${q}`,{headers:nfflH()});return r.ok?r.json():null;}catch(e){return null;}};
-const nfflMut=async(table,q,body,method="POST")=>{try{const r=await fetch(`${NFFL_URL}/rest/v1/${table}${q}`,{method,headers:nfflH({Prefer:"return=representation"}),body:JSON.stringify(body)});return r.ok?r.json():null;}catch(e){return null;}};
-const nfflDel=async(table,q)=>{try{await fetch(`${NFFL_URL}/rest/v1/${table}${q}`,{method:"DELETE",headers:nfflH()});}catch(e){}};
-
-const NF={
-  font:"'Orbitron',sans-serif",
-  amber:"#F59E0B",
-  inp:{width:"100%",padding:"8px 12px",borderRadius:8,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.05)",color:"white",fontSize:12,outline:"none",boxSizing:"border-box",fontFamily:"'Orbitron',sans-serif"},
-  btn:(active)=>({padding:"7px 18px",borderRadius:20,cursor:active===false?"not-allowed":"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${active?"rgba(245,158,11,.5)":"rgba(255,255,255,.1)"}`,background:active?"rgba(245,158,11,.12)":"rgba(255,255,255,.03)",color:active?"#F59E0B":"#64748B",transition:"all .2s"}),
-  card:{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(245,158,11,0.15)",borderRadius:10,padding:"1rem",marginBottom:8},
-  label:{fontSize:10,color:"rgba(255,255,255,0.4)",fontFamily:"'Orbitron',sans-serif",display:"block",marginBottom:3,letterSpacing:1},
-  msg:(ok)=>({padding:"8px 12px",borderRadius:8,background:ok?"rgba(0,255,136,0.1)":"rgba(255,100,100,0.1)",border:`1px solid ${ok?"rgba(0,255,136,0.3)":"rgba(255,100,100,0.3)"}`,color:ok?"#00ff88":"#ff6666",fontSize:12,marginBottom:"0.75rem",fontFamily:"'Orbitron',sans-serif"}),
-};
-
-// ─── NFFL Roblox Avatar ────────────────────────────────────────────────────────
-function NFFLAvatar({robloxId,size=36}){
-  const[url,setUrl]=useState(null);
-  useEffect(()=>{
-    if(!robloxId)return;
-    fetch(`/api/roblox-avatar?userId=${robloxId}`)
-      .then(r=>r.json()).then(d=>{if(d.imageUrl)setUrl(d.imageUrl);}).catch(()=>{});
-  },[robloxId]);
-  return(
-    <div style={{width:size,height:size,borderRadius:"50%",overflow:"hidden",background:"rgba(255,255,255,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*0.4,border:"1px solid rgba(245,158,11,0.3)",flexShrink:0}}>
-      {url?<img src={url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setUrl(null)}/>:"🏈"}
-    </div>
-  );
-}
-
-// ─── NFFL Dashboard: Players ───────────────────────────────────────────────────
-function NFFLDashPlayers(){
-  const empty={name:"",team:"",positions:"",bio:"",roblox_id:"",song_url:"",photo_url:""};
-  const[players,setPlayers]=useState([]);
-  const[form,setForm]=useState(empty);
-  const[editId,setEditId]=useState(null);
-  const[showForm,setShowForm]=useState(false);
-  const[msg,setMsg]=useState(null);
-
-  useEffect(()=>{load();},[]);
-  const load=()=>nfflGet("players","?order=name.asc").then(d=>{if(d)setPlayers(d);});
-  const flash=(m,ok=true)=>{setMsg({m,ok});setTimeout(()=>setMsg(null),3000);};
-
-  const save=async()=>{
-    const res=editId
-      ?await nfflMut("players",`?id=eq.${editId}`,form,"PATCH")
-      :await nfflMut("players","",form,"POST");
-    if(res){flash("Saved!");setForm(empty);setEditId(null);setShowForm(false);load();}
-    else flash("Error saving.",false);
-  };
-
-  const del=async(id)=>{
-    if(!confirm("Delete player?"))return;
-    await nfflDel("players",`?id=eq.${id}`);
-    load();
-  };
-
-  return(
-    <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <span style={{color:"white",fontFamily:NF.font,fontSize:13,fontWeight:700}}>NFFL Players</span>
-        <button onClick={()=>{setForm(empty);setEditId(null);setShowForm(!showForm);}} style={NF.btn(true)}>
-          {showForm?"Cancel":"+ Add Player"}
-        </button>
-      </div>
-
-      {msg&&<div style={NF.msg(msg.ok)}>{msg.m}</div>}
-
-      {showForm&&(
-        <div style={{...NF.card,marginBottom:12}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-            {[["name","Name *"],["team","Team"],["positions","Positions (e.g. QB, WR)"],["roblox_id","Roblox User ID"],["song_url","Spotify Embed URL"],["photo_url","Photo URL"]].map(([k,l])=>(
-              <div key={k}>
-                <label style={NF.label}>{l}</label>
-                <input value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})} style={NF.inp}/>
-              </div>
-            ))}
-          </div>
-          <div style={{marginBottom:8}}>
-            <label style={NF.label}>Bio</label>
-            <textarea value={form.bio} onChange={e=>setForm({...form,bio:e.target.value})} rows={3} style={{...NF.inp,resize:"vertical"}}/>
-          </div>
-          <button onClick={save} disabled={!form.name} style={NF.btn(!!form.name)}>
-            {editId?"Save Changes":"Add Player"}
-          </button>
-        </div>
-      )}
-
-      <div style={{display:"flex",flexDirection:"column",gap:6}}>
-        {players.length===0&&<p style={{color:"rgba(255,255,255,0.3)",fontSize:12,fontFamily:NF.font}}>No players yet.</p>}
-        {players.map(p=>(
-          <div key={p.id} style={{...NF.card,display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:0}}>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <NFFLAvatar robloxId={p.roblox_id} size={36}/>
-              <div>
-                <div style={{fontWeight:700,color:"white",fontSize:13,fontFamily:NF.font}}>{p.name}</div>
-                <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",fontFamily:NF.font}}>{p.team||"No team"}{p.positions?` · ${p.positions}`:""}</div>
-              </div>
-            </div>
-            <div style={{display:"flex",gap:6}}>
-              <button onClick={()=>{setForm({name:p.name||"",team:p.team||"",positions:p.positions||"",bio:p.bio||"",roblox_id:p.roblox_id||"",song_url:p.song_url||"",photo_url:p.photo_url||""});setEditId(p.id);setShowForm(true);}} style={NF.btn(true)}>Edit</button>
-              <button onClick={()=>del(p.id)} style={{...NF.btn(true),color:"#ff6666",borderColor:"rgba(255,100,100,0.3)"}}>Del</button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── NFFL Dashboard: Stats ─────────────────────────────────────────────────────
-function NFFLDashStats(){
-  const defs={
-    passing:["completions","attempts","passing_yards","touchdowns","interceptions","longest_pass","sacks","passer_rating"],
-    rushing:["carries","rushing_yards","yards_per_carry","rushing_tds","longest_run","fumbles"],
-    receiving:["receptions","targets","receiving_yards","yards_per_reception","receiving_tds","longest_reception","drops"],
-    defensive:["tackles","solo_tackles","sacks","interceptions","forced_fumbles","fumble_recoveries","passes_defended","defensive_tds","safeties"],
-    kicking:["field_goals_made","field_goals_attempted","longest_fg","extra_points_made","extra_points_attempted","punts","punt_yards","avg_punt_distance"],
-  };
-  const[players,setPlayers]=useState([]);
-  const[pid,setPid]=useState("");
-  const[season,setSeason]=useState("current");
-  const[cat,setCat]=useState("passing");
-  const[stats,setStats]=useState({});
-  const[statsId,setStatsId]=useState(null);
-  const[msg,setMsg]=useState(null);
-
-  useEffect(()=>{nfflGet("players","?order=name.asc").then(d=>{if(d)setPlayers(d);});},[]);
-  useEffect(()=>{if(pid)fetchStats();},[pid,season,cat]);
-
-  const fetchStats=async()=>{
-    const d=await nfflGet(`${cat}_stats`,`?player_id=eq.${pid}&season=eq.${season}`);
-    if(d&&d[0]){setStats(d[0]);setStatsId(d[0].id);}
-    else{setStats({});setStatsId(null);}
-  };
-
-  const save=async()=>{
-    const payload={...stats,player_id:pid,season};
-    delete payload.id;
-    const res=statsId
-      ?await nfflMut(`${cat}_stats`,`?id=eq.${statsId}`,payload,"PATCH")
-      :await nfflMut(`${cat}_stats`,"",payload,"POST");
-    if(res){setMsg({m:"Stats saved!",ok:true});fetchStats();}
-    else setMsg({m:"Error saving.",ok:false});
-    setTimeout(()=>setMsg(null),3000);
-  };
-
-  const fmt=k=>k.replace(/_/g," ").replace(/\b\w/g,l=>l.toUpperCase());
-
-  return(
-    <div>
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
-        <select value={pid} onChange={e=>setPid(e.target.value)} style={{...NF.inp,maxWidth:200}}>
-          <option value="">Select player</option>
-          {players.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-        {["current","career"].map(s=>(
-          <button key={s} onClick={()=>setSeason(s)} style={NF.btn(season===s)}>
-            {s==="current"?"Current":"Career"}
-          </button>
-        ))}
-      </div>
-
-      {pid&&(
-        <>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
-            {Object.keys(defs).map(c=>(
-              <button key={c} onClick={()=>setCat(c)} style={NF.btn(cat===c)}>{c}</button>
-            ))}
-          </div>
-          {msg&&<div style={NF.msg(msg.ok)}>{msg.m}</div>}
-          <div style={NF.card}>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:8}}>
-              {defs[cat].map(f=>(
-                <div key={f}>
-                  <label style={NF.label}>{fmt(f)}</label>
-                  <input type="number" value={stats[f]??""}onChange={e=>setStats({...stats,[f]:e.target.value})} placeholder="0" style={NF.inp}/>
-                </div>
-              ))}
-            </div>
-            <button onClick={save} style={{...NF.btn(true),marginTop:12}}>Save Stats</button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-// ─── NFFL Dashboard: Feed ──────────────────────────────────────────────────────
-function NFFLDashFeed(){
-  const[plays,setPlays]=useState([]);
-  const[games,setGames]=useState([]);
-  const[form,setForm]=useState({game_id:"",player_name:"",play_text:"",yards:"",field_position:"",team:""});
-  const[saving,setSaving]=useState(false);
-  const[msg,setMsg]=useState(null);
-
-  useEffect(()=>{load();},[]);
-  const load=async()=>{
-    const[p,g]=await Promise.all([
-      nfflGet("game_feed","?order=created_at.desc&limit=30"),
-      nfflGet("box_scores","?order=created_at.desc")
-    ]);
-    if(p)setPlays(p);
-    if(g)setGames(g);
-  };
-
-  const post=async()=>{
-    if(!form.play_text.trim()){setMsg({m:"Play text required",ok:false});return;}
-    setSaving(true);
-    const payload={
-      play_text:form.play_text.trim(),
-      player_name:form.player_name.trim()||null,
-      game_id:form.game_id||null,
-      yards:form.yards!=""?parseInt(form.yards):null,
-      field_position:form.field_position.trim()||null,
-      team:form.team.trim()||null,
-    };
-    const res=await nfflMut("game_feed","",payload,"POST");
-    if(res){
-      setMsg({m:"Play posted!",ok:true});
-      setForm(f=>({...f,player_name:"",play_text:"",yards:"",field_position:"",team:""}));
-      load();
-    }else setMsg({m:"Failed to post play.",ok:false});
-    setSaving(false);
-    setTimeout(()=>setMsg(null),3000);
-  };
-
-  const del=async(id)=>{
-    await nfflDel("game_feed",`?id=eq.${id}`);
-    load();
-  };
-
-  return(
-    <div>
-      <div style={NF.card}>
-        <div style={{fontFamily:NF.font,fontSize:12,fontWeight:700,color:NF.amber,marginBottom:10,letterSpacing:1}}>POST A PLAY</div>
-        {msg&&<div style={NF.msg(msg.ok)}>{msg.m}</div>}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-          <div>
-            <label style={NF.label}>GAME</label>
-            <select value={form.game_id} onChange={e=>setForm({...form,game_id:e.target.value})} style={NF.inp}>
-              <option value="">No game</option>
-              {games.map(g=><option key={g.game_id} value={g.game_id}>{g.away_team} vs {g.home_team}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={NF.label}>PLAYER NAME</label>
-            <input value={form.player_name} onChange={e=>setForm({...form,player_name:e.target.value})} placeholder="e.g. John Smith" style={NF.inp}/>
-          </div>
-          <div>
-            <label style={NF.label}>YARDS</label>
-            <input type="number" value={form.yards} onChange={e=>setForm({...form,yards:e.target.value})} placeholder="0" style={NF.inp}/>
-          </div>
-          <div>
-            <label style={NF.label}>FIELD POSITION</label>
-            <input value={form.field_position} onChange={e=>setForm({...form,field_position:e.target.value})} placeholder="e.g. OPP 35" style={NF.inp}/>
-          </div>
-        </div>
-        <div style={{marginBottom:10}}>
-          <label style={NF.label}>PLAY DESCRIPTION ✱</label>
-          <textarea value={form.play_text} onChange={e=>setForm({...form,play_text:e.target.value})} placeholder="e.g. rushes for a TOUCHDOWN!" rows={3} style={{...NF.inp,resize:"vertical"}}/>
-        </div>
-        <button onClick={post} disabled={saving||!form.play_text.trim()} style={NF.btn(!saving&&!!form.play_text.trim())}>
-          {saving?"Posting...":"📡 Post Play"}
-        </button>
-      </div>
-
-      <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",fontFamily:NF.font,letterSpacing:1,marginBottom:6}}>RECENT PLAYS ({plays.length})</div>
-      {plays.map(play=>(
-        <div key={play.id} style={{...NF.card,display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
-          <div style={{flex:1}}>
-            {play.player_name&&<span style={{color:NF.amber,fontWeight:700,fontSize:12,fontFamily:NF.font}}>{play.player_name} </span>}
-            <span style={{color:"rgba(255,255,255,0.7)",fontSize:12}}>{play.play_text}</span>
-            <div style={{display:"flex",gap:8,marginTop:3}}>
-              {play.yards!=null&&<span style={{fontSize:10,color:"rgba(255,255,255,0.3)"}}>{play.yards>0?"":""}  {play.yards} yds</span>}
-              {play.field_position&&<span style={{fontSize:10,color:"rgba(255,255,255,0.3)"}}>📍{play.field_position}</span>}
-            </div>
-          </div>
-          <button onClick={()=>del(play.id)} style={{...NF.btn(true),color:"#ff6666",borderColor:"rgba(255,100,100,0.3)",padding:"3px 10px",flexShrink:0}}>Del</button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── NFFL Dashboard: Box Scores ────────────────────────────────────────────────
-function NFFLDashBoxScores(){
-  const empty={game_id:"",home_team:"",away_team:"",home_q1:0,home_q2:0,home_q3:0,home_q4:0,away_q1:0,away_q2:0,away_q3:0,away_q4:0,home_total:0,away_total:0,status:"upcoming"};
-  const[games,setGames]=useState([]);
-  const[form,setForm]=useState(empty);
-  const[editId,setEditId]=useState(null);
-  const[showForm,setShowForm]=useState(false);
-  const[msg,setMsg]=useState(null);
-
-  useEffect(()=>{load();},[]);
-  const load=()=>nfflGet("box_scores","?order=created_at.desc").then(d=>{if(d)setGames(d);});
-
-  const calcTotals=f=>({
-    ...f,
-    home_total:["home_q1","home_q2","home_q3","home_q4"].reduce((a,k)=>a+Number(f[k]||0),0),
-    away_total:["away_q1","away_q2","away_q3","away_q4"].reduce((a,k)=>a+Number(f[k]||0),0),
-  });
-
-  const save=async()=>{
-    const payload=calcTotals(form);
-    const res=editId
-      ?await nfflMut("box_scores",`?id=eq.${editId}`,payload,"PATCH")
-      :await nfflMut("box_scores","",payload,"POST");
-    if(res){setMsg({m:"Saved!",ok:true});setForm(empty);setEditId(null);setShowForm(false);load();}
-    else setMsg({m:"Error saving.",ok:false});
-    setTimeout(()=>setMsg(null),3000);
-  };
-
-  const del=async(id)=>{
-    if(!confirm("Delete game?"))return;
-    await nfflDel("box_scores",`?id=eq.${id}`);
-    load();
-  };
-
-  return(
-    <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <span style={{color:"white",fontFamily:NF.font,fontSize:13,fontWeight:700}}>Box Scores</span>
-        <button onClick={()=>{setForm(empty);setEditId(null);setShowForm(!showForm);}} style={NF.btn(true)}>
-          {showForm?"Cancel":"+ New Game"}
-        </button>
-      </div>
-      {msg&&<div style={NF.msg(msg.ok)}>{msg.m}</div>}
-
-      {showForm&&(
-        <div style={{...NF.card,marginBottom:12}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
-            {[["game_id","Game ID","week1-game1"],["home_team","Home Team","Team A"],["away_team","Away Team","Team B"]].map(([k,l,ph])=>(
-              <div key={k}>
-                <label style={NF.label}>{l}</label>
-                <input value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})} placeholder={ph} style={NF.inp}/>
-              </div>
-            ))}
-          </div>
-          {[["HOME","home"],["AWAY","away"]].map(([label,pre])=>(
-            <div key={pre} style={{display:"grid",gridTemplateColumns:"50px 1fr 1fr 1fr 1fr",gap:6,alignItems:"center",marginBottom:6}}>
-              <span style={{color:"rgba(255,255,255,0.6)",fontSize:11,fontFamily:NF.font,fontWeight:700}}>{label}</span>
-              {["q1","q2","q3","q4"].map(q=>(
-                <div key={q}>
-                  <label style={{...NF.label,textAlign:"center"}}>{q.toUpperCase()}</label>
-                  <input type="number" value={form[`${pre}_${q}`]} onChange={e=>setForm({...form,[`${pre}_${q}`]:e.target.value})} style={{...NF.inp,textAlign:"center"}}/>
-                </div>
-              ))}
-            </div>
-          ))}
-          <div style={{marginTop:8}}>
-            <label style={NF.label}>STATUS</label>
-            <select value={form.status} onChange={e=>setForm({...form,status:e.target.value})} style={{...NF.inp,maxWidth:160}}>
-              <option value="upcoming">Upcoming</option>
-              <option value="live">Live</option>
-              <option value="final">Final</option>
-            </select>
-          </div>
-          <button onClick={save} style={{...NF.btn(true),marginTop:10}}>Save Game</button>
-        </div>
-      )}
-
-      {games.map(g=>(
-        <div key={g.id} style={{...NF.card,display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-          <div>
-            <div style={{fontWeight:700,color:"white",fontSize:13,fontFamily:NF.font}}>{g.away_team} vs {g.home_team}</div>
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",fontFamily:NF.font}}>{g.away_total} – {g.home_total} · {g.status}</div>
-          </div>
-          <div style={{display:"flex",gap:6}}>
-            <button onClick={()=>{setForm(g);setEditId(g.id);setShowForm(true);}} style={NF.btn(true)}>Edit</button>
-            <button onClick={()=>del(g.id)} style={{...NF.btn(true),color:"#ff6666",borderColor:"rgba(255,100,100,0.3)"}}>Del</button>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── NFFL Dashboard: Transactions ──────────────────────────────────────────────
-function NFFLDashTransactions(){
-  const empty={type:"Signing",player_name:"",team_from:"",team_to:"",notes:""};
-  const[txs,setTxs]=useState([]);
-  const[form,setForm]=useState(empty);
-  const[msg,setMsg]=useState(null);
-
-  useEffect(()=>{load();},[]);
-  const load=()=>nfflGet("transactions","?order=created_at.desc").then(d=>{if(d)setTxs(d);});
-
-  const post=async()=>{
-    const res=await nfflMut("transactions","",form,"POST");
-    if(res){setMsg({m:"Posted!",ok:true});setForm(empty);load();}
-    else setMsg({m:"Error posting.",ok:false});
-    setTimeout(()=>setMsg(null),3000);
-  };
-
-  const del=async(id)=>{
-    if(!confirm("Delete?"))return;
-    await nfflDel("transactions",`?id=eq.${id}`);
-    load();
-  };
-
-  const typeColor={Signing:"#00ff88",Trade:"#378ADD",Promotion:"#AFA9EC",Release:"#ff6666",Other:"rgba(255,255,255,0.5)"};
-
-  return(
-    <div>
-      <div style={NF.card}>
-        <div style={{fontFamily:NF.font,fontSize:12,fontWeight:700,color:NF.amber,marginBottom:10,letterSpacing:1}}>POST TRANSACTION</div>
-        {msg&&<div style={NF.msg(msg.ok)}>{msg.m}</div>}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-          <div>
-            <label style={NF.label}>TYPE</label>
-            <select value={form.type} onChange={e=>setForm({...form,type:e.target.value})} style={NF.inp}>
-              {["Signing","Trade","Promotion","Release","Other"].map(t=><option key={t}>{t}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={NF.label}>PLAYER</label>
-            <input value={form.player_name} onChange={e=>setForm({...form,player_name:e.target.value})} placeholder="Player name" style={NF.inp}/>
-          </div>
-          <div>
-            <label style={NF.label}>FROM TEAM</label>
-            <input value={form.team_from} onChange={e=>setForm({...form,team_from:e.target.value})} placeholder="Previous team" style={NF.inp}/>
-          </div>
-          <div>
-            <label style={NF.label}>TO TEAM</label>
-            <input value={form.team_to} onChange={e=>setForm({...form,team_to:e.target.value})} placeholder="New team" style={NF.inp}/>
-          </div>
-        </div>
-        <div style={{marginBottom:10}}>
-          <label style={NF.label}>NOTES</label>
-          <textarea value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} rows={2} style={{...NF.inp,resize:"vertical"}}/>
-        </div>
-        <button onClick={post} disabled={!form.player_name} style={NF.btn(!!form.player_name)}>Post Transaction</button>
-      </div>
-
-      {txs.map(tx=>{
-        const col=typeColor[tx.type]||"rgba(255,255,255,0.4)";
-        return(
-          <div key={tx.id} style={{...NF.card,borderLeft:`3px solid ${col}`,display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-            <div>
-              <span style={{fontSize:10,color:col,fontWeight:700,fontFamily:NF.font}}>{tx.type}</span>
-              <span style={{color:"white",fontWeight:600,fontSize:12,fontFamily:NF.font,marginLeft:8}}>{tx.player_name}</span>
-              {tx.team_to&&<span style={{color:"rgba(255,255,255,0.4)",fontSize:11}}> → {tx.team_to}</span>}
-              {tx.notes&&<div style={{color:"rgba(255,255,255,0.4)",fontSize:11,fontStyle:"italic"}}>{tx.notes}</div>}
-            </div>
-            <button onClick={()=>del(tx.id)} style={{...NF.btn(true),color:"#ff6666",borderColor:"rgba(255,100,100,0.3)",padding:"3px 10px"}}>Del</button>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 // ─── Auth Modals ───────────────────────────────────────────────────────────────
 function LoginModal({onLogin,onClose,users}){
   const[un,setUn]=useState("");const[pw,setPw]=useState("");const[err,setErr]=useState("");const[loading,setLoading]=useState(false);
@@ -7438,6 +7332,7 @@ export default function App(){
     if(p==="profile"&&id){setProfileId(id);}
     if(p==="game"&&id){setGameRef(id);} // id = {id, sport}
     if(p==="stats"&&id?.playerId){setStatsPlayerRef(id);} // id = {playerId, sport}
+    if((p==="predict"||p==="news")&&!id){return nav("hub");} // redirect to hub
     setNavOpts(opts||{});
     setPage(p);
   };
@@ -7489,9 +7384,11 @@ export default function App(){
     if(page==="feed")return <FeedPage users={users} cu={cu} likes={likes} onLike={handleLike} navigate={nav}/>;
     if(page==="game"&&gameRef)return <GameDetailPage gameId={gameRef.id} sport={gameRef.sport} navigate={nav}/>;
     if(page==="predict")return <PredictPage cu={cu} users={users} setUsers={setUsers} navigate={nav}/>;
+    if(page==="hub")return <HubPage cu={cu} users={users} setUsers={setUsers} navigate={nav}/>;
     if(page==="stats")return <StatsPage navigate={nav} initPlayer={statsPlayerRef?.id||null} initSport={statsPlayerRef?.sport||null}/>;
+    if(page==="nffl")return <NFFLPage cu={cu} users={users} navigate={nav}/>;
+    if(page==="nbbl")return <NBBLPage cu={cu} users={users} navigate={nav}/>;
     if(page==="cards")return <CardsPage cu={cu}/>;
-    if(page==="nffl")return <NFFLPage supabaseUrl={SUPABASE_URL} supabaseKey={SUPABASE_ANON_KEY} sb={sb} nav={nav}/>;
     if(page==="trivia")return <TriviaPage cu={cu}/>;
     if(page==="leaderboard")return <LeaderboardPage users={users} navigate={nav}/>;
     if(page==="messages")return <MessagesPage cu={cu} users={users} conversations={conversations} setConversations={setConversations} messages={messages} setMessages={setMessages}/>;
