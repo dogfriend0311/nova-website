@@ -6882,10 +6882,12 @@ function DashLeagueMembers({league,accentColor,users,isBaseball}){
     if(loaded)return;
     sb.get(`nova_${league}_players`,"?order=name.asc").then(r=>{setPlayers(r||[]);setLoaded(true);});
   },[]);
-  const matchMember=(name)=>{
+  const matchMember=(nameOrPlayer)=>{
+    if(!nameOrPlayer)return null;
+    const name=typeof nameOrPlayer==="object"?(nameOrPlayer.name||""):nameOrPlayer;
     if(!name)return null;
     const n=name.toLowerCase();
-    return users.find(u=>(u.display_name||"").toLowerCase().includes(n)||n.includes((u.display_name||"").toLowerCase())||(u.username||"").toLowerCase()===n);
+    return users.find(u=>(u.display_name||"").toLowerCase().includes(n)||n.includes((u.display_name||"").toLowerCase())||(u.username||"").toLowerCase()===n)||null;
   };
   const selPlayer=sel?players.find(p=>p.id===sel):null;
   // Linked Nova member — prefer explicit nova_user_id over name-match
@@ -7074,7 +7076,7 @@ function DashLeagueMembers({league,accentColor,users,isBaseball}){
       )}
       {!players.length&&!showAdd&&<Empty icon={isBaseball?"⚾":"🏈"} msg="No member pages yet — click Create Member Page above"/>}
       <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:8}}>
-        {players.map((p,i)=>{
+        {players.filter(Boolean).map((p,i)=>{
           const m=p.nova_user_id?users.find(u=>u.id===p.nova_user_id):matchMember(p.name);
           const rid=p.roblox_id||m?.social_roblox||"";
           return(
@@ -7182,7 +7184,7 @@ function DashNFFLTab({cu,users}){
             <AddLeaguePlayer league="nffl" onAdd={p=>setPlayers(prev=>[...prev,p])} cu={cu}/>
           </Card>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            {players.map((p,i)=>(
+            {players.filter(Boolean).map((p,i)=>(
               <Card key={i} style={{padding:"10px 12px"}} hover={false}>
                 <div style={{fontWeight:700,color:"#E2E8F0",fontSize:12}}>{p.name}</div>
                 <div style={{fontSize:10,color:accentColor}}>{p.position}{p.jersey?` · #${p.jersey}`:""}</div>
@@ -7302,7 +7304,7 @@ function DashNBBLTab({cu,users}){
             <AddLeaguePlayer league="nbbl" onAdd={p=>setPlayers(prev=>[...prev,p])} cu={cu}/>
           </Card>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            {players.map((p,i)=>(
+            {players.filter(Boolean).map((p,i)=>(
               <Card key={i} style={{padding:"10px 12px"}} hover={false}>
                 <div style={{fontWeight:700,color:"#E2E8F0",fontSize:12}}>{p.name}</div>
                 <div style={{fontSize:10,color:accentColor}}>{p.position}{p.jersey?` · #${p.jersey}`:""}</div>
