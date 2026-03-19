@@ -1321,7 +1321,7 @@ function GameDetailPage({gameId,sport,navigate}){
                           </tr>
                         </thead>
                         <tbody>
-                          {players.map((p,pi)=>{
+                          {players.filter(Boolean).map((p,pi)=>{
                             const stats=p.stats||[];
                             const name=p.athlete?.shortName||p.athlete?.displayName||"—";
                             const pos=p.athlete?.position?.abbreviation||"";
@@ -6366,7 +6366,7 @@ function NFFLPage({cu,users,navigate}){
       {!loading&&tab==="roster"&&(
         <div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(auto-fill,minmax(200px,1fr))",gap:10}}>
           {players.length===0&&<Empty icon="👥" msg="No players added yet"/>}
-          {players.map((p,i)=>(
+          {players.filter(Boolean).map((p,i)=>(
             <Card key={i} style={{padding:"14px 16px",textAlign:"center"}}>
               <div style={{fontSize:32,marginBottom:6}}>{p.position==="QB"?"🎯":p.position==="RB"?"💨":p.position==="WR"?"📡":p.position==="TE"?"🔒":p.position==="K"?"⚽":"🏈"}</div>
               <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0",marginBottom:2}}>{p.name||"—"}</div>
@@ -6451,7 +6451,7 @@ function NBBLPage({cu,users,navigate}){
       {!loading&&tab==="roster"&&(
         <div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(auto-fill,minmax(200px,1fr))",gap:10}}>
           {players.length===0&&<Empty icon="👥" msg="No players added yet"/>}
-          {players.map((p,i)=>{
+          {players.filter(Boolean).map((p,i)=>{
             const posEmoji={P:"⚾",C:"🎯",SP:"🔥",RP:"💨","1B":"🧤","2B":"⚡","3B":"💥","SS":"🌟","LF":"👈","CF":"🎪","RF":"👉","DH":"💪"}[p.position]||"⚾";
             return(
               <Card key={i} style={{padding:"14px 16px",textAlign:"center"}}>
@@ -6647,7 +6647,7 @@ function DashLeagueRoster({league,accentColor,cu}){
       <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:10}}>{players.length} PLAYERS</div>
       {!players.length&&<Empty icon="👥" msg="No players yet — add one above"/>}
       <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:8}}>
-        {players.map((p,i)=>(
+        {players.filter(Boolean).map((p,i)=>(
           <Card key={i} style={{padding:"12px 14px"}} hover={false}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div>
@@ -7480,9 +7480,9 @@ function LeaguePlayersPage({players,league,accentColor,users,navigate}){
       <div style={{fontSize:10,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".12em",marginBottom:12}}>{players.length} PLAYERS</div>
       {!players.length&&<Empty icon={isBaseball?"⚾":"🏈"} msg="No players yet"/>}
       <div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(auto-fill,minmax(220px,1fr))",gap:10}}>
-        {players.map((p,i)=>{
-          const member=matchMember(p.name);
-          const robloxId=selectedPlayer.roblox_id||member?.social_roblox||"";
+        {players.filter(Boolean).map((p,i)=>{
+          const member=matchMember(p);
+          const robloxId=p.roblox_id||member?.social_roblox||"";
           const robloxAvatarUrl=robloxId?`/api/roblox-avatar?userId=${robloxId}`:"";
           return(
             <div key={i} onClick={()=>setSel(p.id)}
@@ -8334,7 +8334,7 @@ export default function App(){
     if(page==="trivia")return <TriviaPage cu={cu}/>;
     if(page==="leaderboard")return <LeaderboardPage users={users} navigate={nav}/>;
     if(page==="messages")return <MessagesPage cu={cu} users={users} conversations={conversations} setConversations={setConversations} messages={messages} setMessages={setMessages}/>;
-    if(page==="dashboard")return <DashboardPage cu={cu} users={users} setUsers={setUsers} navigate={nav}/>;
+    if(page==="dashboard")return <DashboardPage cu={cu} users={users} setUsers={updater=>{const next=typeof updater==="function"?updater(users):updater;setUsers(next);if(cu){const up=next.find(x=>x.id===cu.id);if(up)setCu(up);}}} navigate={nav}/>;
     return <HomePage discordUrl={DISCORD_URL} staffUsers={staffUsers} nav={nav} users={users}/>;
   };
 
