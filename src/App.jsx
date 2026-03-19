@@ -6582,235 +6582,6 @@ function AddLeaguePlayer({league,onAdd,cu}){
 
 // ─── LeaguePlayersPage — shared player profile page for NFFL/NBBL ─────────────
 
-// Shared: Transactions tab for league dashboard
-function LeagueTransactionsTab({league,players,accentColor}){
-  const[txs,setTxs]=useState([]);
-  const[loaded,setLoaded]=useState(false);
-  const[type,setType]=useState("Trade");
-  const[fromPlayer,setFromPlayer]=useState("");
-  const[toPlayer,setToPlayer]=useState("");
-  const[desc,setDesc]=useState("");
-  const[saving,setSaving]=useState(false);
-  useEffect(()=>{
-    if(loaded)return;
-    sb.get(`nova_${league}_transactions`,"?order=ts.desc&limit=100").then(rows=>{setTxs(rows||[]);setLoaded(true);});
-  },[]);
-  const submit=async()=>{
-    if(!desc.trim())return;
-    setSaving(true);
-    const tx={id:gid(),type,from_player:fromPlayer,to_player:toPlayer,description:desc.trim(),ts:Date.now()};
-    await sb.post(`nova_${league}_transactions`,tx);
-    setTxs(p=>[tx,...p]);setDesc("");setFromPlayer("");setToPlayer("");setSaving(false);
-  };
-  const del=async(id)=>{await sb.del(`nova_${league}_transactions`,`?id=eq.${id}`);setTxs(p=>p.filter(x=>x.id!==id));};
-  const TX_TYPES=["Trade","Signing","Release","Suspension","Injury","Award","Other"];
-  const TX_COLOR={Trade:"#00D4FF",Signing:"#22C55E",Release:"#EF4444",Suspension:"#F59E0B",Injury:"#FB923C",Award:"#A855F7",Other:"#64748B"};
-  return(
-    <div>
-      <Card style={{padding:"16px",marginBottom:14}} hover={false}>
-        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:12,fontWeight:700}}>➕ LOG TRANSACTION</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-          <div>
-            <Lbl>Type</Lbl>
-            <select value={type} onChange={e=>setType(e.target.value)} style={{width:"100%"}}>
-              {TX_TYPES.map(t=><option key={t}>{t}</option>)}
-            </select>
-          </div>
-          <div>
-            <Lbl>From Player (optional)</Lbl>
-            <select value={fromPlayer} onChange={e=>setFromPlayer(e.target.value)} style={{width:"100%"}}>
-              <option value="">—</option>
-              {players.map(p=><option key={p.id} value={p.name}>{p.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <Lbl>To Player (optional)</Lbl>
-            <select value={toPlayer} onChange={e=>setToPlayer(e.target.value)} style={{width:"100%"}}>
-              <option value="">—</option>
-              {players.map(p=><option key={p.id} value={p.name}>{p.name}</option>)}
-            </select>
-          </div>
-          <div style={{gridColumn:"1/-1"}}>
-            <Lbl>Description</Lbl>
-            <input value={desc} onChange={e=>setDesc(e.target.value)} placeholder="e.g. Aaron Judge traded for Mike Trout…"/>
-          </div>
-        </div>
-        <Btn onClick={submit} disabled={saving||!desc.trim()}>{saving?"Saving…":"📝 Log Transaction"}</Btn>
-      </Card>
-      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {!txs.length&&<Empty icon="📋" msg="No transactions yet"/>}
-        {txs.map(tx=>(
-          <Card key={tx.id} style={{padding:"12px 14px"}} hover={false}>
-            <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
-              <div style={{padding:"3px 8px",borderRadius:10,background:`${TX_COLOR[tx.type]||"#64748B"}22`,border:`1px solid ${TX_COLOR[tx.type]||"#64748B"}44`,color:TX_COLOR[tx.type]||"#64748B",fontSize:9,fontFamily:"'Orbitron',sans-serif",fontWeight:700,flexShrink:0}}>{tx.type}</div>
-              <div style={{flex:1,minWidth:0}}>
-                {(tx.from_player||tx.to_player)&&<div style={{fontSize:10,color:"#00D4FF",fontFamily:"'Orbitron',sans-serif",marginBottom:2}}>{tx.from_player&&`${tx.from_player}`}{tx.from_player&&tx.to_player?" → ":""}{tx.to_player&&tx.to_player}</div>}
-                <div style={{fontSize:12,color:"#94A3B8"}}>{tx.description}</div>
-                <div style={{fontSize:9,color:"#334155",marginTop:4}}>{new Date(tx.ts).toLocaleDateString()}</div>
-              </div>
-              <button onClick={()=>del(tx.id)} style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer",fontSize:14,flexShrink:0}}>🗑</button>
-            </div>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Shared: Member pages tab for league dashboard
-function LeagueMemberPagesTab({league,players,users,accentColor}){
-  const mob=useIsMobile();
-  const[sel,setSel]=useState(null);
-  const[editStats,setEditStats]=useState({});
-  const[editField,setEditField]=useState("");
-  const[saving,setSaving]=useState(false);
-  const isBaseball=league==="nbbl";
-
-  const matchMember=(playerName)=>{
-    if(!playerName)return null;
-    const n=playerName.toLowerCase();
-    return users.find(u=>(u.display_name||"").toLowerCase().includes(n)||n.includes((u.display_name||"").toLowerCase())||(u.username||"").toLowerCase()===n);
-  };
-
-  const NBBL_FIELDS=[["hitting_stats","⚾ Hitting",["G","AB","R","H","2B","3B","HR","RBI","BB","SO","SB","AVG","OBP","SLG","OPS"]],["pitching_stats","⚾ Pitching",["G","GS","W","L","SV","IP","H","R","ER","BB","SO","ERA","WHIP","K9","BB9"]],["fielding_stats","🧤 Fielding",["G","GS","PO","A","E","DP","FLD%","INN"]]];
-  const NFFL_FIELDS=[["passing_stats","🎯 Passing",["G","CMP","ATT","YDS","TD","INT","RTG"]],["rushing_stats","🏃 Rushing",["G","CAR","YDS","TD","AVG","LONG"]],["receiving_stats","📡 Receiving",["G","REC","YDS","TD","AVG","LONG"]]];
-  const STAT_FIELDS=isBaseball?NBBL_FIELDS:NFFL_FIELDS;
-
-  const selPlayer=sel?players.find(p=>p.id===sel):null;
-  const member=selPlayer?matchMember(selPlayer.name):null;
-  const robloxId=member?.social_roblox||"";
-  const song=Array.isArray(member?.page_music)?member.page_music[0]:member?.page_music;
-
-  const loadPlayerStats=()=>{
-    if(!selPlayer)return;
-    const field=editField||STAT_FIELDS[0][0];
-    setEditStats(selPlayer[field]||{});
-    if(!editField)setEditField(STAT_FIELDS[0][0]);
-  };
-  useEffect(()=>{if(selPlayer)loadPlayerStats();},[sel]);
-
-  const saveStats=async()=>{
-    if(!selPlayer||!editField)return;
-    setSaving(true);
-    const updated={...selPlayer,[editField]:editStats};
-    await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,{[editField]:editStats});
-    setSaving(false);
-    alert("Stats saved!");
-  };
-
-  if(sel&&selPlayer){
-    return(
-      <div>
-        <button onClick={()=>setSel(null)} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:12,marginBottom:16,fontFamily:"'Orbitron',sans-serif",display:"flex",alignItems:"center",gap:5}}>← ALL PLAYERS</button>
-        <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:14}}>
-          {/* Left: Player card */}
-          <div>
-            <Card style={{padding:"16px",marginBottom:14}} hover={false}>
-              <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:12}}>
-                <div style={{width:64,height:64,borderRadius:10,overflow:"hidden",background:`${accentColor}18`,border:`2px solid ${accentColor}44`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                  {robloxId
-                    ?<img src={`/api/roblox-avatar?userId=${robloxId}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/>
-                    :<span style={{fontSize:28}}>{isBaseball?"⚾":"🏈"}</span>}
-                </div>
-                <div>
-                  <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:14,fontWeight:900,color:"#E2E8F0"}}>{selPlayer.name}</div>
-                  <div style={{fontSize:11,color:accentColor,fontWeight:700}}>{selPlayer.position}{selPlayer.jersey?` · #${selPlayer.jersey}`:""}</div>
-                  <div style={{fontSize:10,color:"#475569"}}>{selPlayer.team}</div>
-                </div>
-              </div>
-              {member&&(
-                <div style={{borderTop:"1px solid rgba(255,255,255,.07)",paddingTop:10}}>
-                  <div style={{fontSize:9,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginBottom:6}}>NOVA MEMBER</div>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <Av user={member} size={28}/>
-                    <div>
-                      <div style={{fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{member.display_name}</div>
-                      <div style={{fontSize:10,color:"#475569"}}>@{member.username}</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {!member&&<div style={{fontSize:10,color:"#334155",marginTop:6}}>No Nova account linked</div>}
-              {song?.url&&(
-                <div style={{marginTop:10,display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"rgba(255,255,255,.04)",borderRadius:8,border:"1px solid rgba(255,255,255,.07)"}}>
-                  {song.thumbnail&&<img src={song.thumbnail} style={{width:28,height:28,borderRadius:4,objectFit:"cover"}} onError={e=>e.target.style.display="none"}/>}
-                  <div style={{minWidth:0}}>
-                    <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>🎵 ANTHEM</div>
-                    <div style={{fontSize:10,color:"#E2E8F0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{song.title||"Playing…"}</div>
-                  </div>
-                </div>
-              )}
-            </Card>
-            {/* Edit player info */}
-            <Card style={{padding:"16px"}} hover={false}>
-              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:10,fontWeight:700}}>✏️ EDIT PLAYER INFO</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                <div><Lbl>Name</Lbl><input defaultValue={selPlayer.name} onBlur={async e=>{await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,{name:e.target.value});}}/></div>
-                <div><Lbl>Position</Lbl><input defaultValue={selPlayer.position} onBlur={async e=>{await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,{position:e.target.value});}}/></div>
-                <div><Lbl>Team</Lbl><input defaultValue={selPlayer.team} onBlur={async e=>{await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,{team:e.target.value});}}/></div>
-                <div><Lbl>Jersey #</Lbl><input defaultValue={selPlayer.jersey} onBlur={async e=>{await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,{jersey:e.target.value});}}/></div>
-              </div>
-            </Card>
-          </div>
-          {/* Right: Edit stats */}
-          <div>
-            <Card style={{padding:"16px"}} hover={false}>
-              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:12,fontWeight:700}}>📊 EDIT STATS</div>
-              <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
-                {STAT_FIELDS.map(([k,l])=>(
-                  <button key={k} onClick={()=>{setEditField(k);setEditStats(selPlayer[k]||{});}}
-                    style={{padding:"5px 10px",borderRadius:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:700,
-                      border:`1px solid ${editField===k?accentColor+"88":"rgba(255,255,255,.1)"}`,
-                      background:editField===k?accentColor+"18":"rgba(255,255,255,.03)",
-                      color:editField===k?accentColor:"#64748B"}}>{l}</button>
-                ))}
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
-                {(STAT_FIELDS.find(([k])=>k===editField)?.[2]||[]).map(f=>(
-                  <div key={f}>
-                    <Lbl>{f}</Lbl>
-                    <input value={editStats[f]||""} onChange={e=>setEditStats(p=>({...p,[f]:e.target.value}))} placeholder="—" style={{textAlign:"center"}}/>
-                  </div>
-                ))}
-              </div>
-              <Btn onClick={saveStats} disabled={saving}>{saving?"Saving…":"💾 Save Stats"}</Btn>
-            </Card>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return(
-    <div>
-      <div style={{fontSize:10,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".12em",marginBottom:12}}>{players.length} PLAYERS — click to edit</div>
-      {!players.length&&<Empty icon={isBaseball?"⚾":"🏈"} msg="No players added yet"/>}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-        {players.map((p,i)=>{
-          const member=matchMember(p.name);
-          const rId=member?.social_roblox||"";
-          return(
-            <div key={i} onClick={()=>setSel(p.id)}
-              style={{display:"flex",alignItems:"center",gap:10,padding:"12px",borderRadius:12,background:"rgba(255,255,255,.03)",border:`1px solid ${accentColor}22`,cursor:"pointer",transition:"all .18s"}}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor=`${accentColor}66`;e.currentTarget.style.background=`${accentColor}0a`;}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor=`${accentColor}22`;e.currentTarget.style.background="rgba(255,255,255,.03)";}}>
-              <div style={{width:40,height:40,borderRadius:8,overflow:"hidden",background:`${accentColor}18`,border:`1px solid ${accentColor}33`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                {rId?<img src={`/api/roblox-avatar?userId=${rId}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/>:<span style={{fontSize:18}}>{isBaseball?"⚾":"🏈"}</span>}
-              </div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
-                <div style={{fontSize:10,color:accentColor}}>{p.position}{p.jersey?` · #${p.jersey}`:""}</div>
-                {member&&<div style={{fontSize:9,color:"#475569"}}>@{member.username}</div>}
-              </div>
-              <span style={{color:"#334155"}}>›</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // ─── Dashboard League flat-tab components ─────────────────────────────────────
 
 function DashLeagueFeed({league,accentColor,cu}){
@@ -6900,6 +6671,24 @@ function DashLeagueStats({league,accentColor,isBaseball}){
   const[field,setField]=useState(isBaseball?"hitting_stats":"passing_stats");
   const[data,setData]=useState({});
   const[saving,setSaving]=useState(false);
+  const[showAdd,setShowAdd]=useState(false);
+  const[addName,setAddName]=useState("");
+  const[addPos,setAddPos]=useState("");
+  const[addTeam,setAddTeam]=useState("");
+  const[addJersey,setAddJersey]=useState("");
+  const[addSaving,setAddSaving]=useState(false);
+  const baseballPos=["P","C","1B","2B","3B","SS","LF","CF","RF","DH","SP","RP"];
+  const footballPos=["QB","RB","WR","TE","K","DEF","OL","DL","LB","CB","S"];
+  const positions=isBaseball?baseballPos:footballPos;
+  const addPlayer=async()=>{
+    if(!addName.trim()||!addPos)return;
+    setAddSaving(true);
+    const p={id:gid(),name:addName.trim(),position:addPos,team:addTeam.trim(),jersey:addJersey.trim(),ts:Date.now()};
+    await sb.post(`nova_${league}_players`,p);
+    setPlayers(prev=>[...prev,p]);
+    setAddName("");setAddPos("");setAddTeam("");setAddJersey("");
+    setShowAdd(false);setAddSaving(false);
+  };
   const NBBL_FIELDS=[
     ["hitting_stats","⚾ Hitting",["G","AB","R","H","2B","3B","HR","RBI","BB","SO","SB","AVG","OBP","SLG","OPS"]],
     ["pitching_stats","⚾ Pitching",["G","GS","W","L","SV","IP","H","R","ER","BB","SO","ERA","WHIP","K9","BB9"]],
@@ -6988,10 +6777,19 @@ function DashLeagueTx({league,accentColor}){
     setTxs(p=>[tx,...p]);setDesc("");setFrom("");setTo("");setSaving(false);
   };
   const del=async(id)=>{await sb.del(`nova_${league}_transactions`,`?id=eq.${id}`);setTxs(p=>p.filter(x=>x.id!==id));};
+  const[showForm,setShowForm]=useState(false);
   return(
     <div>
+      {/* Header with Add button */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,color:"#94A3B8",fontWeight:700}}>📋 TRANSACTIONS ({txs.length})</div>
+        <button onClick={()=>setShowForm(o=>!o)} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 16px",borderRadius:20,background:showForm?accentColor+"22":"rgba(255,255,255,.05)",border:`1px solid ${showForm?accentColor+"55":"rgba(255,255,255,.1)"}`,color:showForm?accentColor:"#E2E8F0",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,cursor:"pointer",transition:"all .2s"}}>
+          {showForm?"✕ Cancel":"➕ Add Transaction"}
+        </button>
+      </div>
+      {showForm&&(
       <Card style={{padding:"16px",marginBottom:14}} hover={false}>
-        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:12,fontWeight:700}}>➕ LOG TRANSACTION</div>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:12,fontWeight:700}}>LOG TRANSACTION</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
           <div>
             <Lbl>Type</Lbl>
@@ -7018,9 +6816,10 @@ function DashLeagueTx({league,accentColor}){
             <input value={desc} onChange={e=>setDesc(e.target.value)} placeholder="e.g. Aaron Judge traded to Yankees for package…"/>
           </div>
         </div>
-        <Btn onClick={submit} disabled={saving||!desc.trim()}>{saving?"Saving…":"📋 Log Transaction"}</Btn>
+        <Btn onClick={()=>{submit();setShowForm(false);}} disabled={saving||!desc.trim()}>{saving?"Saving…":"📋 Log Transaction"}</Btn>
       </Card>
-      {!txs.length&&<Empty icon="📋" msg="No transactions yet"/>}
+      )}
+      {!txs.length&&!showForm&&<Empty icon="📋" msg="No transactions yet — click Add Transaction above"/>}
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {txs.map(tx=>(
           <Card key={tx.id} style={{padding:"12px 14px"}} hover={false}>
@@ -7048,6 +6847,24 @@ function DashLeagueMembers({league,accentColor,users,isBaseball}){
   const[statField,setStatField]=useState(isBaseball?"hitting_stats":"passing_stats");
   const[statData,setStatData]=useState({});
   const[saving,setSaving]=useState(false);
+  const[showAdd,setShowAdd]=useState(false);
+  const[addName,setAddName]=useState("");
+  const[addPos,setAddPos]=useState("");
+  const[addTeam,setAddTeam]=useState("");
+  const[addJersey,setAddJersey]=useState("");
+  const[addSaving,setAddSaving]=useState(false);
+  const baseballPos=["P","C","1B","2B","3B","SS","LF","CF","RF","DH","SP","RP"];
+  const footballPos=["QB","RB","WR","TE","K","DEF","OL","DL","LB","CB","S"];
+  const positions=isBaseball?baseballPos:footballPos;
+  const addPlayer=async()=>{
+    if(!addName.trim()||!addPos)return;
+    setAddSaving(true);
+    const p={id:gid(),name:addName.trim(),position:addPos,team:addTeam.trim(),jersey:addJersey.trim(),ts:Date.now()};
+    await sb.post(`nova_${league}_players`,p);
+    setPlayers(prev=>[...prev,p]);
+    setAddName("");setAddPos("");setAddTeam("");setAddJersey("");
+    setShowAdd(false);setAddSaving(false);
+  };
   const NBBL_FIELDS=[
     ["hitting_stats","⚾ Hitting",["G","AB","R","H","2B","3B","HR","RBI","BB","SO","SB","AVG","OBP","SLG","OPS"]],
     ["pitching_stats","⚾ Pitching",["G","GS","W","L","SV","IP","H","R","ER","BB","SO","ERA","WHIP","K9","BB9"]],
@@ -7137,8 +6954,32 @@ function DashLeagueMembers({league,accentColor,users,isBaseball}){
   }
   return(
     <div>
-      <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:12}}>{players.length} PLAYERS — click to manage</div>
-      {!players.length&&<Empty icon={isBaseball?"⚾":"🏈"} msg="No players added yet — add them in the Roster tab"/>}
+      {/* Header with Add button */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,color:"#94A3B8",fontWeight:700}}>👤 MEMBER PAGES ({players.length})</div>
+        <button onClick={()=>setShowAdd(o=>!o)} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 16px",borderRadius:20,background:showAdd?accentColor+"22":"rgba(255,255,255,.05)",border:`1px solid ${showAdd?accentColor+"55":"rgba(255,255,255,.1)"}`,color:showAdd?accentColor:"#E2E8F0",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,cursor:"pointer",transition:"all .2s"}}>
+          {showAdd?"✕ Cancel":"➕ Create Member Page"}
+        </button>
+      </div>
+      {showAdd&&(
+        <Card style={{padding:"16px",marginBottom:14}} hover={false}>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:12,fontWeight:700}}>CREATE MEMBER PAGE</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+            <div style={{gridColumn:"1/-1"}}><Lbl>Player Name</Lbl><input value={addName} onChange={e=>setAddName(e.target.value)} placeholder="Full name…"/></div>
+            <div>
+              <Lbl>Position</Lbl>
+              <select value={addPos} onChange={e=>setAddPos(e.target.value)} style={{width:"100%"}}>
+                <option value="">Select…</option>
+                {positions.map(p=><option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div><Lbl>Team</Lbl><input value={addTeam} onChange={e=>setAddTeam(e.target.value)} placeholder="Team name…"/></div>
+            <div><Lbl>Jersey #</Lbl><input value={addJersey} onChange={e=>setAddJersey(e.target.value)} placeholder="#"/></div>
+          </div>
+          <Btn onClick={addPlayer} disabled={addSaving||!addName.trim()||!addPos}>{addSaving?"Creating…":"✅ Create Page"}</Btn>
+        </Card>
+      )}
+      {!players.length&&!showAdd&&<Empty icon={isBaseball?"⚾":"🏈"} msg="No member pages yet — click Create Member Page above"/>}
       <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:8}}>
         {players.map((p,i)=>{
           const m=matchMember(p.name);
