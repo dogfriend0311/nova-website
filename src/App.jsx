@@ -6888,9 +6888,20 @@ function DashLeagueMembers({league,accentColor,users,isBaseball}){
     return users.find(u=>(u.display_name||"").toLowerCase().includes(n)||n.includes((u.display_name||"").toLowerCase())||(u.username||"").toLowerCase()===n);
   };
   const selPlayer=sel?players.find(p=>p.id===sel):null;
-  const member=selPlayer?matchMember(selPlayer.name):null;
-  const rId=member?.social_roblox||"";
-  const song=Array.isArray(member?.page_music)?member.page_music[0]:member?.page_music;
+  // Linked Nova member — prefer explicit nova_user_id over name-match
+  const linkedMember=selPlayer
+    ?(selPlayer.nova_user_id?users.find(u=>u.id===selPlayer.nova_user_id):matchMember(selPlayer.name))
+    :null;
+  // Roblox: use player's own roblox_id first, fall back to linked member's
+  const rId=selPlayer?.roblox_id||linkedMember?.social_roblox||"";
+  // Spotify URL stored on player record
+  const spotifyUrl=selPlayer?.spotify_url||"";
+  // Convert Spotify track/playlist URL to embed URL
+  const spotifyEmbed=(url)=>{
+    if(!url)return"";
+    const m=url.match(/spotify\.com\/(track|album|playlist|episode)\/([A-Za-z0-9]+)/);
+    return m?`https://open.spotify.com/embed/${m[1]}/${m[2]}?utm_source=generator&theme=0`:"";
+  };
   const saveStats=async()=>{
     if(!selPlayer)return;
     setSaving(true);
@@ -6898,47 +6909,129 @@ function DashLeagueMembers({league,accentColor,users,isBaseball}){
     setPlayers(p=>p.map(x=>x.id===selPlayer.id?{...x,[statField]:statData}:x));
     setSaving(false);alert("Stats saved!");
   };
+  const patchPlayer=async(patch)=>{
+    await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,patch);
+    setPlayers(p=>p.map(x=>x.id===selPlayer.id?{...x,...patch}:x));
+  };
   if(sel&&selPlayer){
     const cols=FIELDS.find(([k])=>k===statField)?.[2]||[];
+    const embedUrl=spotifyEmbed(selPlayer.spotify_url||"");
     return(
       <div>
         <button onClick={()=>setSel(null)} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:12,marginBottom:16,fontFamily:"'Orbitron',sans-serif",display:"flex",alignItems:"center",gap:5}}>← ALL PLAYERS</button>
         <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:14}}>
+
+          {/* Left card — profile + linking */}
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <Card style={{padding:"16px"}} hover={false}>
+              {/* Avatar + name header */}
+              <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:14}}>
+                <div style={{position:"relative",width:64,height:64,borderRadius:10,overflow:"hidden",background:`${accentColor}18`,border:`2px solid ${accentColor}44`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  {rId
+                    ?<img key={rId} src={`/api/roblox-avatar?userId=${rId}&t=${Date.now()}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}}/>
+                    :null}
+                  <div style={{display:rId?"none":"flex",width:"100%",height:"100%",alignItems:"center",justifyContent:"center",fontSize:26}}>{isBaseball?"⚾":"🏈"}</div>
+                </div>
+                <div>
+                  <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:15,fontWeight:900,color:"#E2E8F0"}}>{selPlayer.name}</div>
+                  <div style={{fontSize:11,color:accentColor,marginTop:2}}>{selPlayer.position}{selPlayer.jersey?` · #${selPlayer.jersey}`:""}</div>
+                  <div style={{fontSize:10,color:"#475569"}}>{selPlayer.team}</div>
+                </div>
+              </div>
+
+              {/* Basic info editing */}
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:8}}>PLAYER INFO</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+                <div><Lbl>Name</Lbl><input defaultValue={selPlayer.name} onBlur={e=>patchPlayer({name:e.target.value})}/></div>
+                <div><Lbl>Position</Lbl><input defaultValue={selPlayer.position} onBlur={e=>patchPlayer({position:e.target.value})}/></div>
+                <div><Lbl>Team</Lbl><input defaultValue={selPlayer.team} onBlur={e=>patchPlayer({team:e.target.value})}/></div>
+                <div><Lbl>Jersey #</Lbl><input defaultValue={selPlayer.jersey} onBlur={e=>patchPlayer({jersey:e.target.value})}/></div>
+              </div>
+
+              {/* ── Link Nova Account ── */}
+              <div style={{borderTop:"1px solid rgba(255,255,255,.07)",paddingTop:12,marginBottom:14}}>
+                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:8}}>🔗 LINK NOVA ACCOUNT</div>
+                {linkedMember&&(
+                  <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"rgba(0,212,255,.06)",border:"1px solid rgba(0,212,255,.2)",borderRadius:8,marginBottom:8}}>
+                    <Av user={linkedMember} size={28}/>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{linkedMember.display_name}</div>
+                      <div style={{fontSize:10,color:"#475569"}}>@{linkedMember.username}</div>
+                    </div>
+                    <button onClick={()=>patchPlayer({nova_user_id:null})} style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif"}}>Unlink</button>
+                  </div>
+                )}
+                <select
+                  value={selPlayer.nova_user_id||""}
+                  onChange={e=>patchPlayer({nova_user_id:e.target.value||null})}
+                  style={{width:"100%"}}>
+                  <option value="">{linkedMember?"Change linked account…":"Search Nova member…"}</option>
+                  {[...users].sort((a,b)=>(a.display_name||"").localeCompare(b.display_name||"")).map(u=>(
+                    <option key={u.id} value={u.id}>{u.display_name} (@{u.username})</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* ── Roblox ID ── */}
+              <div style={{borderTop:"1px solid rgba(255,255,255,.07)",paddingTop:12,marginBottom:14}}>
+                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:8}}>🎮 ROBLOX ID</div>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <input
+                    defaultValue={selPlayer.roblox_id||""}
+                    placeholder="Enter Roblox user ID…"
+                    style={{flex:1}}
+                    onBlur={e=>{
+                      const val=e.target.value.trim();
+                      patchPlayer({roblox_id:val||null});
+                    }}
+                  />
+                  {rId&&(
+                    <div style={{width:36,height:36,borderRadius:8,overflow:"hidden",flexShrink:0,border:`1px solid ${accentColor}44`}}>
+                      <img key={rId} src={`/api/roblox-avatar?userId=${rId}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>e.target.style.display="none"}/>
+                    </div>
+                  )}
+                </div>
+                <div style={{fontSize:9,color:"#334155",marginTop:4}}>Find your ID at roblox.com/users — the number in the URL. Avatar auto-updates.</div>
+              </div>
+
+              {/* ── Spotify Song ── */}
+              <div style={{borderTop:"1px solid rgba(255,255,255,.07)",paddingTop:12}}>
+                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:8}}>🎵 ANTHEM / WALK-UP SONG</div>
+                <input
+                  defaultValue={selPlayer.spotify_url||""}
+                  placeholder="Paste Spotify track or playlist URL…"
+                  onBlur={e=>{
+                    const val=e.target.value.trim();
+                    patchPlayer({spotify_url:val||null});
+                  }}
+                  style={{marginBottom:8}}
+                />
+                {embedUrl&&(
+                  <iframe
+                    src={embedUrl}
+                    width="100%"
+                    height="80"
+                    frameBorder="0"
+                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                    loading="lazy"
+                    style={{borderRadius:10,border:"none"}}
+                  />
+                )}
+                <div style={{fontSize:9,color:"#334155",marginTop:4}}>Works with Spotify track, album, or playlist links.</div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Right card — stats */}
           <Card style={{padding:"16px"}} hover={false}>
-            <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:12}}>
-              <div style={{width:60,height:60,borderRadius:10,overflow:"hidden",background:`${accentColor}18`,border:`2px solid ${accentColor}44`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                {rId?<img src={`/api/roblox-avatar?userId=${rId}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>e.target.style.display="none"}/>:<span style={{fontSize:26}}>{isBaseball?"⚾":"🏈"}</span>}
-              </div>
-              <div>
-                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:14,fontWeight:900,color:"#E2E8F0"}}>{selPlayer.name}</div>
-                <div style={{fontSize:11,color:accentColor}}>{selPlayer.position}{selPlayer.jersey?` · #${selPlayer.jersey}`:""}</div>
-                <div style={{fontSize:10,color:"#475569"}}>{selPlayer.team}</div>
-              </div>
-            </div>
-            {member&&<div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderTop:"1px solid rgba(255,255,255,.07)"}}>
-              <Av user={member} size={28}/>
-              <div><div style={{fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{member.display_name}</div><div style={{fontSize:10,color:"#475569"}}>@{member.username}</div></div>
-            </div>}
-            {song?.url&&<div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"rgba(255,255,255,.04)",borderRadius:8,border:"1px solid rgba(255,255,255,.07)",marginTop:8}}>
-              {song.thumbnail&&<img src={song.thumbnail} style={{width:26,height:26,borderRadius:4,objectFit:"cover"}} onError={e=>e.target.style.display="none"}/>}
-              <div style={{minWidth:0}}><div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>🎵 ANTHEM</div><div style={{fontSize:10,color:"#E2E8F0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{song.title||"Playing…"}</div></div>
-            </div>}
-            <div style={{marginTop:12}}>
-              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",marginBottom:8}}>EDIT PLAYER INFO</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                <div><Lbl>Name</Lbl><input defaultValue={selPlayer.name} onBlur={async e=>await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,{name:e.target.value})}/></div>
-                <div><Lbl>Position</Lbl><input defaultValue={selPlayer.position} onBlur={async e=>await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,{position:e.target.value})}/></div>
-                <div><Lbl>Team</Lbl><input defaultValue={selPlayer.team} onBlur={async e=>await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,{team:e.target.value})}/></div>
-                <div><Lbl>Jersey #</Lbl><input defaultValue={selPlayer.jersey} onBlur={async e=>await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,{jersey:e.target.value})}/></div>
-              </div>
-            </div>
-          </Card>
-          <Card style={{padding:"16px"}} hover={false}>
-            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",marginBottom:10}}>EDIT STATS</div>
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:10}}>EDIT STATS</div>
             <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
               {FIELDS.map(([k,l])=>(
                 <button key={k} onClick={()=>{setStatField(k);setStatData(selPlayer[k]||{});}}
-                  style={{padding:"4px 10px",borderRadius:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:700,border:`1px solid ${statField===k?accentColor+"88":"rgba(255,255,255,.1)"}`,background:statField===k?accentColor+"18":"rgba(255,255,255,.03)",color:statField===k?accentColor:"#64748B"}}>{l}</button>
+                  style={{padding:"4px 10px",borderRadius:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:700,
+                    border:`1px solid ${statField===k?accentColor+"88":"rgba(255,255,255,.1)"}`,
+                    background:statField===k?accentColor+"18":"rgba(255,255,255,.03)",
+                    color:statField===k?accentColor:"#64748B"}}>{l}</button>
               ))}
             </div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(72px,1fr))",gap:8,marginBottom:12}}>
@@ -6982,8 +7075,8 @@ function DashLeagueMembers({league,accentColor,users,isBaseball}){
       {!players.length&&!showAdd&&<Empty icon={isBaseball?"⚾":"🏈"} msg="No member pages yet — click Create Member Page above"/>}
       <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:8}}>
         {players.map((p,i)=>{
-          const m=matchMember(p.name);
-          const rid=m?.social_roblox||"";
+          const m=p.nova_user_id?users.find(u=>u.id===p.nova_user_id):matchMember(p.name);
+          const rid=p.roblox_id||m?.social_roblox||"";
           return(
             <div key={i} onClick={()=>{setSel(p.id);setStatField(isBaseball?"hitting_stats":"passing_stats");setStatData(p[isBaseball?"hitting_stats":"passing_stats"]||{});}}
               style={{display:"flex",alignItems:"center",gap:10,padding:"12px",borderRadius:12,background:"rgba(255,255,255,.03)",border:`1px solid ${accentColor}22`,cursor:"pointer",transition:"all .18s"}}
@@ -7255,20 +7348,21 @@ function LeaguePlayersPage({players,league,accentColor,users,navigate}){
   const isBaseball=league==="nbbl";
   const selectedPlayer=sel?players.find(p=>p.id===sel):null;
 
-  // Match a league player to a Nova member by name similarity
-  const matchMember=(playerName)=>{
-    if(!playerName)return null;
-    const n=playerName.toLowerCase();
+  // Match a league player to a Nova member — prefer explicit link
+  const matchMember=(player)=>{
+    if(!player)return null;
+    if(player.nova_user_id)return users.find(u=>u.id===player.nova_user_id)||null;
+    const n=(player.name||"").toLowerCase();
     return users.find(u=>
       (u.display_name||"").toLowerCase().includes(n)||
       n.includes((u.display_name||"").toLowerCase())||
       (u.username||"").toLowerCase()===n
-    );
+    )||null;
   };
 
   if(sel&&selectedPlayer){
-    const member=matchMember(selectedPlayer.name);
-    const robloxId=member?.social_roblox||member?.roblox_id||"";
+    const member=matchMember(selectedPlayer);
+    const robloxId=selectedPlayer.roblox_id||member?.social_roblox||"";
     const robloxAvatarUrl=robloxId?`/api/roblox-avatar?userId=${robloxId}`:"";
     const favSong=member?.page_music;
     const songTrack=Array.isArray(favSong)?favSong[0]:favSong;
@@ -7326,8 +7420,20 @@ function LeaguePlayersPage({players,league,accentColor,users,navigate}){
                 {selectedPlayer.team&&<span style={{fontSize:11,color:"#64748B"}}>· {selectedPlayer.team}</span>}
                 {selectedPlayer.jersey&&<span style={{fontSize:11,color:"#475569"}}>· #{selectedPlayer.jersey}</span>}
               </div>
-              {/* Favorite song */}
-              {songTrack?.url&&(
+              {/* Anthem — Spotify embed or Nova music */}
+              {selectedPlayer.spotify_url&&(()=>{
+                const m2=selectedPlayer.spotify_url.match(/spotify\.com\/(track|album|playlist|episode)\/([A-Za-z0-9]+)/);
+                const embedUrl=m2?`https://open.spotify.com/embed/${m2[1]}/${m2[2]}?utm_source=generator&theme=0`:"";
+                return embedUrl?(
+                  <div style={{marginTop:8,maxWidth:320}}>
+                    <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".08em",marginBottom:4}}>🎵 WALK-UP SONG</div>
+                    <iframe src={embedUrl} width="100%" height="80" frameBorder="0"
+                      allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                      loading="lazy" style={{borderRadius:10,border:"none"}}/>
+                  </div>
+                ):null;
+              })()}
+              {!selectedPlayer.spotify_url&&songTrack?.url&&(
                 <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"rgba(255,255,255,.04)",borderRadius:8,border:"1px solid rgba(255,255,255,.07)",marginTop:4,maxWidth:280}}>
                   {songTrack.thumbnail&&<img src={songTrack.thumbnail} style={{width:28,height:28,borderRadius:4,objectFit:"cover",flexShrink:0}} onError={e=>e.target.style.display="none"}/>}
                   <div style={{minWidth:0}}>
@@ -7374,7 +7480,7 @@ function LeaguePlayersPage({players,league,accentColor,users,navigate}){
       <div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(auto-fill,minmax(220px,1fr))",gap:10}}>
         {players.map((p,i)=>{
           const member=matchMember(p.name);
-          const robloxId=member?.social_roblox||member?.roblox_id||"";
+          const robloxId=selectedPlayer.roblox_id||member?.social_roblox||"";
           const robloxAvatarUrl=robloxId?`/api/roblox-avatar?userId=${robloxId}`:"";
           return(
             <div key={i} onClick={()=>setSel(p.id)}
