@@ -7296,11 +7296,9 @@ function DashboardPage({cu,users,setUsers,navigate}){
             </div>
           )}
         </div>
-      )
+      )}
       {tab==="nffl"&&<DashNFFLTab cu={cu}/>}
-
       {tab==="nbbl"&&<DashNBBLTab cu={cu}/>}
-}
     </div>
   );
 }
