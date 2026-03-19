@@ -6811,6 +6811,361 @@ function LeagueMemberPagesTab({league,players,users,accentColor}){
   );
 }
 
+// ─── Dashboard League flat-tab components ─────────────────────────────────────
+
+function DashLeagueFeed({league,accentColor,cu}){
+  const[feed,setFeed]=useState([]);
+  const[loaded,setLoaded]=useState(false);
+  const[title,setTitle]=useState("");
+  const[body,setBody]=useState("");
+  const[saving,setSaving]=useState(false);
+  useEffect(()=>{
+    if(loaded)return;
+    sb.get(`nova_${league}_feed`,"?order=ts.desc&limit=50").then(r=>{setFeed(r||[]);setLoaded(true);});
+  },[]);
+  const post=async()=>{
+    if(!body.trim())return;
+    setSaving(true);
+    const p={id:gid(),title:title.trim(),content:body.trim(),author_id:cu?.id,author_name:cu?.display_name,ts:Date.now()};
+    await sb.post(`nova_${league}_feed`,p);
+    setFeed(prev=>[p,...prev]);setTitle("");setBody("");setSaving(false);
+  };
+  const del=async(id)=>{await sb.del(`nova_${league}_feed`,`?id=eq.${id}`);setFeed(p=>p.filter(x=>x.id!==id));};
+  return(
+    <div>
+      <Card style={{padding:"16px",marginBottom:14}} hover={false}>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:10,fontWeight:700}}>📢 POST GAME UPDATE</div>
+        <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Title (e.g. Week 3 Recap)…" style={{marginBottom:8}}/>
+        <textarea value={body} onChange={e=>setBody(e.target.value)} rows={4} placeholder="Game recap, scores, highlights…" style={{marginBottom:8,resize:"vertical"}}/>
+        <Btn onClick={post} disabled={saving||!body.trim()}>{saving?"Posting…":"📢 Post Update"}</Btn>
+      </Card>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {!feed.length&&<Empty icon="📢" msg="No posts yet"/>}
+        {feed.map(f=>(
+          <Card key={f.id} style={{padding:"12px 14px"}} hover={false}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div style={{flex:1}}>
+                {f.title&&<div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,color:accentColor,fontWeight:700,marginBottom:4}}>{f.title}</div>}
+                <div style={{fontSize:12,color:"#94A3B8",lineHeight:1.5}}>{f.content}</div>
+                <div style={{fontSize:9,color:"#334155",marginTop:6}}>{f.author_name} · {new Date(f.ts).toLocaleDateString()}</div>
+              </div>
+              <button onClick={()=>del(f.id)} style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer",fontSize:16,marginLeft:10,flexShrink:0}}>🗑</button>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DashLeagueRoster({league,accentColor,cu}){
+  const mob=useIsMobile();
+  const[players,setPlayers]=useState([]);
+  const[loaded,setLoaded]=useState(false);
+  useEffect(()=>{
+    if(loaded)return;
+    sb.get(`nova_${league}_players`,"?order=name.asc").then(r=>{setPlayers(r||[]);setLoaded(true);});
+  },[]);
+  const del=async(id)=>{await sb.del(`nova_${league}_players`,`?id=eq.${id}`);setPlayers(p=>p.filter(x=>x.id!==id));};
+  return(
+    <div>
+      <Card style={{padding:"16px",marginBottom:14}} hover={false}>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:12,fontWeight:700}}>➕ ADD PLAYER</div>
+        <AddLeaguePlayer league={league} onAdd={p=>setPlayers(prev=>[...prev,p])} cu={cu}/>
+      </Card>
+      <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:10}}>{players.length} PLAYERS</div>
+      {!players.length&&<Empty icon="👥" msg="No players yet — add one above"/>}
+      <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:8}}>
+        {players.map((p,i)=>(
+          <Card key={i} style={{padding:"12px 14px"}} hover={false}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontWeight:700,color:"#E2E8F0",fontSize:13}}>{p.name}</div>
+                <div style={{fontSize:11,color:accentColor,marginTop:2}}>{p.position}{p.jersey?` · #${p.jersey}`:""}</div>
+                <div style={{fontSize:10,color:"#475569"}}>{p.team}</div>
+              </div>
+              <button onClick={()=>del(p.id)} style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer",fontSize:14,flexShrink:0}}>🗑</button>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DashLeagueStats({league,accentColor,isBaseball}){
+  const[players,setPlayers]=useState([]);
+  const[loaded,setLoaded]=useState(false);
+  const[target,setTarget]=useState("");
+  const[field,setField]=useState(isBaseball?"hitting_stats":"passing_stats");
+  const[data,setData]=useState({});
+  const[saving,setSaving]=useState(false);
+  const NBBL_FIELDS=[
+    ["hitting_stats","⚾ Hitting",["G","AB","R","H","2B","3B","HR","RBI","BB","SO","SB","AVG","OBP","SLG","OPS"]],
+    ["pitching_stats","⚾ Pitching",["G","GS","W","L","SV","IP","H","R","ER","BB","SO","ERA","WHIP","K9","BB9"]],
+    ["fielding_stats","🧤 Fielding",["G","GS","PO","A","E","DP","FLD%","INN"]],
+  ];
+  const NFL_FIELDS=[
+    ["passing_stats","🎯 Passing",["G","CMP","ATT","YDS","TD","INT","RTG"]],
+    ["rushing_stats","🏃 Rushing",["G","CAR","YDS","TD","AVG","LONG"]],
+    ["receiving_stats","📡 Receiving",["G","REC","YDS","TD","AVG","LONG"]],
+    ["defensive_stats","🛡 Defense",["G","TCK","SACK","INT","FF","PD"]],
+    ["kicking_stats","⚽ Kicking",["G","FGM","FGA","FG%","XPM","XPA","LONG"]],
+  ];
+  const FIELDS=isBaseball?NBBL_FIELDS:NFL_FIELDS;
+  useEffect(()=>{
+    if(loaded)return;
+    sb.get(`nova_${league}_players`,"?order=name.asc").then(r=>{setPlayers(r||[]);setLoaded(true);});
+  },[]);
+  const save=async()=>{
+    if(!target)return;
+    setSaving(true);
+    await sb.patch(`nova_${league}_players`,`?id=eq.${target}`,{[field]:data});
+    setPlayers(p=>p.map(x=>x.id===target?{...x,[field]:data}:x));
+    setSaving(false);
+    alert("Stats saved!");
+  };
+  const cols=FIELDS.find(([k])=>k===field)?.[2]||[];
+  return(
+    <Card style={{padding:"18px"}} hover={false}>
+      <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:14,fontWeight:700}}>📊 ENTER PLAYER STATS</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+        <div>
+          <Lbl>Player</Lbl>
+          <select value={target} onChange={e=>{setTarget(e.target.value);const p=players.find(x=>x.id===e.target.value);setData(p?.[field]||{});}} style={{width:"100%"}}>
+            <option value="">Select player…</option>
+            {players.map(p=><option key={p.id} value={p.id}>{p.name} ({p.position})</option>)}
+          </select>
+        </div>
+        <div>
+          <Lbl>Category</Lbl>
+          <select value={field} onChange={e=>{setField(e.target.value);const p=players.find(x=>x.id===target);setData(p?.[e.target.value]||{});}} style={{width:"100%"}}>
+            {FIELDS.map(([k,l])=><option key={k} value={k}>{l}</option>)}
+          </select>
+        </div>
+      </div>
+      {target&&(
+        <>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(80px,1fr))",gap:8,marginBottom:14}}>
+            {cols.map(c=>(
+              <div key={c}>
+                <Lbl>{c}</Lbl>
+                <input value={data[c]||""} onChange={e=>setData(p=>({...p,[c]:e.target.value}))} placeholder="—" style={{textAlign:"center"}}/>
+              </div>
+            ))}
+          </div>
+          <Btn onClick={save} disabled={saving}>{saving?"Saving…":"💾 Save Stats"}</Btn>
+        </>
+      )}
+      {!target&&<div style={{textAlign:"center",padding:"20px 0",color:"#334155",fontSize:12}}>Select a player above to enter stats</div>}
+    </Card>
+  );
+}
+
+function DashLeagueTx({league,accentColor}){
+  const[players,setPlayers]=useState([]);
+  const[txs,setTxs]=useState([]);
+  const[loaded,setLoaded]=useState(false);
+  const[type,setType]=useState("Trade");
+  const[from,setFrom]=useState("");
+  const[to,setTo]=useState("");
+  const[desc,setDesc]=useState("");
+  const[saving,setSaving]=useState(false);
+  const TX_TYPES=["Trade","Signing","Release","Suspension","Injury","Award","Other"];
+  const TX_COLOR={Trade:"#00D4FF",Signing:"#22C55E",Release:"#EF4444",Suspension:"#F59E0B",Injury:"#FB923C",Award:"#A855F7",Other:"#64748B"};
+  useEffect(()=>{
+    if(loaded)return;
+    Promise.all([
+      sb.get(`nova_${league}_players`,"?order=name.asc"),
+      sb.get(`nova_${league}_transactions`,"?order=ts.desc&limit=100"),
+    ]).then(([p,t])=>{setPlayers(p||[]);setTxs(t||[]);setLoaded(true);});
+  },[]);
+  const submit=async()=>{
+    if(!desc.trim())return;
+    setSaving(true);
+    const tx={id:gid(),type,from_player:from,to_player:to,description:desc.trim(),ts:Date.now()};
+    await sb.post(`nova_${league}_transactions`,tx);
+    setTxs(p=>[tx,...p]);setDesc("");setFrom("");setTo("");setSaving(false);
+  };
+  const del=async(id)=>{await sb.del(`nova_${league}_transactions`,`?id=eq.${id}`);setTxs(p=>p.filter(x=>x.id!==id));};
+  return(
+    <div>
+      <Card style={{padding:"16px",marginBottom:14}} hover={false}>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:12,fontWeight:700}}>➕ LOG TRANSACTION</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+          <div>
+            <Lbl>Type</Lbl>
+            <select value={type} onChange={e=>setType(e.target.value)} style={{width:"100%"}}>
+              {TX_TYPES.map(t=><option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <Lbl>From Player</Lbl>
+            <select value={from} onChange={e=>setFrom(e.target.value)} style={{width:"100%"}}>
+              <option value="">—</option>
+              {players.map(p=><option key={p.id} value={p.name}>{p.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <Lbl>To / Team</Lbl>
+            <select value={to} onChange={e=>setTo(e.target.value)} style={{width:"100%"}}>
+              <option value="">—</option>
+              {players.map(p=><option key={p.id} value={p.name}>{p.name}</option>)}
+            </select>
+          </div>
+          <div style={{gridColumn:"1/-1"}}>
+            <Lbl>Description</Lbl>
+            <input value={desc} onChange={e=>setDesc(e.target.value)} placeholder="e.g. Aaron Judge traded to Yankees for package…"/>
+          </div>
+        </div>
+        <Btn onClick={submit} disabled={saving||!desc.trim()}>{saving?"Saving…":"📋 Log Transaction"}</Btn>
+      </Card>
+      {!txs.length&&<Empty icon="📋" msg="No transactions yet"/>}
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {txs.map(tx=>(
+          <Card key={tx.id} style={{padding:"12px 14px"}} hover={false}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+              <div style={{padding:"3px 9px",borderRadius:10,background:`${TX_COLOR[tx.type]||"#64748B"}22`,border:`1px solid ${TX_COLOR[tx.type]||"#64748B"}44`,color:TX_COLOR[tx.type]||"#64748B",fontSize:9,fontFamily:"'Orbitron',sans-serif",fontWeight:700,flexShrink:0,marginTop:1}}>{tx.type}</div>
+              <div style={{flex:1,minWidth:0}}>
+                {(tx.from_player||tx.to_player)&&<div style={{fontSize:10,color:"#00D4FF",fontFamily:"'Orbitron',sans-serif",marginBottom:2}}>{tx.from_player}{tx.from_player&&tx.to_player?" → ":""}{tx.to_player}</div>}
+                <div style={{fontSize:12,color:"#94A3B8"}}>{tx.description}</div>
+                <div style={{fontSize:9,color:"#334155",marginTop:4}}>{new Date(tx.ts).toLocaleDateString()}</div>
+              </div>
+              <button onClick={()=>del(tx.id)} style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer",fontSize:14,flexShrink:0}}>🗑</button>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DashLeagueMembers({league,accentColor,users,isBaseball}){
+  const mob=useIsMobile();
+  const[players,setPlayers]=useState([]);
+  const[loaded,setLoaded]=useState(false);
+  const[sel,setSel]=useState(null);
+  const[statField,setStatField]=useState(isBaseball?"hitting_stats":"passing_stats");
+  const[statData,setStatData]=useState({});
+  const[saving,setSaving]=useState(false);
+  const NBBL_FIELDS=[
+    ["hitting_stats","⚾ Hitting",["G","AB","R","H","2B","3B","HR","RBI","BB","SO","SB","AVG","OBP","SLG","OPS"]],
+    ["pitching_stats","⚾ Pitching",["G","GS","W","L","SV","IP","H","R","ER","BB","SO","ERA","WHIP","K9","BB9"]],
+    ["fielding_stats","🧤 Fielding",["G","GS","PO","A","E","DP","FLD%","INN"]],
+  ];
+  const NFL_FIELDS=[
+    ["passing_stats","🎯 Passing",["G","CMP","ATT","YDS","TD","INT","RTG"]],
+    ["rushing_stats","🏃 Rushing",["G","CAR","YDS","TD","AVG","LONG"]],
+    ["receiving_stats","📡 Receiving",["G","REC","YDS","TD","AVG","LONG"]],
+    ["defensive_stats","🛡 Defense",["G","TCK","SACK","INT","FF","PD"]],
+    ["kicking_stats","⚽ Kicking",["G","FGM","FGA","FG%","XPM","XPA","LONG"]],
+  ];
+  const FIELDS=isBaseball?NBBL_FIELDS:NFL_FIELDS;
+  useEffect(()=>{
+    if(loaded)return;
+    sb.get(`nova_${league}_players`,"?order=name.asc").then(r=>{setPlayers(r||[]);setLoaded(true);});
+  },[]);
+  const matchMember=(name)=>{
+    if(!name)return null;
+    const n=name.toLowerCase();
+    return users.find(u=>(u.display_name||"").toLowerCase().includes(n)||n.includes((u.display_name||"").toLowerCase())||(u.username||"").toLowerCase()===n);
+  };
+  const selPlayer=sel?players.find(p=>p.id===sel):null;
+  const member=selPlayer?matchMember(selPlayer.name):null;
+  const rId=member?.social_roblox||"";
+  const song=Array.isArray(member?.page_music)?member.page_music[0]:member?.page_music;
+  const saveStats=async()=>{
+    if(!selPlayer)return;
+    setSaving(true);
+    await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,{[statField]:statData});
+    setPlayers(p=>p.map(x=>x.id===selPlayer.id?{...x,[statField]:statData}:x));
+    setSaving(false);alert("Stats saved!");
+  };
+  if(sel&&selPlayer){
+    const cols=FIELDS.find(([k])=>k===statField)?.[2]||[];
+    return(
+      <div>
+        <button onClick={()=>setSel(null)} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:12,marginBottom:16,fontFamily:"'Orbitron',sans-serif",display:"flex",alignItems:"center",gap:5}}>← ALL PLAYERS</button>
+        <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:14}}>
+          <Card style={{padding:"16px"}} hover={false}>
+            <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:12}}>
+              <div style={{width:60,height:60,borderRadius:10,overflow:"hidden",background:`${accentColor}18`,border:`2px solid ${accentColor}44`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                {rId?<img src={`/api/roblox-avatar?userId=${rId}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>e.target.style.display="none"}/>:<span style={{fontSize:26}}>{isBaseball?"⚾":"🏈"}</span>}
+              </div>
+              <div>
+                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:14,fontWeight:900,color:"#E2E8F0"}}>{selPlayer.name}</div>
+                <div style={{fontSize:11,color:accentColor}}>{selPlayer.position}{selPlayer.jersey?` · #${selPlayer.jersey}`:""}</div>
+                <div style={{fontSize:10,color:"#475569"}}>{selPlayer.team}</div>
+              </div>
+            </div>
+            {member&&<div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderTop:"1px solid rgba(255,255,255,.07)"}}>
+              <Av user={member} size={28}/>
+              <div><div style={{fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{member.display_name}</div><div style={{fontSize:10,color:"#475569"}}>@{member.username}</div></div>
+            </div>}
+            {song?.url&&<div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"rgba(255,255,255,.04)",borderRadius:8,border:"1px solid rgba(255,255,255,.07)",marginTop:8}}>
+              {song.thumbnail&&<img src={song.thumbnail} style={{width:26,height:26,borderRadius:4,objectFit:"cover"}} onError={e=>e.target.style.display="none"}/>}
+              <div style={{minWidth:0}}><div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>🎵 ANTHEM</div><div style={{fontSize:10,color:"#E2E8F0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{song.title||"Playing…"}</div></div>
+            </div>}
+            <div style={{marginTop:12}}>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",marginBottom:8}}>EDIT PLAYER INFO</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <div><Lbl>Name</Lbl><input defaultValue={selPlayer.name} onBlur={async e=>await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,{name:e.target.value})}/></div>
+                <div><Lbl>Position</Lbl><input defaultValue={selPlayer.position} onBlur={async e=>await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,{position:e.target.value})}/></div>
+                <div><Lbl>Team</Lbl><input defaultValue={selPlayer.team} onBlur={async e=>await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,{team:e.target.value})}/></div>
+                <div><Lbl>Jersey #</Lbl><input defaultValue={selPlayer.jersey} onBlur={async e=>await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,{jersey:e.target.value})}/></div>
+              </div>
+            </div>
+          </Card>
+          <Card style={{padding:"16px"}} hover={false}>
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",marginBottom:10}}>EDIT STATS</div>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
+              {FIELDS.map(([k,l])=>(
+                <button key={k} onClick={()=>{setStatField(k);setStatData(selPlayer[k]||{});}}
+                  style={{padding:"4px 10px",borderRadius:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:700,border:`1px solid ${statField===k?accentColor+"88":"rgba(255,255,255,.1)"}`,background:statField===k?accentColor+"18":"rgba(255,255,255,.03)",color:statField===k?accentColor:"#64748B"}}>{l}</button>
+              ))}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(72px,1fr))",gap:8,marginBottom:12}}>
+              {cols.map(c=>(
+                <div key={c}><Lbl>{c}</Lbl><input value={statData[c]||""} onChange={e=>setStatData(p=>({...p,[c]:e.target.value}))} placeholder="—" style={{textAlign:"center"}}/></div>
+              ))}
+            </div>
+            <Btn onClick={saveStats} disabled={saving}>{saving?"Saving…":"💾 Save Stats"}</Btn>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+  return(
+    <div>
+      <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:12}}>{players.length} PLAYERS — click to manage</div>
+      {!players.length&&<Empty icon={isBaseball?"⚾":"🏈"} msg="No players added yet — add them in the Roster tab"/>}
+      <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:8}}>
+        {players.map((p,i)=>{
+          const m=matchMember(p.name);
+          const rid=m?.social_roblox||"";
+          return(
+            <div key={i} onClick={()=>{setSel(p.id);setStatField(isBaseball?"hitting_stats":"passing_stats");setStatData(p[isBaseball?"hitting_stats":"passing_stats"]||{});}}
+              style={{display:"flex",alignItems:"center",gap:10,padding:"12px",borderRadius:12,background:"rgba(255,255,255,.03)",border:`1px solid ${accentColor}22`,cursor:"pointer",transition:"all .18s"}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=`${accentColor}66`;e.currentTarget.style.background=`${accentColor}0a`;}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor=`${accentColor}22`;e.currentTarget.style.background="rgba(255,255,255,.03)";}}>
+              <div style={{width:42,height:42,borderRadius:8,overflow:"hidden",background:`${accentColor}18`,border:`1px solid ${accentColor}33`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                {rid?<img src={`/api/roblox-avatar?userId=${rid}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>e.target.style.display="none"}/>:<span style={{fontSize:18}}>{isBaseball?"⚾":"🏈"}</span>}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
+                <div style={{fontSize:10,color:accentColor}}>{p.position}{p.jersey?` · #${p.jersey}`:""}</div>
+                {m&&<div style={{fontSize:9,color:"#475569"}}>@{m.username}</div>}
+              </div>
+              <span style={{color:"#334155",fontSize:14}}>›</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
 function DashNFFLTab({cu,users}){
   const[feed,setFeed]=useState([]);
   const[players,setPlayers]=useState([]);
@@ -7306,10 +7661,29 @@ function DashboardPage({cu,users,setUsers,navigate}){
           </Card>
         ))}
       </div>
-      <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
-        {[["members","👥 Members"],["badges","🏅 Badges"],["roles","⭐ Roles"],["stars","⭐ Stars"],["announce","📢 Announce"]].map(([t,l])=>(
-          <button key={t} onClick={()=>setTab(t)} style={{padding:"8px 16px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"rgba(245,158,11,.5)":"rgba(255,255,255,.1)"}`,background:tab===t?"rgba(245,158,11,.12)":"rgba(255,255,255,.03)",color:tab===t?"#F59E0B":"#64748B",transition:"all .2s"}}>{l}</button>
-        ))}
+      {/* Dashboard tab groups */}
+      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
+        {/* Nova tabs */}
+        <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
+          <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginRight:4,flexShrink:0}}>NOVA</div>
+          {[["members","👥 Members"],["badges","🏅 Badges"],["roles","⭐ Roles"],["stars","⭐ Stars"],["announce","📢 Announce"]].map(([t,l])=>(
+            <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 14px",borderRadius:18,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"rgba(245,158,11,.5)":"rgba(255,255,255,.08)"}`,background:tab===t?"rgba(245,158,11,.12)":"rgba(255,255,255,.03)",color:tab===t?"#F59E0B":"#64748B",transition:"all .2s"}}>{l}</button>
+          ))}
+        </div>
+        {/* NFFL tabs */}
+        <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
+          <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginRight:4,flexShrink:0}}>🏈 NFFL</div>
+          {[["nffl_feed","📢 Game Feed"],["nffl_roster","👥 Roster"],["nffl_stats","📊 Stats"],["nffl_transactions","📋 Transactions"],["nffl_members","👤 Member Pages"]].map(([t,l])=>(
+            <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 14px",borderRadius:18,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"rgba(245,158,11,.5)":"rgba(255,255,255,.08)"}`,background:tab===t?"rgba(245,158,11,.12)":"rgba(255,255,255,.03)",color:tab===t?"#F59E0B":"#64748B",transition:"all .2s"}}>{l}</button>
+          ))}
+        </div>
+        {/* NBBL tabs */}
+        <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
+          <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginRight:4,flexShrink:0}}>⚾ NBBL</div>
+          {[["nbbl_feed","📢 Game Feed"],["nbbl_roster","👥 Roster"],["nbbl_stats","📊 Stats"],["nbbl_transactions","📋 Transactions"],["nbbl_members","👤 Member Pages"]].map(([t,l])=>(
+            <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 14px",borderRadius:18,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"rgba(34,197,94,.5)":"rgba(255,255,255,.08)"}`,background:tab===t?"rgba(34,197,94,.12)":"rgba(255,255,255,.03)",color:tab===t?"#22C55E":"#64748B",transition:"all .2s"}}>{l}</button>
+          ))}
+        </div>
       </div>
       {tab==="members"&&(
         <div style={{display:"grid",gridTemplateColumns:mob?"1fr":sel?"1fr 1fr":"1fr",gap:16}}>
@@ -7510,8 +7884,18 @@ function DashboardPage({cu,users,setUsers,navigate}){
           )}
         </div>
       )}
-      {tab==="nffl"&&<DashNFFLTab cu={cu} users={users}/>}
-      {tab==="nbbl"&&<DashNBBLTab cu={cu} users={users}/>}
+      {/* NFFL flat tabs */}
+      {tab==="nffl_feed"&&<DashLeagueFeed league="nffl" accentColor="#F59E0B" cu={cu}/>}
+      {tab==="nffl_roster"&&<DashLeagueRoster league="nffl" accentColor="#F59E0B" cu={cu}/>}
+      {tab==="nffl_stats"&&<DashLeagueStats league="nffl" accentColor="#F59E0B" isBaseball={false}/>}
+      {tab==="nffl_transactions"&&<DashLeagueTx league="nffl" accentColor="#F59E0B"/>}
+      {tab==="nffl_members"&&<DashLeagueMembers league="nffl" accentColor="#F59E0B" users={users} isBaseball={false}/>}
+      {/* NBBL flat tabs */}
+      {tab==="nbbl_feed"&&<DashLeagueFeed league="nbbl" accentColor="#22C55E" cu={cu}/>}
+      {tab==="nbbl_roster"&&<DashLeagueRoster league="nbbl" accentColor="#22C55E" cu={cu}/>}
+      {tab==="nbbl_stats"&&<DashLeagueStats league="nbbl" accentColor="#22C55E" isBaseball={true}/>}
+      {tab==="nbbl_transactions"&&<DashLeagueTx league="nbbl" accentColor="#22C55E"/>}
+      {tab==="nbbl_members"&&<DashLeagueMembers league="nbbl" accentColor="#22C55E" users={users} isBaseball={true}/>}
     </div>
   );
 }
