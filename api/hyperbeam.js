@@ -273,6 +273,49 @@ export default async function handler(req, res) {
           return res.status(200).json({plays:[],error:e.message});
         }
       }
+
+      // ── Spotrac salary lookup ──────────────────────────────────────────────
+      if(req.query.spotrac){
+        const playerName=(req.query.player||"").toLowerCase().replace(/[^a-z0-9 ]/g,"").replace(/\s+/g,"-");
+        const sport=(req.query.sport||"mlb").toLowerCase();
+        const sportMap={mlb:"baseball",nfl:"football",nba:"basketball",nhl:"hockey"};
+        const sportSlug=sportMap[sport]||sport;
+        try{
+          // Spotrac search
+          const searchUrl=`https://www.spotrac.com/search/?q=${encodeURIComponent(req.query.player||"")}`;
+          const sr=await fetch(searchUrl,{
+            headers:{"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36","Accept":"text/html,application/xhtml+xml","Accept-Language":"en-US,en;q=0.9"},
+            signal:makeTimeout(8000),
+          });
+          if(!sr.ok)return res.status(200).json({found:false});
+          const html=await sr.text();
+          // Parse search results to find player link
+          // Find any spotrac player link for this sport
+          const slugPattern=playerName.split("-").slice(0,2).join("[^/]*");
+          const linkRe=new RegExp('href="(/'+sportSlug+'/[^"]*'+playerName.split("-")[0]+'[^"]*)"', "i");
+          const linkMatch=html.match(linkRe);
+          if(!linkMatch)return res.status(200).json({found:false,debug:"no_link_match"});
+          const playerUrl="https://www.spotrac.com"+linkMatch[1];
+          // Fetch player page
+          const pr=await fetch(playerUrl,{
+            headers:{"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36","Accept":"text/html"},
+            signal:makeTimeout(8000),
+          });
+          if(!pr.ok)return res.status(200).json({found:false});
+          const phtml=await pr.text();
+          // Extract contract data
+          const salaryMatch=phtml.match(/\$([\d,]+)\s*<\/(?:span|td|div)[^>]*>\s*(?:Average\s*Annual|AAV)/i);
+          const yearsMatch=phtml.match(/(\d+)\s*[Yy]ear[s]?\s*(?:Contract|Extension|Deal)/i);
+          const totalMatch=phtml.match(/Total\s*Value[^$]*\$([\d,]+)/i);
+          const salary=salaryMatch?parseFloat(salaryMatch[1].replace(/,/g,""))/1000000:null;
+          const years=yearsMatch?parseInt(yearsMatch[1]):null;
+          const total=totalMatch?parseFloat(totalMatch[1].replace(/,/g,""))/1000000:null;
+          return res.status(200).json({found:!!(salary||years),salary,years,total,url:playerUrl});
+        }catch(e){
+          return res.status(200).json({found:false,error:e.message});
+        }
+      }
+
       // ── ESPN proxy — bypass CORS for non-MLB sports ──
       if(req.query.espn_proxy&&req.query.url){
         try{
