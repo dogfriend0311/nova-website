@@ -8049,28 +8049,16 @@ function DashLeagueStats({league,accentColor,isBaseball,sport=""}){
   const[players,setPlayers]=useState([]);
   const[loaded,setLoaded]=useState(false);
   const[target,setTarget]=useState("");
+  const[statType,setStatType]=useState("season"); // "season" | "career"
   const[field,setField]=useState(()=>sport==="basketball"?"scoring_stats":isBaseball?"hitting_stats":"passing_stats");
   const[data,setData]=useState({});
   const[saving,setSaving]=useState(false);
-  const[showAdd,setShowAdd]=useState(false);
-  const[addName,setAddName]=useState("");
-  const[addPos,setAddPos]=useState([]); // array of positions
-  const[addTeam,setAddTeam]=useState("");
-  const[addJersey,setAddJersey]=useState("");
-  const[addSaving,setAddSaving]=useState(false);
   const baseballPos=["P","C","1B","2B","3B","SS","LF","CF","RF","DH","SP","RP"];
   const footballPos=["QB","RB","WR","TE","K","DEF","OL","DL","LB","CB","S"];
   const basketballPos=["PG","SG","SF","PF","C"];
   const positions=sport==="basketball"?basketballPos:isBaseball?baseballPos:footballPos;
-  const addPlayer=async()=>{
-    if(!addName.trim()||!addPos.length)return;
-    setAddSaving(true);
-    const p={id:gid(),name:addName.trim(),position:Array.isArray(addPos)?addPos.join("/"):addPos,team:addTeam.trim(),jersey:addJersey.trim(),ts:Date.now()};
-    await sb.post(`nova_${league}_players`,p);
-    setPlayers(prev=>[...prev,p]);
-    setAddName("");setAddPos("");setAddTeam("");setAddJersey("");
-    setShowAdd(false);setAddSaving(false);
-  };
+  // Field key includes _season or _career suffix
+  const fullField=statType==="season"?field+"_season":field;
   const NBBL_FIELDS=[
     ["hitting_stats","⚾ Hitting",["G","AB","R","H","2B","3B","HR","RBI","BB","SO","SB","AVG","OBP","SLG","OPS"]],
     ["pitching_stats","⚾ Pitching",["G","GS","W","L","SV","IP","H","R","ER","BB","SO","ERA","WHIP","K9","BB9"]],
@@ -8097,26 +8085,39 @@ function DashLeagueStats({league,accentColor,isBaseball,sport=""}){
   const save=async()=>{
     if(!target)return;
     setSaving(true);
-    await sb.patch(`nova_${league}_players`,`?id=eq.${target}`,{[field]:data});
-    setPlayers(p=>p.map(x=>x.id===target?{...x,[field]:data}:x));
+    await sb.patch(`nova_${league}_players`,`?id=eq.${target}`,{[fullField]:data});
+    setPlayers(p=>p.map(x=>x.id===target?{...x,[fullField]:data}:x));
     setSaving(false);
-    alert("Stats saved!");
+    alert(`${statType==="season"?"Season":"Career"} stats saved!`);
   };
   const cols=FIELDS.find(([k])=>k===field)?.[2]||[];
   return(
     <Card style={{padding:"18px"}} hover={false}>
-      <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:14,fontWeight:700}}>📊 ENTER PLAYER STATS</div>
+      <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:12,fontWeight:700}}>📊 ENTER PLAYER STATS</div>
+      {/* Season / Career toggle */}
+      <div style={{display:"flex",gap:5,marginBottom:14}}>
+        {[["season","📅 Current Season"],["career","🏆 Career"]].map(([t,l])=>(
+          <button key={t} onClick={()=>{setStatType(t);const p=players.find(x=>x.id===target);const ff=t==="season"?field+"_season":field;setData(p?.[ff]||{});}}
+            style={{padding:"6px 14px",borderRadius:12,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,
+              border:`1px solid ${statType===t?accentColor+"66":"rgba(255,255,255,.08)"}`,
+              background:statType===t?accentColor+"18":"rgba(255,255,255,.03)",
+              color:statType===t?accentColor:"#475569"}}>
+            {l}
+          </button>
+        ))}
+        <div style={{fontSize:9,color:"#334155",display:"flex",alignItems:"center",fontFamily:"'Orbitron',sans-serif",marginLeft:4}}>saving to: {fullField}</div>
+      </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
         <div>
           <Lbl>Player</Lbl>
-          <select value={target} onChange={e=>{setTarget(e.target.value);const p=players.find(x=>x.id===e.target.value);setData(p?.[field]||{});}} style={{width:"100%"}}>
+          <select value={target} onChange={e=>{setTarget(e.target.value);const p=players.find(x=>x.id===e.target.value);setData(p?.[fullField]||{});}} style={{width:"100%"}}>
             <option value="">Select player…</option>
             {players.map(p=><option key={p.id} value={p.id}>{p.name} ({p.position})</option>)}
           </select>
         </div>
         <div>
           <Lbl>Category</Lbl>
-          <select value={field} onChange={e=>{setField(e.target.value);const p=players.find(x=>x.id===target);setData(p?.[e.target.value]||{});}} style={{width:"100%"}}>
+          <select value={field} onChange={e=>{setField(e.target.value);const ff=statType==="season"?e.target.value+"_season":e.target.value;const p=players.find(x=>x.id===target);setData(p?.[ff]||{});}} style={{width:"100%"}}>
             {FIELDS.map(([k,l])=><option key={k} value={k}>{l}</option>)}
           </select>
         </div>
@@ -8235,6 +8236,7 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
   const[statField,setStatField]=useState(()=>sport==="basketball"?"scoring_stats":isBaseball?"hitting_stats":"passing_stats");
   const[statData,setStatData]=useState({});
   const[saving,setSaving]=useState(false);
+  const[statType,setStatType]=useState("season"); // season | career
   const[showAdd,setShowAdd]=useState(false);
   const[addName,setAddName]=useState("");
   const[addPos,setAddPos]=useState([]); // array of positions
@@ -8299,12 +8301,13 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
     const m=url.match(/spotify\.com\/(track|album|playlist|episode)\/([A-Za-z0-9]+)/);
     return m?`https://open.spotify.com/embed/${m[1]}/${m[2]}?utm_source=generator&theme=0`:"";
   };
+  const fullStatField=statType==="season"?statField+"_season":statField;
   const saveStats=async()=>{
     if(!selPlayer)return;
     setSaving(true);
-    await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,{[statField]:statData});
-    setPlayers(p=>p.map(x=>x.id===selPlayer.id?{...x,[statField]:statData}:x));
-    setSaving(false);alert("Stats saved!");
+    await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,{[fullStatField]:statData});
+    setPlayers(p=>p.map(x=>x.id===selPlayer.id?{...x,[fullStatField]:statData}:x));
+    setSaving(false);alert(`${statType==="season"?"Season":"Career"} stats saved!`);
   };
   const patchPlayer=async(patch)=>{
     await sb.patch(`nova_${league}_players`,`?id=eq.${selPlayer.id}`,patch);
@@ -8444,9 +8447,21 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
           {/* Right card — stats */}
           <Card style={{padding:"16px"}} hover={false}>
             <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:10}}>EDIT STATS</div>
+            {/* Season/Career toggle in member detail */}
+            <div style={{display:"flex",gap:5,marginBottom:10}}>
+              {[["season","📅 Season"],["career","🏆 Career"]].map(([t,l])=>(
+                <button key={t} onClick={()=>{setStatType(t);const ff=t==="season"?statField+"_season":statField;setStatData(selPlayer?.[ff]||{});}}
+                  style={{padding:"5px 12px",borderRadius:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:700,
+                    border:`1px solid ${statType===t?accentColor+"66":"rgba(255,255,255,.08)"}`,
+                    background:statType===t?accentColor+"18":"rgba(255,255,255,.03)",
+                    color:statType===t?accentColor:"#475569"}}>
+                  {l}
+                </button>
+              ))}
+            </div>
             <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
               {FIELDS.map(([k,l])=>(
-                <button key={k} onClick={()=>{setStatField(k);setStatData(selPlayer[k]||{});}}
+                <button key={k} onClick={()=>{setStatField(k);const ff=statType==="season"?k+"_season":k;setStatData(selPlayer?.[ff]||{});}}
                   style={{padding:"4px 10px",borderRadius:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:700,
                     border:`1px solid ${statField===k?accentColor+"88":"rgba(255,255,255,.1)"}`,
                     background:statField===k?accentColor+"18":"rgba(255,255,255,.03)",
@@ -8508,7 +8523,7 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
           const m=p.nova_user_id?users.find(u=>u.id===p.nova_user_id):matchMember(p.name);
           const rid=p.roblox_id||m?.social_roblox||"";
           return(
-            <div key={i} onClick={()=>{const f=sport==="basketball"?"scoring_stats":isBaseball?"hitting_stats":"passing_stats";setSel(p.id);setStatField(f);setStatData(p[f]||{});}}
+            <div key={i} onClick={()=>{const f=sport==="basketball"?"scoring_stats":isBaseball?"hitting_stats":"passing_stats";setSel(p.id);setStatField(f);setStatType("season");setStatData(p[f+"_season"]||{});}}
               style={{display:"flex",alignItems:"center",gap:10,padding:"12px",borderRadius:12,background:"rgba(255,255,255,.03)",border:`1px solid ${accentColor}22`,cursor:"pointer",transition:"all .18s"}}
               onMouseEnter={e=>{e.currentTarget.style.borderColor=`${accentColor}66`;e.currentTarget.style.background=`${accentColor}0a`;}}
               onMouseLeave={e=>{e.currentTarget.style.borderColor=`${accentColor}22`;e.currentTarget.style.background="rgba(255,255,255,.03)";}}>
@@ -8557,39 +8572,58 @@ function LeaguePlayersPage({players,league,accentColor,users,navigate}){
     const robloxAvatarUrl=robloxId?`/api/roblox-avatar?userId=${robloxId}`:"";
     const favSong=member?.page_music;
     const songTrack=Array.isArray(favSong)?favSong[0]:favSong;
-    const hitting=selectedPlayer.hitting_stats||{};
-    const pitching=selectedPlayer.pitching_stats||{};
-    const fielding=selectedPlayer.fielding_stats||{};
-    const passing=selectedPlayer.passing_stats||{};
-    const rushing=selectedPlayer.rushing_stats||{};
-    const receiving=selectedPlayer.receiving_stats||{};
+    // Helper to get stats for a given base key and type (season/career)
+    const getStats=(baseKey,type)=>type==="season"?selectedPlayer[baseKey+"_season"]||{}:selectedPlayer[baseKey]||{};
 
-    const MLB_HIT_COLS=["G","AB","R","H","2B","3B","HR","RBI","BB","SO","SB","AVG","OBP","SLG","OPS"];
-    const MLB_PIT_COLS=["G","GS","W","L","SV","IP","H","ER","BB","SO","ERA","WHIP"];
-    const MLB_FLD_COLS=["G","PO","A","E","DP","FLD%"];
-    const NFL_PASS_COLS=["G","CMP","ATT","YDS","TD","INT","RTG"];
-    const NFL_RUSH_COLS=["G","CAR","YDS","TD","AVG","LONG"];
-    const NFL_REC_COLS=["G","REC","YDS","TD","AVG","LONG"];
+    // All stat definitions per sport
+    const MLB_CATS=[
+      {key:"hitting_stats",label:"⚾ Hitting",color:accentColor,cols:["G","AB","R","H","2B","3B","HR","RBI","BB","SO","SB","AVG","OBP","SLG","OPS"]},
+      {key:"pitching_stats",label:"⚾ Pitching",color:"#3B82F6",cols:["G","GS","W","L","SV","IP","H","ER","BB","SO","ERA","WHIP","K9","BB9"]},
+      {key:"fielding_stats",label:"🧤 Fielding",color:"#A855F7",cols:["G","GS","PO","A","E","DP","FLD%","INN"]},
+    ];
+    const NFL_CATS=[
+      {key:"passing_stats",label:"🎯 Passing",color:accentColor,cols:["G","CMP","ATT","YDS","TD","INT","RTG"]},
+      {key:"rushing_stats",label:"🏃 Rushing",color:"#EF4444",cols:["G","CAR","YDS","TD","AVG","LONG"]},
+      {key:"receiving_stats",label:"📡 Receiving",color:"#8B5CF6",cols:["G","REC","YDS","TD","AVG","LONG"]},
+      {key:"defensive_stats",label:"🛡 Defense",color:"#00D4FF",cols:["G","TCK","SACK","INT","FF","PD"]},
+      {key:"kicking_stats",label:"⚽ Kicking",color:"#F59E0B",cols:["G","FGM","FGA","FG%","XPM","XPA","LONG"]},
+    ];
+    const NBA_CATS=[
+      {key:"scoring_stats",label:"🏀 Scoring",color:accentColor,cols:["G","MIN","PTS","FGM","FGA","FG%","3PM","3PA","3P%","FTM","FTA","FT%"]},
+      {key:"rebounds_stats",label:"💪 Rebounds",color:"#F59E0B",cols:["G","OREB","DREB","REB","REB/G"]},
+      {key:"playmaking_stats",label:"🎯 Playmaking",color:"#22C55E",cols:["G","AST","TOV","AST/G","AST/TOV"]},
+      {key:"defense_stats",label:"🛡 Defense",color:"#3B82F6",cols:["G","STL","BLK","PF","STL/G","BLK/G"]},
+    ];
+    const CATS=isBasketball?NBA_CATS:isBaseball?MLB_CATS:NFL_CATS;
 
-    const StatTable=({title,cols,data,color})=>{
-      const hasData=cols.some(c=>data[c]||data[c.toLowerCase()]);
+    const StatTable=({cat,type})=>{
+      const data=getStats(cat.key,type);
+      const hasData=cat.cols.some(c=>data[c]!==undefined&&data[c]!=="");
       if(!hasData)return null;
       return(
-        <Card style={{padding:"14px 16px",marginBottom:10}} hover={false}>
-          <div style={{fontSize:9,color:color||accentColor,fontFamily:"'Orbitron',sans-serif",letterSpacing:".12em",marginBottom:10,fontWeight:700}}>{title}</div>
+        <Card style={{padding:"12px 14px",marginBottom:8}} hover={false}>
+          <div style={{fontSize:9,color:cat.color,fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginBottom:8,fontWeight:700}}>{cat.label}</div>
           <div style={{overflowX:"auto"}}>
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
-              <thead><tr style={{borderBottom:"1px solid rgba(255,255,255,.08)"}}>
-                {cols.map(c=><td key={c} style={{padding:"5px 8px",textAlign:"center",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:9}}>{c}</td>)}
+              <thead><tr style={{borderBottom:"1px solid rgba(255,255,255,.06)"}}>
+                {cat.cols.map(c=><td key={c} style={{padding:"4px 7px",textAlign:"center",color:"#475569",fontFamily:"'Orbitron',sans-serif",fontSize:9,whiteSpace:"nowrap"}}>{c}</td>)}
               </tr></thead>
               <tbody><tr>
-                {cols.map(c=><td key={c} style={{padding:"6px 8px",textAlign:"center",color:"#E2E8F0",fontWeight:600,fontSize:12}}>{data[c]??data[c.toLowerCase()]??"—"}</td>)}
+                {cat.cols.map(c=><td key={c} style={{padding:"6px 7px",textAlign:"center",color:"#E2E8F0",fontWeight:600,fontSize:12}}>{data[c]??"—"}</td>)}
               </tr></tbody>
             </table>
           </div>
         </Card>
       );
     };
+
+    const[statsView,setStatsView]=useState("season");
+
+    // Check if any stats exist for given type
+    const hasAnyStats=(type)=>CATS.some(cat=>{
+      const d=getStats(cat.key,type);
+      return cat.cols.some(c=>d[c]!==undefined&&d[c]!=="");
+    });
 
     return(
       <div>
@@ -8598,7 +8632,6 @@ function LeaguePlayersPage({players,league,accentColor,users,navigate}){
         {/* Player hero card */}
         <Card style={{padding:mob?"16px":"20px 24px",marginBottom:14}} hover={false}>
           <div style={{display:"flex",gap:16,alignItems:"flex-start",flexWrap:"wrap"}}>
-            {/* Roblox avatar or fallback */}
             <div style={{width:mob?72:90,height:mob?72:90,borderRadius:12,overflow:"hidden",background:`linear-gradient(135deg,${accentColor}22,rgba(255,255,255,.04))`,border:`2px solid ${accentColor}44`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
               {robloxAvatarUrl
                 ?<img src={robloxAvatarUrl} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/>
@@ -8606,12 +8639,12 @@ function LeaguePlayersPage({players,league,accentColor,users,navigate}){
             </div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?16:20,fontWeight:900,color:"#E2E8F0",marginBottom:4}}>{selectedPlayer.name}</div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:8}}>
                 <span style={{fontSize:11,color:accentColor,fontWeight:700,fontFamily:"'Orbitron',sans-serif"}}>{selectedPlayer.position}</span>
                 {selectedPlayer.team&&<span style={{fontSize:11,color:"#64748B"}}>· {selectedPlayer.team}</span>}
                 {selectedPlayer.jersey&&<span style={{fontSize:11,color:"#475569"}}>· #{selectedPlayer.jersey}</span>}
+                {selectedPlayer.ovr&&<OVRBig ovr={selectedPlayer.ovr} size={32}/>}
               </div>
-              {/* Anthem — Spotify embed or Nova music */}
               {selectedPlayer.spotify_url&&(()=>{
                 const m2=selectedPlayer.spotify_url.match(/spotify\.com\/(track|album|playlist|episode)\/([A-Za-z0-9]+)/);
                 const embedUrl=m2?`https://open.spotify.com/embed/${m2[1]}/${m2[2]}?utm_source=generator&theme=0`:"";
@@ -8633,31 +8666,32 @@ function LeaguePlayersPage({players,league,accentColor,users,navigate}){
                   </div>
                 </div>
               )}
-              {/* Link to Nova profile */}
               {member&&<button onClick={()=>navigate("profile",member.id)} style={{marginTop:8,padding:"4px 12px",borderRadius:8,background:`${accentColor}18`,border:`1px solid ${accentColor}44`,color:accentColor,fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>View Nova Profile →</button>}
             </div>
           </div>
         </Card>
 
-        {/* Stats */}
-        <div style={{fontSize:10,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".12em",marginBottom:10}}>CAREER STATS</div>
-        {isBaseball&&(
-          <>
-            <StatTable title="⚾ HITTING" cols={MLB_HIT_COLS} data={hitting}/>
-            <StatTable title="⚾ PITCHING" cols={MLB_PIT_COLS} data={pitching} color="#3B82F6"/>
-            <StatTable title="🧤 FIELDING" cols={MLB_FLD_COLS} data={fielding} color="#A855F7"/>
-          </>
-        )}
-        {!isBaseball&&(
-          <>
-            <StatTable title="🏈 PASSING" cols={NFL_PASS_COLS} data={passing}/>
-            <StatTable title="🏃 RUSHING" cols={NFL_RUSH_COLS} data={rushing} color="#EF4444"/>
-            <StatTable title="📡 RECEIVING" cols={NFL_REC_COLS} data={receiving} color="#8B5CF6"/>
-          </>
-        )}
-        {/* No stats fallback */}
-        {!Object.values(isBaseball?{...hitting,...pitching,...fielding}:{...passing,...rushing,...receiving}).some(Boolean)&&(
-          <div style={{textAlign:"center",padding:"30px 0",color:"#334155",fontSize:12}}>No stats recorded yet for this player</div>
+        {/* Stats section with Season/Career toggle */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12,flexWrap:"wrap",gap:8}}>
+          <div style={{fontSize:10,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".12em"}}>STATS</div>
+          <div style={{display:"flex",gap:5}}>
+            {[["season","📅 Season"],["career","🏆 Career"]].map(([t,l])=>(
+              <button key={t} onClick={()=>setStatsView(t)}
+                style={{padding:"5px 12px",borderRadius:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:700,
+                  border:`1px solid ${statsView===t?accentColor+"66":"rgba(255,255,255,.08)"}`,
+                  background:statsView===t?accentColor+"18":"rgba(255,255,255,.03)",
+                  color:statsView===t?accentColor:"#475569"}}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+        {CATS.map(cat=><StatTable key={cat.key} cat={cat} type={statsView}/>)}
+        {!hasAnyStats(statsView)&&(
+          <div style={{textAlign:"center",padding:"30px 0",color:"#334155",fontSize:12,fontFamily:"'Orbitron',sans-serif"}}>
+            No {statsView} stats recorded yet
+            {statsView==="season"&&hasAnyStats("career")&&<div style={{marginTop:6,fontSize:10}}>Switch to Career to see stats</div>}
+          </div>
         )}
       </div>
     );
