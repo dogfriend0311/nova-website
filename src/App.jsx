@@ -7676,13 +7676,14 @@ function PostFeedForm({league,onPost,cu}){
 }
 
 // Shared: add player to league roster
-function AddLeaguePlayer({league,onAdd,cu}){
+function AddLeaguePlayer({league,onAdd,cu,sport=""}){
   const[name,setName]=useState("");
   const[positions_sel,setPositionsSel]=useState([]);
   const[team,setTeam]=useState("");
   const[jersey,setJersey]=useState("");
   const[saving,setSaving]=useState(false);
   const isBaseball=league==="nbbl";
+  const isBasketball=league==="ringrush";
   const baseballPos=["P","C","1B","2B","3B","SS","LF","CF","RF","DH","SP","RP"];
   const footballPos=["QB","RB","WR","TE","K","DEF","OL","DL","LB","CB","S"];
   const basketballPos=["PG","SG","SF","PF","C"];
@@ -8009,7 +8010,7 @@ function DashLeagueFeed({league,accentColor,cu}){
   );
 }
 
-function DashLeagueRoster({league,accentColor,cu}){
+function DashLeagueRoster({league,accentColor,cu,sport=""}){
   const mob=useIsMobile();
   const[players,setPlayers]=useState([]);
   const[loaded,setLoaded]=useState(false);
@@ -8022,7 +8023,7 @@ function DashLeagueRoster({league,accentColor,cu}){
     <div>
       <Card style={{padding:"16px",marginBottom:14}} hover={false}>
         <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:12,fontWeight:700}}>➕ ADD PLAYER</div>
-        <AddLeaguePlayer league={league} onAdd={p=>setPlayers(prev=>[...prev,p])} cu={cu}/>
+        <AddLeaguePlayer league={league} onAdd={p=>setPlayers(prev=>[...prev,p])} cu={cu} sport={sport}/>
       </Card>
       <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:10}}>{players.length} PLAYERS</div>
       {!players.length&&<Empty icon="👥" msg="No players yet — add one above"/>}
@@ -8044,11 +8045,11 @@ function DashLeagueRoster({league,accentColor,cu}){
   );
 }
 
-function DashLeagueStats({league,accentColor,isBaseball}){
+function DashLeagueStats({league,accentColor,isBaseball,sport=""}){
   const[players,setPlayers]=useState([]);
   const[loaded,setLoaded]=useState(false);
   const[target,setTarget]=useState("");
-  const[field,setField]=useState(isBaseball?"hitting_stats":"passing_stats");
+  const[field,setField]=useState(()=>sport==="basketball"?"scoring_stats":isBaseball?"hitting_stats":"passing_stats");
   const[data,setData]=useState({});
   const[saving,setSaving]=useState(false);
   const[showAdd,setShowAdd]=useState(false);
@@ -8231,7 +8232,7 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
   const[players,setPlayers]=useState([]);
   const[loaded,setLoaded]=useState(false);
   const[sel,setSel]=useState(null);
-  const[statField,setStatField]=useState(isBaseball?"hitting_stats":"passing_stats");
+  const[statField,setStatField]=useState(()=>sport==="basketball"?"scoring_stats":isBaseball?"hitting_stats":"passing_stats");
   const[statData,setStatData]=useState({});
   const[saving,setSaving]=useState(false);
   const[showAdd,setShowAdd]=useState(false);
@@ -8326,7 +8327,7 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
                   {rId
                     ?<img key={rId} src={`/api/roblox-avatar?userId=${rId}&t=${Date.now()}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}}/>
                     :null}
-                  <div style={{display:rId?"none":"flex",width:"100%",height:"100%",alignItems:"center",justifyContent:"center",fontSize:26}}>{isBaseball?"⚾":"🏈"}</div>
+                  <div style={{display:rId?"none":"flex",width:"100%",height:"100%",alignItems:"center",justifyContent:"center",fontSize:26}}>{isBasketball?"🏀":isBaseball?"⚾":"🏈"}</div>
                 </div>
                 <div>
                   <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:15,fontWeight:900,color:"#E2E8F0"}}>{selPlayer.name}</div>
@@ -8501,18 +8502,18 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
           <Btn onClick={addPlayer} disabled={addSaving||!addName.trim()||!addPos.length}>{addSaving?"Creating…":"✅ Create Page"}</Btn>
         </Card>
       )}
-      {!players.length&&!showAdd&&<Empty icon={isBaseball?"⚾":"🏈"} msg="No member pages yet — click Create Member Page above"/>}
+      {!players.length&&!showAdd&&<Empty icon={isBasketball?"🏀":isBaseball?"⚾":"🏈"} msg="No member pages yet — click Create Member Page above"/>}
       <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:8}}>
         {players.filter(Boolean).map((p,i)=>{
           const m=p.nova_user_id?users.find(u=>u.id===p.nova_user_id):matchMember(p.name);
           const rid=p.roblox_id||m?.social_roblox||"";
           return(
-            <div key={i} onClick={()=>{setSel(p.id);setStatField(isBaseball?"hitting_stats":"passing_stats");setStatData(p[isBaseball?"hitting_stats":"passing_stats"]||{});}}
+            <div key={i} onClick={()=>{const f=sport==="basketball"?"scoring_stats":isBaseball?"hitting_stats":"passing_stats";setSel(p.id);setStatField(f);setStatData(p[f]||{});}}
               style={{display:"flex",alignItems:"center",gap:10,padding:"12px",borderRadius:12,background:"rgba(255,255,255,.03)",border:`1px solid ${accentColor}22`,cursor:"pointer",transition:"all .18s"}}
               onMouseEnter={e=>{e.currentTarget.style.borderColor=`${accentColor}66`;e.currentTarget.style.background=`${accentColor}0a`;}}
               onMouseLeave={e=>{e.currentTarget.style.borderColor=`${accentColor}22`;e.currentTarget.style.background="rgba(255,255,255,.03)";}}>
               <div style={{width:42,height:42,borderRadius:8,overflow:"hidden",background:`${accentColor}18`,border:`1px solid ${accentColor}33`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                {rid?<img src={`/api/roblox-avatar?userId=${rid}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>e.target.style.display="none"}/>:<span style={{fontSize:18}}>{isBaseball?"⚾":"🏈"}</span>}
+                {rid?<img src={`/api/roblox-avatar?userId=${rid}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>e.target.style.display="none"}/>:<span style={{fontSize:18}}>{isBasketball?"🏀":isBaseball?"⚾":"🏈"}</span>}
               </div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
@@ -8601,7 +8602,7 @@ function LeaguePlayersPage({players,league,accentColor,users,navigate}){
             <div style={{width:mob?72:90,height:mob?72:90,borderRadius:12,overflow:"hidden",background:`linear-gradient(135deg,${accentColor}22,rgba(255,255,255,.04))`,border:`2px solid ${accentColor}44`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
               {robloxAvatarUrl
                 ?<img src={robloxAvatarUrl} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/>
-                :<div style={{fontSize:36}}>{isBaseball?"⚾":"🏈"}</div>}
+                :<div style={{fontSize:36}}>{isBasketball?"🏀":isBaseball?"⚾":"🏈"}</div>}
             </div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?16:20,fontWeight:900,color:"#E2E8F0",marginBottom:4}}>{selectedPlayer.name}</div>
@@ -8666,7 +8667,7 @@ function LeaguePlayersPage({players,league,accentColor,users,navigate}){
   return(
     <div>
       <div style={{fontSize:10,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".12em",marginBottom:12}}>{players.length} PLAYERS</div>
-      {!players.length&&<Empty icon={isBaseball?"⚾":"🏈"} msg="No players yet"/>}
+      {!players.length&&<Empty icon={isBasketball?"🏀":isBaseball?"⚾":"🏈"} msg="No players yet"/>}
       <div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(auto-fill,minmax(220px,1fr))",gap:10}}>
         {players.filter(Boolean).map((p,i)=>{
           const member=matchMember(p);
@@ -8680,7 +8681,7 @@ function LeaguePlayersPage({players,league,accentColor,users,navigate}){
               <div style={{width:44,height:44,borderRadius:8,overflow:"hidden",background:`${accentColor}18`,border:`1px solid ${accentColor}33`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
                 {robloxAvatarUrl
                   ?<img src={robloxAvatarUrl} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";e.target.parentNode.innerHTML=isBaseball?"⚾":"🏈";}}/>
-                  :<span style={{fontSize:20}}>{isBaseball?"⚾":"🏈"}</span>}
+                  :<span style={{fontSize:20}}>{isBasketball?"🏀":isBaseball?"⚾":"🏈"}</span>}
               </div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
@@ -9049,7 +9050,7 @@ function DashboardPage({cu,users,setUsers,navigate}){
       {tab==="nbbl_members"&&<DashLeagueMembers league="nbbl" accentColor="#22C55E" users={users} isBaseball={true}/>}
       {/* Ring Rush */}
       {tab==="rr_feed"&&<DashLeagueFeed league="ringrush" accentColor="#EC4899" cu={cu}/>}
-      {tab==="rr_roster"&&<DashLeagueRoster league="ringrush" accentColor="#EC4899" cu={cu}/>}
+      {tab==="rr_roster"&&<DashLeagueRoster league="ringrush" accentColor="#EC4899" cu={cu} sport="basketball"/>}
       {tab==="rr_stats"&&<DashLeagueStats league="ringrush" accentColor="#EC4899" isBaseball={false} sport="basketball"/>}
       {tab==="rr_transactions"&&<DashLeagueTx league="ringrush" accentColor="#EC4899"/>}
       {tab==="rr_members"&&<DashLeagueMembers league="ringrush" accentColor="#EC4899" users={users} isBaseball={false} sport="basketball"/>}
