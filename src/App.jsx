@@ -8551,7 +8551,9 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
 function LeaguePlayersPage({players,league,accentColor,users,navigate}){
   const mob=useIsMobile();
   const[sel,setSel]=useState(null);
+  const[statsView,setStatsView]=useState("season");
   const isBaseball=league==="nbbl";
+  const isBasketball=league==="ringrush";
   const selectedPlayer=sel?players.find(p=>p.id===sel):null;
 
   // Match a league player to a Nova member — prefer explicit link
@@ -8617,8 +8619,7 @@ function LeaguePlayersPage({players,league,accentColor,users,navigate}){
       );
     };
 
-    const[statsView,setStatsView]=useState("season");
-
+    // statsView state is declared at component top level (below)
     // Check if any stats exist for given type
     const hasAnyStats=(type)=>CATS.some(cat=>{
       const d=getStats(cat.key,type);
