@@ -1413,12 +1413,14 @@ const GM_POSITIONS={
   mlb:["SP","RP","C","1B","2B","3B","SS","LF","CF","RF","DH"],
   nfl:["QB","RB","WR","TE","OT","G","C","DE","DT","LB","CB","S","K"],
   nba:["PG","SG","SF","PF","C"],
+  ringrush:["Top","Corner"],
   nhl:["C","LW","RW","D","G"],
 };
 const DEPTH_SLOTS={
   mlb:["SP1","SP2","SP3","SP4","SP5","CL","SU1","SU2","C","1B","2B","3B","SS","LF","CF","RF","DH"],
   nfl:["QB","RB1","RB2","WR1","WR2","WR3","TE","OT","G","C","DE1","DE2","DT","LB1","LB2","CB1","CB2","S1","S2","K"],
   nba:["PG","SG","SF","PF","C","6th Man","Bench1","Bench2","Bench3","Bench4"],
+  ringrush:["Top1","Top2","Corner1","Corner2","Corner3"],
   nhl:["C1","LW1","RW1","C2","LW2","RW2","C3","LW3","RW3","D1","D2","D3","D4","G1","G2"],
 };
 const SCHEMES={
@@ -1499,6 +1501,9 @@ function GMGame({cu}){
   const[tradeBlock,setTradeBlock]=useState([]);
   const[tradeOffers,setTradeOffers]=useState([]);
   const[myTradeOffer,setMyTradeOffer]=useState({myPlayers:[],theirPlayers:[],theirTeam:"",result:null,loading:false});
+  const[tradeTargets,setTradeTargets]=useState([]); // Players from other team for trade create
+  const[tradeTargetsTeam,setTradeTargetsTeam]=useState("");
+  const[loadingTargets,setLoadingTargets]=useState(false);
   const[draftBoard,setDraftBoard]=useState([]);
   const[myDraftPicks,setMyDraftPicks]=useState([]);
   const[aiDraftOffers,setAiDraftOffers]=useState([]);
@@ -1649,28 +1654,127 @@ function GMGame({cu}){
   };
 
   const loadFarm=async(team)=>{
-    const result=await aiCall(
-      `Generate a minor league farm system for ${team.name} in ${year}. Return JSON: {AAA:[{name,pos,age,ovr(45-75),eta(years until MLB ready),ceiling(60-95)}x8],AA:[...x8],A:[...x8]}. Use realistic prospect names and positions.`
-    );
-    if(result?.AAA)setFarmSystem(result);
+    setLoadMsg("Loading farm system from MiLB...");
+    // Try to get real MiLB affiliates via MLB Stats API
+    let farmData={AAA:[],AA:[],A:[]};
+    const levelMap={11:"AAA",12:"AA",13:"A"};
+    try{
+      // Get team affiliates
+      const affRes=await fetch(`https://statsapi.mlb.com/api/v1/teams/${team.id}/affiliates?season=${year}`);
+      if(affRes.ok){
+        const affData=await affRes.json();
+        const affiliates=affData.affiliates||[];
+        // Fetch each affiliate roster
+        await Promise.allSettled(affiliates.slice(0,6).map(async aff=>{
+          const affTeam=aff.teamId||aff.id;
+          const sportId=aff.sport?.id;
+          const lvl=levelMap[sportId];
+          if(!lvl)return;
+          try{
+            const rRes=await fetch(`https://statsapi.mlb.com/api/v1/teams/${affTeam}/roster?season=${year}&rosterType=fullRoster`);
+            if(!rRes.ok)return;
+            const rData=await rRes.json();
+            const players=(rData.roster||[]).slice(0,15).map(p=>({
+              name:p.person?.fullName||"Player",
+              pos:p.position?.abbreviation||"?",
+              age:p.person?.currentAge||22,
+              ovr:Math.floor(Math.random()*20)+50,
+              ceiling:Math.floor(Math.random()*25)+65,
+              eta:lvl==="AAA"?1:lvl==="AA"?2:3,
+              id:String(p.person?.id||Math.random()),
+            }));
+            if(players.length>0)farmData[lvl]=[...farmData[lvl],...players];
+          }catch(e){}
+        }));
+      }
+    }catch(e){console.warn("MiLB fetch failed:",e);}
+    // If real data worked, use it; else fall back to AI
+    const hasReal=Object.values(farmData).some(arr=>arr.length>0);
+    if(hasReal){
+      setFarmSystem(farmData);
+    }else{
+      setLoadMsg("Generating farm system with AI...");
+      const result=await aiCall(
+        `Generate a realistic ${year} minor league farm system for the ${team.name}. Include real-sounding prospect names. Return JSON: {AAA:[{name,pos,age,ovr(55-75),eta(1),ceiling(70-95),floor(50-70)}x10],AA:[{same schema}x10],A:[{same schema}x10]}. AAA players close to majors, A players youngest/rawest.`
+      );
+      if(result?.AAA)setFarmSystem(result);
+    }
   };
 
   const loadDraftBoard=async()=>{
     if(draftBoard.length>0)return;
-    setLoading(true);setLoadMsg("Scouting real draft prospects...");
-    const result=await aiCall(
-      `Generate the ${year} ${sport.toUpperCase()} draft class with 40 real-name prospects eligible for the ${year} draft. Use REAL prospect names actually eligible for the ${year} ${sport.toUpperCase()} draft (like Arch Manning for NFL 2025, Roch Cholowsky for MLB etc). Return JSON array: [{name,pos,school,age,ovr(45-79),ceiling(65-99),floor(30-70),round(1-3),pick(1-40),scoutingReport(2 sentences),grade,comparable(similar NFL/MLB/NBA/NHL player),tradeValue(1-10)}] ordered by rank.`,
-      "You are a real sports draft scout. Use actual player names eligible for this specific draft class. Return only valid JSON array."
-    );
-    if(Array.isArray(result)){
-      setDraftBoard(result);
-      // Generate AI trade offers for picks
+    setLoading(true);setLoadMsg("Fetching draft prospects...");
+    let prospects=[];
+    // For MLB: try MLB Stats API for real draft-eligible prospects
+    if(sport==="mlb"){
+      try{
+        setLoadMsg("Fetching MLB draft prospects from MLB.com...");
+        // Try MLB draft prospects endpoint
+        const r=await fetch(`https://statsapi.mlb.com/api/v1/draft/prospects?year=${year}&limit=100`);
+        if(r.ok){
+          const d=await r.json();
+          const raw=d.prospects||[];
+          if(raw.length>0){
+            prospects=raw.slice(0,40).map((p,i)=>({
+              name:p.person?.fullName||p.firstName+" "+(p.lastName||""),
+              pos:p.primaryPosition?.abbreviation||p.position?.abbreviation||"?",
+              school:p.school?.name||p.homeCity||"",
+              age:p.person?.currentAge||p.age||18,
+              pick:i+1,round:i<10?1:i<20?2:3,
+              ovr:Math.max(50,78-Math.floor(i*0.8)),
+              ceiling:Math.max(65,92-Math.floor(i*0.7)),
+              floor:Math.max(40,65-Math.floor(i*0.6)),
+              grade:i<5?"A+":i<10?"A":i<15?"A-":i<20?"B+":i<25?"B":"B-",
+              scoutingReport:`${p.person?.fullName||"This prospect"} is a ${p.primaryPosition?.abbreviation||"player"} from ${p.school?.name||p.homeCity||"Unknown"}. Ranked #${i+1} overall in the ${year} draft class.`,
+              comparable:"TBD",
+              tradeValue:Math.max(1,10-Math.floor(i/4)),
+            }));
+          }
+        }
+      }catch(e){console.warn("MLB Stats API draft prospects failed:",e);}
+    }
+    // If no real data (or non-MLB sport), fall back to AI with specific prompt
+    if(prospects.length<5){
+      setLoadMsg("Loading draft class with AI...");
+      const sportGuides={
+        mlb:`For ${year} MLB draft: Include real college players like top pitching prospects from SEC, Big 10, ACC schools. High school position players. Use realistic names. The ${year} draft top picks would be elite college arms and high school toolsy players.`,
+        nfl:`For ${year} NFL draft: Include players who finished their college eligibility in ${year-1}. Top QBs, pass rushers, WRs from major programs. Use real school names like Alabama, Georgia, Ohio State.`,
+        nba:`For ${year} NBA draft: Include international prospects and US college players declaring after ${year-1} season. Use realistic player names from major programs and overseas leagues.`,
+        nhl:`For ${year} NHL draft: Include junior hockey prospects from CHL (OHL, WHL, QMJHL), European leagues, and US college. Mostly 18-year-olds.`,
+      };
+      const result=await aiCall(
+        `Create a ${year} ${sport.toUpperCase()} mock draft board with 40 prospects. ${sportGuides[sport]||""}
+Return JSON array ordered by rank: [{name,pos,school,age,ovr(50-78 — these are PROSPECTS not stars),ceiling(65-99),floor(35-70),round(1-3),pick(1-40),scoutingReport(2 sentences about their game),grade("A+"to"B-"),comparable(NFL/MLB/NBA/NHL veteran they project to),tradeValue(1-10)}]`,
+        `You are an expert ${sport.toUpperCase()} draft analyst writing real-sounding prospect reports. Use realistic player names. Return only valid JSON array.`
+      );
+      if(Array.isArray(result))prospects=result;
+    }
+    if(prospects.length>0){
+      setDraftBoard(prospects);
+      // Generate AI pick trade offers
       const offers=await aiCall(
-        `The user has the ${myTeam?.name}'s draft picks. Generate 4 realistic AI trade offers for draft picks. Return JSON array: [{fromTeam,offeredPick(e.g. "1st Rd Pick #8"),askingPick(e.g. "1st Rd Pick #3"),plusPlayer(optional player name),analysis}]`
+        `Generate 3 realistic AI trade offers from other ${sport.toUpperCase()} teams wanting to trade up in the ${year} draft. The user has the ${myTeam?.name}'s picks. Return JSON array: [{fromTeam,offeredPick(e.g."1st Rd Pick #12"),askingPick(e.g."1st Rd Pick #4"),plusPlayer(optional existing player name to sweeten),analysis(one sentence)}]`
       );
       if(Array.isArray(offers))setAiDraftOffers(offers);
+      showToast(`${prospects.length} prospects loaded! ✅`);
+    }else{
+      showToast("Couldn't load draft board — try again","#F59E0B");
     }
     setLoading(false);setLoadMsg("");
+  };
+
+  const loadTradeTargets=async(teamName)=>{
+    if(!teamName.trim())return;
+    setLoadingTargets(true);
+    setTradeTargets([]);
+    const result=await aiCall(
+      `Generate a realistic ${year} ${sport.toUpperCase()} roster for the ${teamName}. Return 15-20 real players from that team with realistic contracts. JSON array: [{name,pos,age,ovr(55-99),salary(millions),years(1-6),note}]. Use real current player names from that franchise.`,
+      "You are an expert sports roster analyst. Use real player names from the specified team. Return only valid JSON array."
+    );
+    if(Array.isArray(result)){
+      setTradeTargets(result.map((p,i)=>({...p,id:`tt_${i}_${Date.now()}`})));
+    }
+    setLoadingTargets(false);
   };
 
   const loadTradeOffers=async()=>{
@@ -1695,7 +1799,7 @@ function GMGame({cu}){
     const next=roster.filter(x=>x.id!==p.id);
     setRoster(next);recalcCap(next);
     setCuts(prev=>[...prev,p]);
-    setFreeAgents(prev=>[{...p,status:"fa",note:"Released by "+myTeam?.abbr},...prev]);
+    // DO NOT add to freeAgents — FA pool is real market FAs only
     logMove(`✂️ Cut ${p.name} ($${p.salary}M freed)`);
     showToast(`Cut ${p.name} — $${p.salary}M freed`);
     save();
@@ -1862,7 +1966,7 @@ Return JSON: {grade,headline,analysis(3 sentences),strengths(array),weaknesses(a
 
     // ── STEP 3: TRADES ──────────────────────────────────────────────────────
     case"trades":
-      return<TradesStep roster={roster} freeAgents={freeAgents} sport={sport} ac={ac} myTeam={myTeam} tradeOffers={tradeOffers} myOffer={myTradeOffer} setMyOffer={setMyTradeOffer} onLoadOffers={loadTradeOffers} onAccept={acceptTradeOffer} onEvaluate={evaluateMyTrade} onExecute={executeMyTrade} onTradeBlock={(p)=>{setTradeBlock(prev=>prev.find(x=>x.id===p.id)?prev.filter(x=>x.id!==p.id):[...prev,p]);}} tradeBlock={tradeBlock} mob={mob}/>;
+      return<TradesStep roster={roster} freeAgents={freeAgents} sport={sport} ac={ac} myTeam={myTeam} tradeOffers={tradeOffers} myOffer={myTradeOffer} setMyOffer={setMyTradeOffer} onLoadOffers={loadTradeOffers} onAccept={acceptTradeOffer} onEvaluate={evaluateMyTrade} onExecute={executeMyTrade} onTradeBlock={(p)=>{setTradeBlock(prev=>prev.find(x=>x.id===p.id)?prev.filter(x=>x.id!==p.id):[...prev,p]);}} tradeBlock={tradeBlock} tradeTargets={tradeTargets} loadingTargets={loadingTargets} onLoadTargets={loadTradeTargets} mob={mob}/>;
 
     // ── STEP 4: FA ──────────────────────────────────────────────────────────
     case"fa":
@@ -2172,7 +2276,7 @@ function CapStep({roster,sport,ac,cap,capTotal,onRestructure,onExtend,extensions
   );
 }
 
-function TradesStep({roster,freeAgents,sport,ac,myTeam,tradeOffers,myOffer,setMyOffer,onLoadOffers,onAccept,onEvaluate,onExecute,onTradeBlock,tradeBlock,mob}){
+function TradesStep({roster,freeAgents,sport,ac,myTeam,tradeOffers,myOffer,setMyOffer,onLoadOffers,onAccept,onEvaluate,onExecute,onTradeBlock,tradeBlock,tradeTargets=[],loadingTargets=false,onLoadTargets,mob}){
   const[subTab,setSubTab]=useState("incoming");
   return(
     <div>
@@ -2212,26 +2316,46 @@ function TradesStep({roster,freeAgents,sport,ac,myTeam,tradeOffers,myOffer,setMy
           <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:12,marginBottom:12}}>
             <div>
               <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:ac,marginBottom:8}}>YOU SEND — click to select</div>
-              {roster.filter(Boolean).map((p,i)=>{
-                const sel=myOffer.myPlayers.find(x=>x.id===p.id);
-                return<div key={i} onClick={()=>setMyOffer(prev=>({...prev,result:null,myPlayers:sel?prev.myPlayers.filter(x=>x.id!==p.id):[...prev.myPlayers,p]}))}
-                  style={{padding:"7px 10px",borderRadius:9,cursor:"pointer",marginBottom:4,border:`1px solid ${sel?ac+"55":"rgba(255,255,255,.05)"}`,background:sel?ac+"12":"transparent",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:sel?700:400,color:sel?ac:"#94A3B8"}}>{p.name}</span>
-                  <span style={{fontSize:9,color:"#475569"}}>{p.pos} · OVR{p.ovr}</span>
-                </div>;
-              })}
+              <div style={{maxHeight:320,overflowY:"auto",display:"flex",flexDirection:"column",gap:3}}>
+                {roster.filter(Boolean).map((p,i)=>{
+                  const sel=myOffer.myPlayers.find(x=>x.id===p.id);
+                  return<div key={i} onClick={()=>setMyOffer(prev=>({...prev,result:null,myPlayers:sel?prev.myPlayers.filter(x=>x.id!==p.id):[...prev.myPlayers,p]}))}
+                    style={{padding:"7px 10px",borderRadius:9,cursor:"pointer",border:`1px solid ${sel?ac+"55":"rgba(255,255,255,.05)"}`,background:sel?ac+"12":"transparent",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:sel?700:400,color:sel?ac:"#94A3B8"}}>{p.name}</span>
+                    <span style={{fontSize:9,color:"#475569"}}>{p.pos} · OVR{p.ovr}</span>
+                  </div>;
+                })}
+              </div>
             </div>
             <div>
-              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#EF4444",marginBottom:8}}>YOU RECEIVE</div>
-              <input placeholder="Other team name…" value={myOffer.theirTeam||""} onChange={e=>setMyOffer(p=>({...p,theirTeam:e.target.value,result:null}))} style={{marginBottom:8}}/>
-              {freeAgents.slice(0,12).map((fa,i)=>{
-                const sel=myOffer.theirPlayers.find(x=>x.id===fa.id);
-                return<div key={i} onClick={()=>setMyOffer(prev=>({...prev,result:null,theirPlayers:sel?prev.theirPlayers.filter(x=>x.id!==fa.id):[...prev.theirPlayers,fa]}))}
-                  style={{padding:"7px 10px",borderRadius:9,cursor:"pointer",marginBottom:4,border:`1px solid ${sel?"rgba(239,68,68,.5)":"rgba(255,255,255,.05)"}`,background:sel?"rgba(239,68,68,.1)":"transparent",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:sel?700:400,color:sel?"#EF4444":"#94A3B8"}}>{fa.name}</span>
-                  <span style={{fontSize:9,color:"#475569"}}>{fa.pos} · OVR{fa.ovr}</span>
-                </div>;
-              })}
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#EF4444",marginBottom:8}}>YOU RECEIVE — from which team?</div>
+              <div style={{display:"flex",gap:6,marginBottom:8}}>
+                <input
+                  placeholder="Type team name e.g. Los Angeles Lakers…"
+                  value={myOffer.theirTeam||""}
+                  onChange={e=>setMyOffer(p=>({...p,theirTeam:e.target.value,result:null}))}
+                  style={{flex:1}}
+                />
+                <button onClick={()=>onLoadTargets(myOffer.theirTeam)} disabled={loadingTargets||!myOffer.theirTeam?.trim()}
+                  style={{padding:"6px 12px",borderRadius:9,background:"rgba(239,68,68,.15)",border:"1px solid rgba(239,68,68,.3)",color:"#EF4444",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:700,flexShrink:0}}>
+                  {loadingTargets?"…":"Load"}
+                </button>
+              </div>
+              {!tradeTargets.length&&!loadingTargets&&<div style={{textAlign:"center",padding:"20px 0",color:"#334155",fontSize:11}}>Type a team name and click Load to see their roster</div>}
+              {loadingTargets&&<div style={{textAlign:"center",padding:"20px 0",color:"#475569",fontSize:11}}>Loading roster…</div>}
+              <div style={{maxHeight:280,overflowY:"auto",display:"flex",flexDirection:"column",gap:3}}>
+                {tradeTargets.map((p,i)=>{
+                  const sel=myOffer.theirPlayers.find(x=>x.id===p.id);
+                  return<div key={i} onClick={()=>setMyOffer(prev=>({...prev,result:null,theirPlayers:sel?prev.theirPlayers.filter(x=>x.id!==p.id):[...prev.theirPlayers,p]}))}
+                    style={{padding:"7px 10px",borderRadius:9,cursor:"pointer",border:`1px solid ${sel?"rgba(239,68,68,.5)":"rgba(255,255,255,.05)"}`,background:sel?"rgba(239,68,68,.1)":"transparent",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:sel?700:400,color:sel?"#EF4444":"#94A3B8"}}>{p.name}</span>
+                    <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                      <span style={{fontSize:9,color:"#475569"}}>{p.pos} · OVR{p.ovr}</span>
+                      {p.salary&&<span style={{fontSize:8,color:"#334155"}}>${p.salary}M</span>}
+                    </div>
+                  </div>;
+                })}
+              </div>
             </div>
           </div>
           <button onClick={onEvaluate} disabled={myOffer.loading} style={{width:"100%",padding:"12px",borderRadius:12,background:myOffer.loading?"rgba(255,255,255,.05)":`linear-gradient(135deg,${ac},${ac}99)`,border:"none",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:900,color:"#fff",marginBottom:12}}>
@@ -7676,7 +7800,7 @@ function PostFeedForm({league,onPost,cu}){
 }
 
 // Shared: add player to league roster
-function AddLeaguePlayer({league,onAdd,cu,sport=""}){
+function AddLeaguePlayer({league,onAdd,cu,sport="",leagueTeams=[]}){
   const[name,setName]=useState("");
   const[positions_sel,setPositionsSel]=useState([]);
   const[team,setTeam]=useState("");
@@ -7686,9 +7810,9 @@ function AddLeaguePlayer({league,onAdd,cu,sport=""}){
   const isBasketball=league==="ringrush";
   const baseballPos=["P","C","1B","2B","3B","SS","LF","CF","RF","DH","SP","RP"];
   const footballPos=["QB","RB","WR","TE","K","DEF","OL","DL","LB","CB","S"];
-  const basketballPos=["PG","SG","SF","PF","C"];
-  const positions=sport==="basketball"?basketballPos:isBaseball?baseballPos:footballPos;
-  const ac=isBaseball?"#22C55E":"#F59E0B";
+  const basketballPos=["Top","Corner"];
+  const positions=isBasketball||sport==="basketball"?basketballPos:isBaseball?baseballPos:footballPos;
+  const ac=isBasketball||sport==="basketball"?"#EC4899":isBaseball?"#22C55E":"#F59E0B";
   const togglePos=(pos)=>setPositionsSel(prev=>prev.includes(pos)?prev.filter(x=>x!==pos):[...prev,pos]);
   const submit=async()=>{
     if(!name.trim()||!positions_sel.length)return;
@@ -7718,7 +7842,15 @@ function AddLeaguePlayer({league,onAdd,cu,sport=""}){
         </div>
         {positions_sel.length>0&&<div style={{fontSize:9,color:ac,marginTop:5,fontFamily:"'Orbitron',sans-serif"}}>Selected: {positions_sel.join(" / ")}</div>}
       </div>
-      <div><Lbl>Team</Lbl><input value={team} onChange={e=>setTeam(e.target.value)} placeholder="Team name…"/></div>
+      <div>
+        <Lbl>Team</Lbl>
+        {leagueTeams.length>0
+          ?<select value={team} onChange={e=>setTeam(e.target.value)} style={{width:"100%"}}>
+              <option value="">— Free Agent —</option>
+              {leagueTeams.map(t=><option key={t.id} value={t.name}>{t.name}</option>)}
+            </select>
+          :<input value={team} onChange={e=>setTeam(e.target.value)} placeholder="Team name…"/>}
+      </div>
       <div><Lbl>Jersey #</Lbl><input value={jersey} onChange={e=>setJersey(e.target.value)} placeholder="#"/></div>
       <div style={{gridColumn:"1/-1"}}><Btn onClick={submit} disabled={saving||!name.trim()||!positions_sel.length}>{saving?"Adding…":"➕ Add Player"}</Btn></div>
     </div>
@@ -7759,7 +7891,7 @@ function RingRushPage({cu,users,navigate}){
     defense:{label:"🛡 Defense",color:"#3B82F6",cols:["G","MIN","STL","BLK","PF","STL/G","BLK/G"]},
   };
 
-  const posEmoji=(pos)=>({PG:"⚡",SG:"🎯",SF:"🔥",PF:"💪",C:"🏛"}[pos]||"🏀");
+  const posEmoji=(pos)=>({Top:"👑",Corner:"🔥"}[pos]||"🏀");
 
   return(
     <div style={{maxWidth:1080,margin:"0 auto",padding:mob?"12px 10px 100px":"20px 20px 80px"}}>
@@ -7965,6 +8097,211 @@ function DashRatingsTab({league,accentColor,label}){
 }
 
 
+
+// ─── League Team Management ────────────────────────────────────────────────────
+
+// ─── Dashboard: GM OVR Editor ─────────────────────────────────────────────────
+function DashGMOvrTab({cu}){
+  const mob=useIsMobile();
+  const[roster,setRoster]=useState([]);
+  const[loaded,setLoaded]=useState(false);
+  const[saving,setSaving]=useState({});
+  const[sport,setSport]=useState("");
+  const[savKey,setSavKey]=useState("");
+
+  // Load from window.storage — GM saves to gm2_{userId}
+  const loadFromStorage=async(userId)=>{
+    try{
+      const key=`gm2_${userId||"g"}`;
+      setSavKey(key);
+      const r=await window.storage.get(key);
+      if(r?.value){
+        const s=JSON.parse(r.value);
+        setRoster(s.roster||[]);
+        setSport(s.sport||"");
+        setLoaded(true);
+      }else{
+        setLoaded(true);
+      }
+    }catch(e){setLoaded(true);}
+  };
+
+  useEffect(()=>{loadFromStorage(cu?.id);},[]);
+
+  const updateOvr=async(playerId,newOvr)=>{
+    const val=Math.max(40,Math.min(99,parseInt(newOvr)||70));
+    setSaving(p=>({...p,[playerId]:true}));
+    const updatedRoster=roster.map(p=>p.id===playerId?{...p,ovr:val}:p);
+    setRoster(updatedRoster);
+    // Save back to storage
+    try{
+      const r=await window.storage.get(savKey);
+      if(r?.value){
+        const s=JSON.parse(r.value);
+        s.roster=updatedRoster;
+        await window.storage.set(savKey,JSON.stringify(s));
+      }
+    }catch(e){}
+    setTimeout(()=>setSaving(p=>({...p,[playerId]:false})),1000);
+  };
+
+  const ac=GM_SPORTS.find(s=>s.id===sport)?.color||"#00D4FF";
+
+  return(
+    <div>
+      <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:"#94A3B8",letterSpacing:".12em",marginBottom:4,fontWeight:700}}>🎮 GM MODE — PLAYER OVR EDITOR</div>
+      <div style={{fontSize:10,color:"#334155",marginBottom:14}}>Edit ratings for players in your current GM save. Changes apply next time you open GM Mode.</div>
+      {!loaded&&<div style={{color:"#334155",fontSize:11,padding:"20px 0"}}>Loading your GM save…</div>}
+      {loaded&&!roster.length&&(
+        <div style={{textAlign:"center",padding:"40px 20px",color:"#334155"}}>
+          <div style={{fontSize:28,marginBottom:8}}>🎮</div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11}}>No GM save found</div>
+          <div style={{fontSize:10,marginTop:4}}>Start a GM Mode game first, then come back here to edit OVRs</div>
+        </div>
+      )}
+      {loaded&&roster.length>0&&(
+        <>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,flexWrap:"wrap"}}>
+            <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif"}}>{sport.toUpperCase()} · {roster.length} PLAYERS</div>
+            <button onClick={()=>loadFromStorage(cu?.id)} style={{padding:"4px 10px",borderRadius:8,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",color:"#64748B",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',sans-serif"}}>🔄 Refresh</button>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {roster.filter(Boolean).map((p,i)=>{
+              const currentOvr=p.ovr||70;
+              return(
+                <div key={i} style={{display:"flex",gap:12,alignItems:"center",padding:"10px 14px",borderRadius:12,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)"}}>
+                  <OVRBig ovr={currentOvr}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{p.name}</div>
+                    <div style={{fontSize:10,color:ac}}>{p.pos}{p.age?` · Age ${p.age}`:""}</div>
+                    {p.salary&&<div style={{fontSize:9,color:"#334155"}}>${p.salary}M · {p.years}yr{p.spotracUrl?<> · <a href={p.spotracUrl} target="_blank" rel="noreferrer" style={{color:"#00D4FF",textDecoration:"none"}}>Spotrac</a></>:""}</div>}
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                    <input
+                      type="number" min="40" max="99"
+                      defaultValue={currentOvr}
+                      onBlur={e=>updateOvr(p.id,e.target.value)}
+                      style={{width:64,textAlign:"center",fontFamily:"'Orbitron',sans-serif",fontWeight:700,fontSize:14,color:ovrColor(currentOvr)}}
+                    />
+                    <div style={{width:14}}>
+                      {saving[p.id]&&<span style={{fontSize:12,color:"#22C55E"}}>✓</span>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+
+function DashLeagueTeams({league,accentColor}){
+  const mob=useIsMobile();
+  const[teams,setTeams]=useState([]);
+  const[loaded,setLoaded]=useState(false);
+  const[showAdd,setShowAdd]=useState(false);
+  const[teamName,setTeamName]=useState("");
+  const[logoB64,setLogoB64]=useState("");
+  const[saving,setSaving]=useState(false);
+  const[deleting,setDeleting]=useState(null);
+
+  useEffect(()=>{
+    if(loaded)return;
+    sb.get(`nova_${league}_teams`,"?order=name.asc").then(r=>{setTeams(r||[]);setLoaded(true);});
+  },[]);
+
+  const handleLogo=(e)=>{
+    const file=e.target.files?.[0];
+    if(!file)return;
+    if(file.size>500000){alert("Logo must be under 500KB");return;}
+    const reader=new FileReader();
+    reader.onload=(ev)=>setLogoB64(ev.target.result);
+    reader.readAsDataURL(file);
+  };
+
+  const addTeam=async()=>{
+    if(!teamName.trim())return;
+    setSaving(true);
+    const t={id:gid(),name:teamName.trim(),logo:logoB64||"",league,ts:Date.now()};
+    await sb.post(`nova_${league}_teams`,t);
+    setTeams(prev=>[...prev,t]);
+    setTeamName("");setLogoB64("");setShowAdd(false);setSaving(false);
+  };
+
+  const deleteTeam=async(id)=>{
+    if(!confirm("Delete this team?"))return;
+    setDeleting(id);
+    await sb.del(`nova_${league}_teams`,`?id=eq.${id}`);
+    setTeams(prev=>prev.filter(t=>t.id!==id));
+    setDeleting(null);
+  };
+
+  return(
+    <div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,color:"#94A3B8",fontWeight:700}}>🏟 TEAMS ({teams.length})</div>
+        <button onClick={()=>setShowAdd(o=>!o)}
+          style={{display:"flex",alignItems:"center",gap:6,padding:"8px 16px",borderRadius:20,
+            background:showAdd?accentColor+"22":"rgba(255,255,255,.05)",
+            border:`1px solid ${showAdd?accentColor+"55":"rgba(255,255,255,.1)"}`,
+            color:showAdd?accentColor:"#E2E8F0",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,cursor:"pointer"}}>
+          {showAdd?"✕ Cancel":"➕ Create Team"}
+        </button>
+      </div>
+
+      {showAdd&&(
+        <Card style={{padding:"16px",marginBottom:14}} hover={false}>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:12,fontWeight:700}}>CREATE TEAM</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+            <div style={{gridColumn:"1/-1"}}>
+              <Lbl>Team Name</Lbl>
+              <input value={teamName} onChange={e=>setTeamName(e.target.value)} placeholder="e.g. Nova Knights…"/>
+            </div>
+            <div style={{gridColumn:"1/-1"}}>
+              <Lbl>Team Logo (upload image, max 500KB)</Lbl>
+              <input type="file" accept="image/*" onChange={handleLogo}
+                style={{color:"#94A3B8",fontSize:11,padding:"4px 0"}}/>
+            </div>
+            {logoB64&&(
+              <div style={{gridColumn:"1/-1",display:"flex",alignItems:"center",gap:10}}>
+                <img src={logoB64} style={{width:48,height:48,objectFit:"contain",borderRadius:8,border:`1px solid ${accentColor}44`}}/>
+                <div style={{fontSize:10,color:"#22C55E",fontFamily:"'Orbitron',sans-serif"}}>✓ Logo ready</div>
+                <button onClick={()=>setLogoB64("")} style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer",fontSize:11}}>Remove</button>
+              </div>
+            )}
+          </div>
+          <Btn onClick={addTeam} disabled={saving||!teamName.trim()}>{saving?"Creating…":"✅ Create Team"}</Btn>
+        </Card>
+      )}
+
+      {!teams.length&&!showAdd&&<Empty icon="🏟" msg="No teams yet — create one above"/>}
+
+      <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:8}}>
+        {teams.map((t,i)=>(
+          <Card key={i} style={{padding:"12px 14px"}} hover={false}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:44,height:44,borderRadius:8,background:`${accentColor}18`,border:`1px solid ${accentColor}33`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>
+                {t.logo
+                  ?<img src={t.logo} style={{width:"100%",height:"100%",objectFit:"contain"}}/>
+                  :<span style={{fontSize:20}}>🏟</span>}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{t.name}</div>
+              </div>
+              <button onClick={()=>deleteTeam(t.id)} disabled={deleting===t.id}
+                style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer",fontSize:14,opacity:deleting===t.id?.5:1}}>🗑</button>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
 function DashLeagueFeed({league,accentColor,cu}){
   const[feed,setFeed]=useState([]);
   const[loaded,setLoaded]=useState(false);
@@ -8013,17 +8350,21 @@ function DashLeagueFeed({league,accentColor,cu}){
 function DashLeagueRoster({league,accentColor,cu,sport=""}){
   const mob=useIsMobile();
   const[players,setPlayers]=useState([]);
+  const[leagueTeams,setLeagueTeams]=useState([]);
   const[loaded,setLoaded]=useState(false);
   useEffect(()=>{
     if(loaded)return;
-    sb.get(`nova_${league}_players`,"?order=name.asc").then(r=>{setPlayers(r||[]);setLoaded(true);});
+    Promise.all([
+      sb.get(`nova_${league}_players`,"?order=name.asc"),
+      sb.get(`nova_${league}_teams`,"?order=name.asc"),
+    ]).then(([p,t])=>{setPlayers(p||[]);setLeagueTeams(t||[]);setLoaded(true);});
   },[]);
   const del=async(id)=>{await sb.del(`nova_${league}_players`,`?id=eq.${id}`);setPlayers(p=>p.filter(x=>x.id!==id));};
   return(
     <div>
       <Card style={{padding:"16px",marginBottom:14}} hover={false}>
         <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:12,fontWeight:700}}>➕ ADD PLAYER</div>
-        <AddLeaguePlayer league={league} onAdd={p=>setPlayers(prev=>[...prev,p])} cu={cu} sport={sport}/>
+        <AddLeaguePlayer league={league} onAdd={p=>setPlayers(prev=>[...prev,p])} cu={cu} sport={sport} leagueTeams={leagueTeams}/>
       </Card>
       <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:10}}>{players.length} PLAYERS</div>
       {!players.length&&<Empty icon="👥" msg="No players yet — add one above"/>}
@@ -8055,7 +8396,7 @@ function DashLeagueStats({league,accentColor,isBaseball,sport=""}){
   const[saving,setSaving]=useState(false);
   const baseballPos=["P","C","1B","2B","3B","SS","LF","CF","RF","DH","SP","RP"];
   const footballPos=["QB","RB","WR","TE","K","DEF","OL","DL","LB","CB","S"];
-  const basketballPos=["PG","SG","SF","PF","C"];
+  const basketballPos=["Top","Corner"];
   const positions=sport==="basketball"?basketballPos:isBaseball?baseballPos:footballPos;
   // Field key includes _season or _career suffix
   const fullField=statType==="season"?field+"_season":field;
@@ -8245,7 +8586,7 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
   const[addSaving,setAddSaving]=useState(false);
   const baseballPos=["P","C","1B","2B","3B","SS","LF","CF","RF","DH","SP","RP"];
   const footballPos=["QB","RB","WR","TE","K","DEF","OL","DL","LB","CB","S"];
-  const basketballPos=["PG","SG","SF","PF","C"];
+  const basketballPos=["Top","Corner"];
   const positions=sport==="basketball"?basketballPos:isBaseball?baseballPos:footballPos;
   const addPlayer=async()=>{
     if(!addName.trim()||!addPos.length)return;
@@ -8275,9 +8616,13 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
     ["defense_stats","🛡 Defense",["G","STL","BLK","PF","STL/G","BLK/G"]],
   ];
   const FIELDS=(sport||"")==="basketball"?NBA_FIELDS:isBaseball?NBBL_FIELDS:NFL_FIELDS;
+  const[leagueTeams,setLeagueTeams]=useState([]);
   useEffect(()=>{
     if(loaded)return;
-    sb.get(`nova_${league}_players`,"?order=name.asc").then(r=>{setPlayers(r||[]);setLoaded(true);});
+    Promise.all([
+      sb.get(`nova_${league}_players`,"?order=name.asc"),
+      sb.get(`nova_${league}_teams`,"?order=name.asc"),
+    ]).then(([p,t])=>{setPlayers(p||[]);setLeagueTeams(t||[]);setLoaded(true);});
   },[]);
   const matchMember=(nameOrPlayer)=>{
     if(!nameOrPlayer)return null;
@@ -8366,7 +8711,17 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
                   </div>
                   {selPlayer.position&&<div style={{fontSize:9,color:accentColor,marginTop:5,fontFamily:"'Orbitron',sans-serif"}}>{selPlayer.position}</div>}
                 </div>
-                <div><Lbl>Team</Lbl><input defaultValue={selPlayer.team} onBlur={e=>patchPlayer({team:e.target.value})}/></div>
+                <div>
+                  <Lbl>Team</Lbl>
+                  {leagueTeams.length>0
+                    ?<select defaultValue={selPlayer.team} onBlur={e=>patchPlayer({team:e.target.value})} onChange={e=>patchPlayer({team:e.target.value})} style={{width:"100%"}}>
+                        <option value="">— Free Agent —</option>
+                        {leagueTeams.map(t=>(
+                          <option key={t.id} value={t.name} selected={selPlayer.team===t.name}>{t.name}</option>
+                        ))}
+                      </select>
+                    :<input defaultValue={selPlayer.team} onBlur={e=>patchPlayer({team:e.target.value})}/>}
+                </div>
                 <div><Lbl>Jersey #</Lbl><input defaultValue={selPlayer.jersey} onBlur={e=>patchPlayer({jersey:e.target.value})}/></div>
               </div>
 
@@ -8511,7 +8866,15 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
               </div>
               {addPos.length>0&&<div style={{fontSize:9,color:accentColor,marginTop:5,fontFamily:"'Orbitron',sans-serif"}}>Selected: {addPos.join(" / ")}</div>}
             </div>
-            <div><Lbl>Team</Lbl><input value={addTeam} onChange={e=>setAddTeam(e.target.value)} placeholder="Team name…"/></div>
+            <div>
+              <Lbl>Team</Lbl>
+              {leagueTeams.length>0
+                ?<select value={addTeam} onChange={e=>setAddTeam(e.target.value)} style={{width:"100%"}}>
+                    <option value="">— Free Agent —</option>
+                    {leagueTeams.map(t=><option key={t.id} value={t.name}>{t.name}</option>)}
+                  </select>
+                :<input value={addTeam} onChange={e=>setAddTeam(e.target.value)} placeholder="Team name…"/>}
+            </div>
             <div><Lbl>Jersey #</Lbl><input value={addJersey} onChange={e=>setAddJersey(e.target.value)} placeholder="#"/></div>
           </div>
           <Btn onClick={addPlayer} disabled={addSaving||!addName.trim()||!addPos.length}>{addSaving?"Creating…":"✅ Create Page"}</Btn>
@@ -8843,28 +9206,28 @@ function DashboardPage({cu,users,setUsers,navigate}){
         {/* Nova tabs */}
         {!isRRAdmin&&<div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
           <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginRight:4,flexShrink:0}}>NOVA</div>
-          {[["members","👥 Members"],["badges","🏅 Badges"],["roles","⭐ Roles"],["stars","⭐ Stars"],["announce","📢 Announce"],["ratings","📊 Ratings"]].map(([t,l])=>(
+          {[["members","👥 Members"],["badges","🏅 Badges"],["roles","⭐ Roles"],["stars","⭐ Stars"],["announce","📢 Announce"],["ratings","📊 Ratings"],["gm_ovr","🎮 GM OVRs"]].map(([t,l])=>(
             <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 14px",borderRadius:18,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"rgba(245,158,11,.5)":"rgba(255,255,255,.08)"}`,background:tab===t?"rgba(245,158,11,.12)":"rgba(255,255,255,.03)",color:tab===t?"#F59E0B":"#64748B",transition:"all .2s"}}>{l}</button>
           ))}
         </div>}
         {/* NFFL tabs */}
         {!isRRAdmin&&<div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
           <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginRight:4,flexShrink:0}}>🏈 NFFL</div>
-          {[["nffl_feed","📢 Game Feed"],["nffl_roster","👥 Roster"],["nffl_stats","📊 Stats"],["nffl_transactions","📋 Transactions"],["nffl_members","👤 Member Pages"]].map(([t,l])=>(
+          {[["nffl_feed","📢 Game Feed"],["nffl_roster","👥 Roster"],["nffl_stats","📊 Stats"],["nffl_transactions","📋 Transactions"],["nffl_members","👤 Member Pages"],["nffl_teams","🏟 Teams"]].map(([t,l])=>(
             <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 14px",borderRadius:18,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"rgba(245,158,11,.5)":"rgba(255,255,255,.08)"}`,background:tab===t?"rgba(245,158,11,.12)":"rgba(255,255,255,.03)",color:tab===t?"#F59E0B":"#64748B",transition:"all .2s"}}>{l}</button>
           ))}
         </div>}
         {/* NBBL tabs */}
         {!isRRAdmin&&<div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
           <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginRight:4,flexShrink:0}}>⚾ NBBL</div>
-          {[["nbbl_feed","📢 Game Feed"],["nbbl_roster","👥 Roster"],["nbbl_stats","📊 Stats"],["nbbl_transactions","📋 Transactions"],["nbbl_members","👤 Member Pages"]].map(([t,l])=>(
+          {[["nbbl_feed","📢 Game Feed"],["nbbl_roster","👥 Roster"],["nbbl_stats","📊 Stats"],["nbbl_transactions","📋 Transactions"],["nbbl_members","👤 Member Pages"],["nbbl_teams","🏟 Teams"]].map(([t,l])=>(
             <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 14px",borderRadius:18,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"rgba(34,197,94,.5)":"rgba(255,255,255,.08)"}`,background:tab===t?"rgba(34,197,94,.12)":"rgba(255,255,255,.03)",color:tab===t?"#22C55E":"#64748B",transition:"all .2s"}}>{l}</button>
           ))}
         </div>}
         {/* Ring Rush tabs */}
         <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
           <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginRight:4,flexShrink:0}}>🏀 Ring Rush</div>
-          {[["rr_feed","📢 Game Feed"],["rr_roster","👥 Roster"],["rr_stats","📊 Stats"],["rr_transactions","📋 Transactions"],["rr_members","👤 Member Pages"]].map(([t,l])=>(
+          {[["rr_feed","📢 Game Feed"],["rr_roster","👥 Roster"],["rr_stats","📊 Stats"],["rr_transactions","📋 Transactions"],["rr_members","👤 Member Pages"],["rr_teams","🏟 Teams"]].map(([t,l])=>(
             <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 14px",borderRadius:18,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"rgba(236,72,153,.5)":"rgba(255,255,255,.08)"}`,background:tab===t?"rgba(236,72,153,.12)":"rgba(255,255,255,.03)",color:tab===t?"#EC4899":"#64748B",transition:"all .2s"}}>{l}</button>
           ))}
         </div>
@@ -9069,6 +9432,7 @@ function DashboardPage({cu,users,setUsers,navigate}){
         </div>
       )}
       {/* NFFL flat tabs */}
+      {tab==="gm_ovr"&&<DashGMOvrTab cu={cu}/>}
       {tab==="ratings"&&<DashRatingsTab league="nffl" accentColor="#F59E0B" label="NFFL"/>}
       {tab==="ratings"&&<DashRatingsTab league="nbbl" accentColor="#22C55E" label="NBBL"/>}
       {tab==="ratings"&&<DashRatingsTab league="ringrush" accentColor="#EC4899" label="Ring Rush"/>}
@@ -9084,11 +9448,14 @@ function DashboardPage({cu,users,setUsers,navigate}){
       {tab==="nbbl_transactions"&&<DashLeagueTx league="nbbl" accentColor="#22C55E"/>}
       {tab==="nbbl_members"&&<DashLeagueMembers league="nbbl" accentColor="#22C55E" users={users} isBaseball={true}/>}
       {/* Ring Rush */}
+      {tab==="nffl_teams"&&<DashLeagueTeams league="nffl" accentColor="#F59E0B"/>}
+      {tab==="nbbl_teams"&&<DashLeagueTeams league="nbbl" accentColor="#22C55E"/>}
       {tab==="rr_feed"&&<DashLeagueFeed league="ringrush" accentColor="#EC4899" cu={cu}/>}
       {tab==="rr_roster"&&<DashLeagueRoster league="ringrush" accentColor="#EC4899" cu={cu} sport="basketball"/>}
       {tab==="rr_stats"&&<DashLeagueStats league="ringrush" accentColor="#EC4899" isBaseball={false} sport="basketball"/>}
       {tab==="rr_transactions"&&<DashLeagueTx league="ringrush" accentColor="#EC4899"/>}
       {tab==="rr_members"&&<DashLeagueMembers league="ringrush" accentColor="#EC4899" users={users} isBaseball={false} sport="basketball"/>}
+      {tab==="rr_teams"&&<DashLeagueTeams league="ringrush" accentColor="#EC4899"/>}
     </div>
   );
 }
