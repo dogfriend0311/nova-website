@@ -52,6 +52,36 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Headers","Content-Type");
   if(req.method==="OPTIONS")return res.status(200).end();
 
+    // ── Gemini AI proxy (POST) — free tier, routes GM Mode AI calls ──
+    if((req.query.gm_ai||req.body?.gm_ai)){
+      const body2=req.body||{};
+      const finalPrompt=body2.prompt||"";
+      const finalSystem=body2.system||"You are an expert sports analyst. Return only valid JSON.";
+      if(!finalPrompt)return res.status(400).json({error:"Missing prompt"});
+      // Gemini key — free tier 1500 req/day
+      const GEMINI_KEY=process.env.GEMINI_API_KEY||"AIzaSyCZsG2yaoMFuTCi6iGKt3sXbRqtsYN6gBQ";
+      try{
+        const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({
+            system_instruction:{parts:[{text:finalSystem}]},
+            contents:[{role:"user",parts:[{text:finalPrompt}]}],
+            generationConfig:{temperature:0.7,maxOutputTokens:2048},
+          }),
+          signal:makeTimeout(30000),
+        });
+        if(!r.ok){
+          const err=await r.text();
+          return res.status(200).json({error:`Gemini ${r.status}: ${err.slice(0,300)}`});
+        }
+        const d=await r.json();
+        const text=d.candidates?.[0]?.content?.parts?.[0]?.text||"{}";
+        return res.status(200).json({text});
+      }catch(e){return res.status(200).json({error:e.message});}
+    }
+
+
   try {
     if(req.method==="GET"){
       if(req.query.athlete){
@@ -315,6 +345,7 @@ export default async function handler(req, res) {
           return res.status(200).json({found:false,error:e.message});
         }
       }
+
 
       // ── ESPN proxy — bypass CORS for non-MLB sports ──
       if(req.query.espn_proxy&&req.query.url){

@@ -1430,17 +1430,27 @@ const SCHEMES={
   nhl:["Trap","Offensive Zone","Physical","Speed Based","Balanced"],
 };
 
-async function aiCall(prompt,sys="You are an expert sports analyst. Return only valid JSON."){
+async function aiCall(prompt,sys="You are an expert sports analyst. Return only valid JSON.",maxTok=1500){
   try{
-    const r=await fetch("https://api.anthropic.com/v1/messages",{
+    // Route through Vercel proxy — uses Gemini 1.5 Flash (free, 1500 req/day)
+    const r=await fetch("/api/hyperbeam?gm_ai=1",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1500,system:sys,messages:[{role:"user",content:prompt}]})
+      body:JSON.stringify({prompt,system:sys,max_tokens:maxTok}),
     });
+    if(!r.ok)throw new Error(`Proxy ${r.status}`);
     const d=await r.json();
-    const t=d.content?.[0]?.text||"{}";
-    return JSON.parse(t.replace(/```json|```/g,"").trim());
-  }catch(e){return{error:String(e)};}
+    if(d.error){console.warn("aiCall error:",d.error);return{error:d.error};}
+    let t=d.text||"{}";
+    // Strip markdown fences Gemini sometimes adds
+    t=t.replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/\s*```\s*$/,"").trim();
+    // If response starts with [ or { parse directly; otherwise find first JSON structure
+    if(!t.startsWith("[")&&!t.startsWith("{")){
+      const m=t.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+      if(m)t=m[1];
+    }
+    return JSON.parse(t);
+  }catch(e){console.error("aiCall failed:",e.message);return{error:String(e)};}
 }
 
 const GM_STEPS=[
@@ -8101,90 +8111,112 @@ function DashRatingsTab({league,accentColor,label}){
 // ─── League Team Management ────────────────────────────────────────────────────
 
 // ─── Dashboard: GM OVR Editor ─────────────────────────────────────────────────
+// Lets owner edit OVR ratings for players in their active GM Mode save
 function DashGMOvrTab({cu}){
   const mob=useIsMobile();
-  const[roster,setRoster]=useState([]);
-  const[loaded,setLoaded]=useState(false);
+  const[gmSave,setGmSave]=useState(null);
+  const[editVals,setEditVals]=useState({});
   const[saving,setSaving]=useState({});
-  const[sport,setSport]=useState("");
-  const[savKey,setSavKey]=useState("");
+  const[loaded,setLoaded]=useState(false);
+  const[error,setError]=useState("");
 
-  // Load from window.storage — GM saves to gm2_{userId}
-  const loadFromStorage=async(userId)=>{
+  const SAVE_KEY=`gm2_${cu?.id||"g"}`;
+
+  const load=async()=>{
     try{
-      const key=`gm2_${userId||"g"}`;
-      setSavKey(key);
-      const r=await window.storage.get(key);
+      const r=await window.storage.get(SAVE_KEY);
       if(r?.value){
         const s=JSON.parse(r.value);
-        setRoster(s.roster||[]);
-        setSport(s.sport||"");
-        setLoaded(true);
-      }else{
-        setLoaded(true);
+        setGmSave(s);
+        // Seed edit values from current OVRs
+        const ev={};
+        (s.roster||[]).forEach(p=>{if(p?.id)ev[p.id]=String(p.ovr||70);});
+        setEditVals(ev);
       }
-    }catch(e){setLoaded(true);}
+      setLoaded(true);
+    }catch(e){
+      setError(e.message);
+      setLoaded(true);
+    }
   };
 
-  useEffect(()=>{loadFromStorage(cu?.id);},[]);
+  useEffect(()=>{load();},[]);
 
-  const updateOvr=async(playerId,newOvr)=>{
-    const val=Math.max(40,Math.min(99,parseInt(newOvr)||70));
+  const saveOvr=async(playerId,raw)=>{
+    const val=Math.max(40,Math.min(99,parseInt(raw)||70));
     setSaving(p=>({...p,[playerId]:true}));
-    const updatedRoster=roster.map(p=>p.id===playerId?{...p,ovr:val}:p);
-    setRoster(updatedRoster);
-    // Save back to storage
+    setEditVals(p=>({...p,[playerId]:String(val)}));
     try{
-      const r=await window.storage.get(savKey);
+      // Update the roster in storage
+      const r=await window.storage.get(SAVE_KEY);
       if(r?.value){
         const s=JSON.parse(r.value);
-        s.roster=updatedRoster;
-        await window.storage.set(savKey,JSON.stringify(s));
+        s.roster=(s.roster||[]).map(p=>p?.id===playerId?{...p,ovr:val}:p);
+        await window.storage.set(SAVE_KEY,JSON.stringify(s));
+        setGmSave(s);
       }
-    }catch(e){}
-    setTimeout(()=>setSaving(p=>({...p,[playerId]:false})),1000);
+    }catch(e){console.error("OVR save failed:",e);}
+    setTimeout(()=>setSaving(p=>({...p,[playerId]:false})),1200);
   };
 
-  const ac=GM_SPORTS.find(s=>s.id===sport)?.color||"#00D4FF";
+  const sc=GM_SPORTS.find(s=>s.id===gmSave?.sport);
+  const ac=sc?.color||"#00D4FF";
+  const roster=(gmSave?.roster||[]).filter(Boolean);
 
   return(
     <div>
       <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:"#94A3B8",letterSpacing:".12em",marginBottom:4,fontWeight:700}}>🎮 GM MODE — PLAYER OVR EDITOR</div>
-      <div style={{fontSize:10,color:"#334155",marginBottom:14}}>Edit ratings for players in your current GM save. Changes apply next time you open GM Mode.</div>
-      {!loaded&&<div style={{color:"#334155",fontSize:11,padding:"20px 0"}}>Loading your GM save…</div>}
+      <div style={{fontSize:10,color:"#334155",marginBottom:14}}>Edit the OVR rating for any player on your current GM Mode roster. Tab out of the input to save. OVR changes take effect immediately next time you open GM Mode.</div>
+
+      {!loaded&&<div style={{color:"#334155",fontSize:11,padding:"20px 0",textAlign:"center"}}>Loading your GM save…</div>}
+      {error&&<div style={{color:"#EF4444",fontSize:11,padding:"10px 0"}}>{error}</div>}
+
       {loaded&&!roster.length&&(
-        <div style={{textAlign:"center",padding:"40px 20px",color:"#334155"}}>
-          <div style={{fontSize:28,marginBottom:8}}>🎮</div>
-          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11}}>No GM save found</div>
-          <div style={{fontSize:10,marginTop:4}}>Start a GM Mode game first, then come back here to edit OVRs</div>
+        <div style={{textAlign:"center",padding:"50px 20px"}}>
+          <div style={{fontSize:36,marginBottom:10}}>🎮</div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,color:"#94A3B8",marginBottom:6}}>No GM Save Found</div>
+          <div style={{fontSize:11,color:"#334155"}}>Open GM Mode under Games, start a new franchise, and come back here to edit player OVRs.</div>
         </div>
       )}
+
       {loaded&&roster.length>0&&(
         <>
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,flexWrap:"wrap"}}>
-            <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif"}}>{sport.toUpperCase()} · {roster.length} PLAYERS</div>
-            <button onClick={()=>loadFromStorage(cu?.id)} style={{padding:"4px 10px",borderRadius:8,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",color:"#64748B",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',sans-serif"}}>🔄 Refresh</button>
+            <div style={{padding:"4px 10px",borderRadius:10,background:ac+"20",border:`1px solid ${ac}44`,fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:ac}}>
+              {sc?.icon} {gmSave?.myTeam?.name||"Your Team"} · {gmSave?.year||2025}
+            </div>
+            <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif"}}>{roster.length} PLAYERS</div>
+            <button onClick={load} style={{padding:"4px 10px",borderRadius:8,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",color:"#64748B",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',sans-serif"}}>🔄 Refresh</button>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            {roster.filter(Boolean).map((p,i)=>{
-              const currentOvr=p.ovr||70;
+            {[...roster].sort((a,b)=>(b.ovr||70)-(a.ovr||70)).map((p,i)=>{
+              const currentOvr=parseInt(editVals[p.id]||p.ovr||70);
               return(
                 <div key={i} style={{display:"flex",gap:12,alignItems:"center",padding:"10px 14px",borderRadius:12,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)"}}>
+                  {/* Color OVR badge */}
                   <OVRBig ovr={currentOvr}/>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{p.name}</div>
-                    <div style={{fontSize:10,color:ac}}>{p.pos}{p.age?` · Age ${p.age}`:""}</div>
-                    {p.salary&&<div style={{fontSize:9,color:"#334155"}}>${p.salary}M · {p.years}yr{p.spotracUrl?<> · <a href={p.spotracUrl} target="_blank" rel="noreferrer" style={{color:"#00D4FF",textDecoration:"none"}}>Spotrac</a></>:""}</div>}
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:1}}>
+                      <span style={{fontSize:10,color:ac}}>{p.pos}</span>
+                      {p.age&&<span style={{fontSize:9,color:"#475569"}}>Age {p.age}</span>}
+                      {p.salary&&<span style={{fontSize:9,color:"#334155"}}>${p.salary.toFixed?.(1)}M · {p.years}yr</span>}
+                      {p.spotracUrl&&<a href={p.spotracUrl} target="_blank" rel="noreferrer" style={{fontSize:8,color:"#00D4FF",textDecoration:"none",fontFamily:"'Orbitron',sans-serif"}}>SPOTRAC ↗</a>}
+                    </div>
                   </div>
+                  {/* OVR input */}
                   <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
                     <input
                       type="number" min="40" max="99"
-                      defaultValue={currentOvr}
-                      onBlur={e=>updateOvr(p.id,e.target.value)}
+                      value={editVals[p.id]||currentOvr}
+                      onChange={e=>setEditVals(prev=>({...prev,[p.id]:e.target.value}))}
+                      onBlur={e=>saveOvr(p.id,e.target.value)}
                       style={{width:64,textAlign:"center",fontFamily:"'Orbitron',sans-serif",fontWeight:700,fontSize:14,color:ovrColor(currentOvr)}}
                     />
-                    <div style={{width:14}}>
-                      {saving[p.id]&&<span style={{fontSize:12,color:"#22C55E"}}>✓</span>}
+                    <div style={{width:16}}>
+                      {saving[p.id]
+                        ?<span style={{fontSize:14,color:"#22C55E"}}>✓</span>
+                        :<span style={{fontSize:10,color:"#334155"}}>OVR</span>}
                     </div>
                   </div>
                 </div>
