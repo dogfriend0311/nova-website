@@ -8327,7 +8327,7 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
                   {rId
                     ?<img key={rId} src={`/api/roblox-avatar?userId=${rId}&t=${Date.now()}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}}/>
                     :null}
-                  <div style={{display:rId?"none":"flex",width:"100%",height:"100%",alignItems:"center",justifyContent:"center",fontSize:26}}>{isBasketball?"🏀":isBaseball?"⚾":"🏈"}</div>
+                  <div style={{display:rId?"none":"flex",width:"100%",height:"100%",alignItems:"center",justifyContent:"center",fontSize:26}}>{sport==="basketball"?"🏀":isBaseball?"⚾":"🏈"}</div>
                 </div>
                 <div>
                   <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:15,fontWeight:900,color:"#E2E8F0"}}>{selPlayer.name}</div>
@@ -8502,7 +8502,7 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
           <Btn onClick={addPlayer} disabled={addSaving||!addName.trim()||!addPos.length}>{addSaving?"Creating…":"✅ Create Page"}</Btn>
         </Card>
       )}
-      {!players.length&&!showAdd&&<Empty icon={isBasketball?"🏀":isBaseball?"⚾":"🏈"} msg="No member pages yet — click Create Member Page above"/>}
+      {!players.length&&!showAdd&&<Empty icon={sport==="basketball"?"🏀":isBaseball?"⚾":"🏈"} msg="No member pages yet — click Create Member Page above"/>}
       <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:8}}>
         {players.filter(Boolean).map((p,i)=>{
           const m=p.nova_user_id?users.find(u=>u.id===p.nova_user_id):matchMember(p.name);
@@ -8513,7 +8513,7 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
               onMouseEnter={e=>{e.currentTarget.style.borderColor=`${accentColor}66`;e.currentTarget.style.background=`${accentColor}0a`;}}
               onMouseLeave={e=>{e.currentTarget.style.borderColor=`${accentColor}22`;e.currentTarget.style.background="rgba(255,255,255,.03)";}}>
               <div style={{width:42,height:42,borderRadius:8,overflow:"hidden",background:`${accentColor}18`,border:`1px solid ${accentColor}33`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                {rid?<img src={`/api/roblox-avatar?userId=${rid}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>e.target.style.display="none"}/>:<span style={{fontSize:18}}>{isBasketball?"🏀":isBaseball?"⚾":"🏈"}</span>}
+                {rid?<img src={`/api/roblox-avatar?userId=${rid}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>e.target.style.display="none"}/>:<span style={{fontSize:18}}>{sport==="basketball"?"🏀":isBaseball?"⚾":"🏈"}</span>}
               </div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
