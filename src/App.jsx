@@ -1542,12 +1542,12 @@ function GMGame({cu}){
 
   // ── Persist ──────────────────────────────────────────────────────────────
   useEffect(()=>{
-    try{window.storage.get(`gm2_${cu?.id||"g"}`).then(r=>{if(r?.value)setSavedState(JSON.parse(r.value));});}catch(e){}
+    try{const raw=localStorage.getItem(`gm2_${cu?.id||"g"}`);if(raw)setSavedState(JSON.parse(raw));}catch(e){}
   },[]);
 
   const save=async(extra={})=>{
     const s={sport,myTeam,year,roster,freeAgents,cuts,tradeBlock,depthChart,scheme,farmSystem,cap,allMoves,myDraftPicks,draftBoard,simResult,offseasonGrade,phase,step,...extra};
-    try{await window.storage.set(`gm2_${cu?.id||"g"}`,JSON.stringify(s));}catch(e){}
+    try{localStorage.setItem(`gm2_${cu?.id||"g"}`,JSON.stringify(s));}catch(e){}
   };
 
   const loadSave=()=>{
@@ -8119,16 +8119,167 @@ function DashGMOvrTab({cu}){
   const[saving,setSaving]=useState({});
   const[loaded,setLoaded]=useState(false);
   const[error,setError]=useState("");
+  const[searchTeam,setSearchTeam]=useState("");
+  const[searchSport,setSearchSport]=useState("mlb");
+  const[loadingTeam,setLoadingTeam]=useState(false);
+  const[extraRosters,setExtraRosters]=useState({});
+  const[activeKey,setActiveKey]=useState("my_save");
+  const MY_KEY=`gm2_${cu?.id||"g"}`;
+
+  const loadMySave=()=>{
+    try{
+      const raw=localStorage.getItem(MY_KEY);
+      if(raw){
+        const s=JSON.parse(raw);
+        setGmSave(s);
+        const ev={};
+        (s.roster||[]).forEach(p=>{if(p&&p.id)ev[p.id]=String(p.ovr||70);});
+        setEditVals(prev=>({...prev,...ev}));
+      }
+      setLoaded(true);
+    }catch(e){setError(e.message);setLoaded(true);}
+  };
+  useEffect(()=>{loadMySave();},[]);
+
+  const loadTeam=async()=>{
+    if(!searchTeam.trim())return;
+    const key=`${searchSport}_${searchTeam.trim().toLowerCase().replace(/\s+/g,"_")}`;
+    if(extraRosters[key]){setActiveKey(key);return;}
+    setLoadingTeam(true);setError("");
+    const yr=gmSave?.year||2025;
+    const result=await aiCall(
+      `Generate the ${yr} ${searchSport.toUpperCase()} roster for "${searchTeam}". Return 20-25 real players with realistic OVR ratings. JSON array: [{id:"p_N",name,pos,age,ovr(50-99),salary(millions float),years(1-6)}]`,
+      "You are a sports analyst. Use real player names. Return only valid JSON array."
+    );
+    if(Array.isArray(result)&&result.length>0){
+      const roster=result.map((p,i)=>({...p,id:p.id||`ext_${key}_${i}`}));
+      setExtraRosters(prev=>({...prev,[key]:{roster,teamName:searchTeam,sport:searchSport,year:yr}}));
+      setActiveKey(key);
+      const ev={};
+      roster.forEach(p=>{if(p&&p.id)ev[p.id]=String(p.ovr||70);});
+      setEditVals(prev=>({...prev,...ev}));
+    }else{
+      setError("Could not load team — check the name and try again");
+    }
+    setLoadingTeam(false);
+  };
+
+  const saveOvr=(playerId,rawVal)=>{
+    const val=Math.max(40,Math.min(99,parseInt(rawVal)||70));
+    setSaving(p=>({...p,[playerId]:true}));
+    setEditVals(p=>({...p,[playerId]:String(val)}));
+    if(activeKey==="my_save"){
+      try{
+        const raw=localStorage.getItem(MY_KEY);
+        if(raw){
+          const s=JSON.parse(raw);
+          s.roster=(s.roster||[]).map(p=>p&&p.id===playerId?{...p,ovr:val}:p);
+          localStorage.setItem(MY_KEY,JSON.stringify(s));
+          setGmSave(s);
+        }
+      }catch(e){console.error(e);}
+    }else{
+      setExtraRosters(prev=>{
+        const next={...prev};
+        if(next[activeKey])next[activeKey]={...next[activeKey],roster:next[activeKey].roster.map(p=>p&&p.id===playerId?{...p,ovr:val}:p)};
+        return next;
+      });
+    }
+    setTimeout(()=>setSaving(p=>({...p,[playerId]:false})),1000);
+  };
+
+  const active=activeKey==="my_save"
+    ?{roster:(gmSave?.roster||[]).filter(Boolean),teamName:gmSave?.myTeam?.name||"My Team",sport:gmSave?.sport||"mlb",year:gmSave?.year||2025}
+    :extraRosters[activeKey]||{roster:[],teamName:"",sport:searchSport,year:2025};
+  const sc=GM_SPORTS.find(s=>s.id===active.sport);
+  const ac=sc?.color||"#00D4FF";
+  const tabs=[
+    {key:"my_save",label:gmSave?.myTeam?.name||"My Save",icon:GM_SPORTS.find(s=>s.id===gmSave?.sport)?.icon||"🎮"},
+    ...Object.entries(extraRosters).map(([k,v])=>({key:k,label:v.teamName,icon:GM_SPORTS.find(s=>s.id===v.sport)?.icon||"🏆"}))
+  ];
+
+  return(
+    <div>
+      <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:"#94A3B8",letterSpacing:".12em",marginBottom:4,fontWeight:700}}>🎮 GM — PLAYER OVR EDITOR</div>
+      <div style={{fontSize:10,color:"#334155",marginBottom:14}}>Edit OVR for your team OR any other team. Tab out of the input to save.</div>
+      <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap",alignItems:"flex-end"}}>
+        <div>
+          <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:3}}>SPORT</div>
+          <select value={searchSport} onChange={e=>setSearchSport(e.target.value)} style={{padding:"6px 8px",borderRadius:8,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",color:"#E2E8F0",fontSize:11}}>
+            {GM_SPORTS.map(s=><option key={s.id} value={s.id}>{s.icon} {s.label}</option>)}
+          </select>
+        </div>
+        <div style={{flex:1,minWidth:150}}>
+          <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:3}}>TEAM NAME</div>
+          <input value={searchTeam} onChange={e=>setSearchTeam(e.target.value)} onKeyDown={e=>e.key==="Enter"&&loadTeam()} placeholder="e.g. Los Angeles Lakers…"/>
+        </div>
+        <button onClick={loadTeam} disabled={loadingTeam||!searchTeam.trim()} style={{padding:"8px 14px",borderRadius:10,background:"rgba(0,212,255,.12)",border:"1px solid rgba(0,212,255,.3)",color:"#00D4FF",cursor:loadingTeam?"wait":"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700}}>{loadingTeam?"Loading…":"Load"}</button>
+      </div>
+      {error&&<div style={{color:"#EF4444",fontSize:10,marginBottom:10,padding:"6px 10px",borderRadius:8,background:"rgba(239,68,68,.07)"}}>{error} <button onClick={()=>setError("")} style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer",marginLeft:6}}>✕</button></div>}
+      {tabs.length>1&&(
+        <div style={{display:"flex",gap:5,marginBottom:12,flexWrap:"wrap"}}>
+          {tabs.map(t=>(
+            <button key={t.key} onClick={()=>setActiveKey(t.key)} style={{padding:"5px 12px",borderRadius:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,border:`1px solid ${activeKey===t.key?ac+"66":"rgba(255,255,255,.08)"}`,background:activeKey===t.key?ac+"18":"rgba(255,255,255,.03)",color:activeKey===t.key?ac:"#475569"}}>{t.icon} {t.label}</button>
+          ))}
+        </div>
+      )}
+      {!loaded&&<div style={{color:"#334155",padding:"20px 0",textAlign:"center",fontSize:11}}>Loading…</div>}
+      {loaded&&active.roster.length===0&&activeKey==="my_save"&&(
+        <div style={{textAlign:"center",padding:"40px 20px"}}>
+          <div style={{fontSize:36,marginBottom:8}}>🎮</div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,color:"#94A3B8",marginBottom:6}}>No GM Save Found</div>
+          <div style={{fontSize:11,color:"#334155"}}>Play GM Mode first, or load any team above.</div>
+        </div>
+      )}
+      {active.roster.length>0&&(
+        <>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+            <div style={{padding:"3px 10px",borderRadius:10,background:ac+"18",border:`1px solid ${ac}33`,fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:ac}}>{sc?.icon||"🏆"} {active.teamName}</div>
+            <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif"}}>{active.roster.length} PLAYERS</div>
+            {activeKey==="my_save"&&<button onClick={loadMySave} style={{padding:"3px 8px",borderRadius:8,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.08)",color:"#475569",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',sans-serif"}}>🔄</button>}
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:5}}>
+            {[...active.roster].sort((a,b)=>parseInt(editVals[b.id]||b.ovr||70)-parseInt(editVals[a.id]||a.ovr||70)).map((p,i)=>{
+              const ovr=parseInt(editVals[p.id]||p.ovr||70);
+              return(
+                <div key={p.id||i} style={{display:"flex",gap:10,alignItems:"center",padding:"9px 12px",borderRadius:11,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)"}}>
+                  <OVRBig ovr={ovr}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{p.name}</div>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:1}}>
+                      <span style={{fontSize:10,color:ac}}>{p.pos}</span>
+                      {p.age&&<span style={{fontSize:9,color:"#475569"}}>Age {p.age}</span>}
+                      {p.salary&&<span style={{fontSize:9,color:"#334155"}}>${typeof p.salary==="number"?p.salary.toFixed(1):p.salary}M{p.years?` · ${p.years}yr`:""}</span>}
+                    </div>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+                    <input type="number" min="40" max="99" value={editVals[p.id]||ovr} onChange={e=>setEditVals(prev=>({...prev,[p.id]:e.target.value}))} onBlur={e=>saveOvr(p.id,e.target.value)} style={{width:60,textAlign:"center",fontFamily:"'Orbitron',sans-serif",fontWeight:700,fontSize:13,color:ovrColor(ovr)}}/>
+                    {saving[p.id]?<span style={{fontSize:13,color:"#22C55E"}}>✓</span>:<span style={{fontSize:9,color:"#334155"}}>OVR</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}){
+  const mob=useIsMobile();
+  const[gmSave,setGmSave]=useState(null);
+  const[editVals,setEditVals]=useState({});
+  const[saving,setSaving]=useState({});
+  const[loaded,setLoaded]=useState(false);
+  const[error,setError]=useState("");
 
   const SAVE_KEY=`gm2_${cu?.id||"g"}`;
 
   const load=async()=>{
     try{
-      const r=await window.storage.get(SAVE_KEY);
-      if(r?.value){
-        const s=JSON.parse(r.value);
+      const raw=localStorage.getItem(SAVE_KEY);
+      if(raw){
+        const s=JSON.parse(raw);
         setGmSave(s);
-        // Seed edit values from current OVRs
         const ev={};
         (s.roster||[]).forEach(p=>{if(p?.id)ev[p.id]=String(p.ovr||70);});
         setEditVals(ev);
@@ -8148,11 +8299,11 @@ function DashGMOvrTab({cu}){
     setEditVals(p=>({...p,[playerId]:String(val)}));
     try{
       // Update the roster in storage
-      const r=await window.storage.get(SAVE_KEY);
-      if(r?.value){
-        const s=JSON.parse(r.value);
+      const raw=localStorage.getItem(SAVE_KEY);
+      if(raw){
+        const s=JSON.parse(raw);
         s.roster=(s.roster||[]).map(p=>p?.id===playerId?{...p,ovr:val}:p);
-        await window.storage.set(SAVE_KEY,JSON.stringify(s));
+        localStorage.setItem(SAVE_KEY,JSON.stringify(s));
         setGmSave(s);
       }
     }catch(e){console.error("OVR save failed:",e);}
