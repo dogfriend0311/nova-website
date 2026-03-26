@@ -8593,7 +8593,8 @@ function DashLeagueTeams({league,accentColor}){
         })}
       </div>
     </div>
-  )
+  );
+}
 
 function DashLeagueFeed({league,accentColor,cu}){
   const[feed,setFeed]=useState([]);
