@@ -7583,26 +7583,205 @@ function HubPage({cu,users,setUsers,navigate}){
 
 
 // ─── NFFL Page (Nova Football Fusion League) ─────────────────────────────────
+
+// ─── LeagueTeamsTab — public Teams page + dashboard team editing ───────────────
+function LeagueTeamsTab({teams,players,accentColor,league,cu,onTeamsUpdated,isAdmin,navigate,users}){
+  const mob=useIsMobile();
+  const[selTeam,setSelTeam]=useState(null);
+  const[editing,setEditing]=useState(null); // team being edited
+  const[editName,setEditName]=useState("");
+  const[editOwner,setEditOwner]=useState("");
+  const[editLogo,setEditLogo]=useState("");
+  const[saving,setSaving]=useState(false);
+
+  const handleLogoUpload=(e)=>{
+    const file=e.target.files?.[0];
+    if(!file)return;
+    if(file.size>500000){alert("Logo must be under 500KB");return;}
+    const reader=new FileReader();
+    reader.onload=ev=>setEditLogo(ev.target.result);
+    reader.readAsDataURL(file);
+  };
+
+  const openEdit=(team,e)=>{
+    e.stopPropagation();
+    setEditing(team);
+    setEditName(team.name||"");
+    setEditOwner(team.owner_name||"");
+    setEditLogo(team.logo||"");
+  };
+
+  const saveEdit=async()=>{
+    if(!editing)return;
+    setSaving(true);
+    const patch={name:editName.trim(),owner_name:editOwner.trim(),logo:editLogo};
+    await sb.patch(`nova_${league}_teams`,`?id=eq.${editing.id}`,patch);
+    onTeamsUpdated(prev=>prev.map(t=>t.id===editing.id?{...t,...patch}:t));
+    setSaving(false);
+    setEditing(null);
+  };
+
+  const teamPlayers=(teamName)=>players.filter(Boolean).filter(p=>p.team===teamName);
+
+  // Detail view for a selected team
+  if(selTeam){
+    const t=teams.find(x=>x.id===selTeam)||teams[0];
+    if(!t)return null;
+    const tp=teamPlayers(t.name);
+    return(
+      <div>
+        <button onClick={()=>setSelTeam(null)} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:11,marginBottom:16,display:"flex",alignItems:"center",gap:5}}>← ALL TEAMS</button>
+
+        {/* Team header */}
+        <Card style={{padding:mob?"16px":"20px 24px",marginBottom:16}} hover={false}>
+          <div style={{display:"flex",gap:16,alignItems:"center",flexWrap:"wrap"}}>
+            <div style={{width:mob?72:88,height:mob?72:88,borderRadius:14,overflow:"hidden",background:`${accentColor}18`,border:`2px solid ${accentColor}44`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              {t.logo?<img src={t.logo} style={{width:"100%",height:"100%",objectFit:"contain"}}/>:<span style={{fontSize:36}}>🏟</span>}
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?18:24,fontWeight:900,color:"#E2E8F0"}}>{t.name}</div>
+              {t.owner_name&&<div style={{fontSize:12,color:accentColor,marginTop:4}}>👑 GM: {t.owner_name}</div>}
+              <div style={{fontSize:11,color:"#475569",marginTop:2}}>{tp.length} players</div>
+            </div>
+            {isAdmin&&(
+              <button onClick={(e)=>openEdit(t,e)} style={{padding:"8px 14px",borderRadius:10,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#94A3B8",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:700}}>✏️ Edit Team</button>
+            )}
+          </div>
+        </Card>
+
+        {/* Team roster */}
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".12em",marginBottom:12}}>ROSTER</div>
+        {tp.length===0&&<Empty icon="👥" msg="No players on this team yet"/>}
+        <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:8,marginBottom:16}}>
+          {tp.map((p,i)=>{
+            const member=p.nova_user_id?users?.find(u=>u.id===p.nova_user_id):null;
+            const rid=p.roblox_id||member?.social_roblox||"";
+            return(
+              <div key={i} onClick={()=>navigate&&navigate("nffl_player",{league,playerId:p.id})}
+                style={{display:"flex",gap:10,padding:"10px 12px",borderRadius:12,background:"rgba(255,255,255,.03)",border:`1px solid ${accentColor}22`,cursor:"pointer",transition:"all .18s",alignItems:"center"}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor=accentColor+"55";e.currentTarget.style.background=accentColor+"0a";}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor=accentColor+"22";e.currentTarget.style.background="rgba(255,255,255,.03)";}}>
+                <div style={{width:40,height:40,borderRadius:8,overflow:"hidden",background:`${accentColor}18`,border:`1px solid ${accentColor}33`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  {rid?<img src={`/api/roblox-avatar?userId=${rid}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>e.target.style.display="none"}/>:<span style={{fontSize:18}}>👤</span>}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
+                  <div style={{display:"flex",gap:5,alignItems:"center",marginTop:1}}>
+                    <span style={{fontSize:9,color:accentColor}}>{p.position}</span>
+                    {p.jersey&&<span style={{fontSize:9,color:"#334155"}}>#{p.jersey}</span>}
+                    {p.ovr&&<span style={{padding:"1px 5px",borderRadius:5,background:ovrColor(p.ovr)+"20",fontFamily:"'Orbitron',sans-serif",fontSize:8,fontWeight:700,color:ovrColor(p.ovr)}}>{p.ovr}</span>}
+                  </div>
+                </div>
+                <span style={{color:"#334155"}}>›</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // Edit modal
+  if(editing)return(
+    <div>
+      <button onClick={()=>setEditing(null)} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:11,marginBottom:16,display:"flex",alignItems:"center",gap:5}}>← BACK</button>
+      <Card style={{padding:"18px",maxWidth:480}} hover={false}>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:14,fontWeight:700}}>✏️ EDIT TEAM</div>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          {/* Logo preview + upload */}
+          <div style={{display:"flex",gap:12,alignItems:"center"}}>
+            <div style={{width:64,height:64,borderRadius:12,overflow:"hidden",background:`${accentColor}18`,border:`2px solid ${accentColor}33`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              {editLogo?<img src={editLogo} style={{width:"100%",height:"100%",objectFit:"contain"}}/>:<span style={{fontSize:28}}>🏟</span>}
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:4}}>TEAM LOGO</div>
+              <input type="file" accept="image/*" onChange={handleLogoUpload} style={{fontSize:10,color:"#94A3B8"}}/>
+              {editLogo&&<button onClick={()=>setEditLogo("")} style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer",fontSize:10,display:"block",marginTop:4}}>Remove logo</button>}
+            </div>
+          </div>
+          <div>
+            <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:4}}>TEAM NAME</div>
+            <input value={editName} onChange={e=>setEditName(e.target.value)} placeholder="Team name…"/>
+          </div>
+          <div>
+            <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:4}}>GM / TEAM OWNER NAME</div>
+            <input value={editOwner} onChange={e=>setEditOwner(e.target.value)} placeholder="e.g. Snow"/>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={saveEdit} disabled={saving||!editName.trim()}>{saving?"Saving…":"💾 Save Changes"}</Btn>
+            <button onClick={()=>setEditing(null)} style={{padding:"8px 14px",borderRadius:10,background:"none",border:"1px solid rgba(255,255,255,.1)",color:"#475569",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:10}}>Cancel</button>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+
+  // Team list grid
+  return(
+    <div>
+      {teams.length===0&&<Empty icon="🏟" msg="No teams created yet"/>}
+      <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:12}}>
+        {teams.map((t,i)=>{
+          const tp=teamPlayers(t.name);
+          return(
+            <div key={i} onClick={()=>setSelTeam(t.id)}
+              style={{borderRadius:16,background:"rgba(255,255,255,.03)",border:`1px solid ${accentColor}22`,cursor:"pointer",overflow:"hidden",transition:"all .2s"}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=accentColor+"66";e.currentTarget.style.background=accentColor+"0a";}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor=accentColor+"22";e.currentTarget.style.background="rgba(255,255,255,.03)";}}>
+              {/* Team banner */}
+              <div style={{padding:"16px",display:"flex",gap:14,alignItems:"center"}}>
+                <div style={{width:56,height:56,borderRadius:10,overflow:"hidden",background:`${accentColor}18`,border:`1px solid ${accentColor}44`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  {t.logo?<img src={t.logo} style={{width:"100%",height:"100%",objectFit:"contain"}}/>:<span style={{fontSize:28}}>🏟</span>}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:14,fontWeight:900,color:"#E2E8F0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.name}</div>
+                  {t.owner_name&&<div style={{fontSize:11,color:accentColor,marginTop:2}}>👑 {t.owner_name}</div>}
+                  <div style={{fontSize:10,color:"#475569",marginTop:2}}>{tp.length} players</div>
+                </div>
+                {isAdmin&&<button onClick={(e)=>openEdit(t,e)} style={{padding:"5px 10px",borderRadius:8,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#475569",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,flexShrink:0}}>✏️</button>}
+              </div>
+              {/* Mini roster preview */}
+              {tp.length>0&&(
+                <div style={{borderTop:`1px solid ${accentColor}18`,padding:"10px 16px",display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {tp.slice(0,6).map((p,j)=>(
+                    <div key={j} style={{fontSize:9,color:"#475569",padding:"2px 7px",borderRadius:6,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.06)"}}>
+                      {p.name.split(" ").slice(-1)[0]} <span style={{color:accentColor}}>{p.position}</span>
+                    </div>
+                  ))}
+                  {tp.length>6&&<div style={{fontSize:9,color:"#334155"}}>+{tp.length-6} more</div>}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
 function NFFLPage({cu,users,navigate}){
   const mob=useIsMobile();
-  const isAdmin=cu?.is_owner||cu?.staff_role==="Co-owner";
+  const isAdmin=cu?.is_owner||cu?.staff_role==="Co-owner"||cu?.staff_role==="Ring Rush Admin";
   const[tab,setTab]=useState("feed");
   const[feed,setFeed]=useState([]);
   const[players,setPlayers]=useState([]);
+  const[teams,setTeams]=useState([]);
   const[loading,setLoading]=useState(true);
 
   useEffect(()=>{
     const load=async()=>{
-      const [f,p]=await Promise.all([
+      const [f,p,t]=await Promise.all([
         sb.get("nova_nffl_feed","?order=ts.desc&limit=50"),
         sb.get("nova_nffl_players","?order=name.asc"),
+        sb.get("nova_nffl_teams","?order=name.asc"),
       ]);
-      setFeed(f||[]);setPlayers(p||[]);setLoading(false);
+      setFeed(f||[]);setPlayers(p||[]);setTeams(t||[]);setLoading(false);
     };
     load();
   },[]);
 
-  const TABS=[{id:"feed",label:"📢 Game Feed"},{id:"roster",label:"👥 Roster"},{id:"stats",label:"📊 Stats"},{id:"players",label:"👤 Players"}];
+  const TABS=[{id:"feed",label:"📢 Game Feed"},{id:"teams",label:"🏟 Teams"},{id:"stats",label:"📊 Stats"},{id:"players",label:"👤 Players"}];
 
   return(
     <div style={{maxWidth:1080,margin:"0 auto",padding:mob?"12px 10px 100px":"20px 20px 80px"}}>
@@ -7629,18 +7808,8 @@ function NFFLPage({cu,users,navigate}){
           ))}
         </div>
       )}
-      {!loading&&tab==="roster"&&(
-        <div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(auto-fill,minmax(200px,1fr))",gap:10}}>
-          {players.length===0&&<Empty icon="👥" msg="No players added yet"/>}
-          {players.filter(Boolean).map((p,i)=>(
-            <Card key={i} style={{padding:"14px 16px",textAlign:"center"}}>
-              <div style={{fontSize:32,marginBottom:6}}>{p.position==="QB"?"🎯":p.position==="RB"?"💨":p.position==="WR"?"📡":p.position==="TE"?"🔒":p.position==="K"?"⚽":"🏈"}</div>
-              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0",marginBottom:2}}>{p.name||"—"}</div>
-              <div style={{fontSize:10,color:"#F59E0B"}}>{p.position||""}</div>
-              <div style={{fontSize:10,color:"#475569"}}>{p.team||""}</div>
-            </Card>
-          ))}
-        </div>
+      {!loading&&tab==="teams"&&(
+        <LeagueTeamsTab teams={teams} players={players} accentColor="#F59E0B" league="nffl" cu={cu} onTeamsUpdated={setTeams} isAdmin={isAdmin} navigate={navigate} users={users}/>
       )}
       {!loading&&tab==="stats"&&(
         <div>
@@ -7662,25 +7831,27 @@ function NFFLPage({cu,users,navigate}){
 // ─── NBBL Page (Nova Baseball League) ─────────────────────────────────────────
 function NBBLPage({cu,users,navigate}){
   const mob=useIsMobile();
-  const isAdmin=cu?.is_owner||cu?.staff_role==="Co-owner";
+  const isAdmin=cu?.is_owner||cu?.staff_role==="Co-owner"||cu?.staff_role==="Ring Rush Admin";
   const[tab,setTab]=useState("feed");
   const[feed,setFeed]=useState([]);
   const[players,setPlayers]=useState([]);
   const[loading,setLoading]=useState(true);
   const[statCat,setStatCat]=useState("hitting");
+  const[teams,setTeams]=useState([]);
 
   useEffect(()=>{
     const load=async()=>{
-      const [f,p]=await Promise.all([
+      const [f,p,t]=await Promise.all([
         sb.get("nova_nbbl_feed","?order=ts.desc&limit=50"),
         sb.get("nova_nbbl_players","?order=name.asc"),
+        sb.get("nova_nbbl_teams","?order=name.asc"),
       ]);
-      setFeed(f||[]);setPlayers(p||[]);setLoading(false);
+      setFeed(f||[]);setPlayers(p||[]);setTeams(t||[]);setLoading(false);
     };
     load();
   },[]);
 
-  const TABS=[{id:"feed",label:"📢 Game Feed"},{id:"roster",label:"👥 Roster"},{id:"stats",label:"📊 Stats"},{id:"players",label:"👤 Players"}];
+  const TABS=[{id:"feed",label:"📢 Game Feed"},{id:"teams",label:"🏟 Teams"},{id:"stats",label:"📊 Stats"},{id:"players",label:"👤 Players"}];
 
   // Stat categories with their relevant columns
   const STAT_CATS={
@@ -7714,22 +7885,8 @@ function NBBLPage({cu,users,navigate}){
           ))}
         </div>
       )}
-      {!loading&&tab==="roster"&&(
-        <div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(auto-fill,minmax(200px,1fr))",gap:10}}>
-          {players.length===0&&<Empty icon="👥" msg="No players added yet"/>}
-          {players.filter(Boolean).map((p,i)=>{
-            const posEmoji={P:"⚾",C:"🎯",SP:"🔥",RP:"💨","1B":"🧤","2B":"⚡","3B":"💥","SS":"🌟","LF":"👈","CF":"🎪","RF":"👉","DH":"💪"}[p.position]||"⚾";
-            return(
-              <Card key={i} style={{padding:"14px 16px",textAlign:"center"}}>
-                <div style={{fontSize:32,marginBottom:6}}>{posEmoji}</div>
-                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0",marginBottom:2}}>{p.name||"—"}</div>
-                <div style={{fontSize:10,color:"#22C55E"}}>{p.position||""}</div>
-                <div style={{fontSize:10,color:"#475569"}}>{p.team||""}</div>
-                {p.jersey&&<div style={{fontSize:10,color:"#334155"}}>#{p.jersey}</div>}
-              </Card>
-            );
-          })}
-        </div>
+      {!loading&&tab==="teams"&&(
+        <LeagueTeamsTab teams={teams} players={players} accentColor="#22C55E" league="nbbl" cu={cu} onTeamsUpdated={setTeams} isAdmin={isAdmin} navigate={navigate} users={users}/>
       )}
       {!loading&&tab==="stats"&&(
         <div>
@@ -7877,21 +8034,23 @@ function RingRushPage({cu,users,navigate}){
   const[tab,setTab]=useState("feed");
   const[feed,setFeed]=useState([]);
   const[players,setPlayers]=useState([]);
+  const[teams,setTeams]=useState([]);
   const[loading,setLoading]=useState(true);
   const[statCat,setStatCat]=useState("scoring");
 
   useEffect(()=>{
     const load=async()=>{
-      const[f,p]=await Promise.all([
+      const[f,p,t]=await Promise.all([
         sb.get("nova_ringrush_feed","?order=ts.desc&limit=50"),
         sb.get("nova_ringrush_players","?order=name.asc"),
+        sb.get("nova_ringrush_teams","?order=name.asc"),
       ]);
-      setFeed(f||[]);setPlayers(p||[]);setLoading(false);
+      setFeed(f||[]);setPlayers(p||[]);setTeams(t||[]);setLoading(false);
     };
     load();
   },[]);
 
-  const TABS=[{id:"feed",label:"📢 Game Feed"},{id:"roster",label:"👥 Roster"},{id:"stats",label:"📊 Stats"},{id:"players",label:"👤 Players"}];
+  const TABS=[{id:"feed",label:"📢 Game Feed"},{id:"teams",label:"🏟 Teams"},{id:"stats",label:"📊 Stats"},{id:"players",label:"👤 Players"}];
   const ac="#EC4899";
 
   const STAT_CATS={
@@ -7943,25 +8102,8 @@ function RingRushPage({cu,users,navigate}){
       )}
 
       {/* Roster */}
-      {!loading&&tab==="roster"&&(
-        <div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(auto-fill,minmax(200px,1fr))",gap:10}}>
-          {players.length===0&&<Empty icon="👥" msg="No players added yet"/>}
-          {players.filter(Boolean).map((p,i)=>(
-            <Card key={i} style={{padding:"14px 16px",textAlign:"center"}}>
-              <div style={{fontSize:32,marginBottom:6}}>{posEmoji(p.position)}</div>
-              {p.roblox_id&&(
-                <div style={{width:48,height:48,borderRadius:10,overflow:"hidden",margin:"0 auto 8px",border:`2px solid ${ac}44`}}>
-                  <img src={`/api/roblox-avatar?userId=${p.roblox_id}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>e.target.style.display="none"}/>
-                </div>
-              )}
-              {p.ovr&&<div style={{display:"inline-block",padding:"2px 8px",borderRadius:8,background:ovrColor(p.ovr)+"20",border:`1px solid ${ovrColor(p.ovr)}44`,fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:ovrColor(p.ovr),marginBottom:4}}>{p.ovr}</div>}
-              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0",marginBottom:2}}>{p.name||"—"}</div>
-              <div style={{fontSize:10,color:ac}}>{p.position||""}</div>
-              <div style={{fontSize:10,color:"#475569"}}>{p.team||""}</div>
-              {p.jersey&&<div style={{fontSize:10,color:"#334155"}}>#{p.jersey}</div>}
-            </Card>
-          ))}
-        </div>
+      {!loading&&tab==="teams"&&(
+        <LeagueTeamsTab teams={teams} players={players} accentColor={ac} league="ringrush" cu={cu} onTeamsUpdated={setTeams} isAdmin={isAdmin} navigate={navigate} users={users}/>
       )}
 
       {/* Stats */}
@@ -8268,46 +8410,119 @@ function DashGMOvrTab({cu}){
 function DashLeagueTeams({league,accentColor}){
   const mob=useIsMobile();
   const[teams,setTeams]=useState([]);
+  const[players,setPlayers]=useState([]);
   const[loaded,setLoaded]=useState(false);
   const[showAdd,setShowAdd]=useState(false);
   const[teamName,setTeamName]=useState("");
+  const[teamOwner,setTeamOwner]=useState("");
   const[logoB64,setLogoB64]=useState("");
   const[saving,setSaving]=useState(false);
   const[deleting,setDeleting]=useState(null);
+  const[editing,setEditing]=useState(null);
+  const[editName,setEditName]=useState("");
+  const[editOwner,setEditOwner]=useState("");
+  const[editLogo,setEditLogo]=useState("");
+  const[editSaving,setEditSaving]=useState(false);
 
   useEffect(()=>{
     if(loaded)return;
-    sb.get(`nova_${league}_teams`,"?order=name.asc").then(r=>{setTeams(r||[]);setLoaded(true);});
+    Promise.all([
+      sb.get(`nova_${league}_teams`,"?order=name.asc"),
+      sb.get(`nova_${league}_players`,"?order=name.asc"),
+    ]).then(([t,p])=>{setTeams(t||[]);setPlayers(p||[]);setLoaded(true);});
   },[]);
 
-  const handleLogo=(e)=>{
+  const handleLogo=(e,setter)=>{
     const file=e.target.files?.[0];
     if(!file)return;
-    if(file.size>500000){alert("Logo must be under 500KB");return;}
+    if(file.size>800000){alert("Logo must be under 800KB");return;}
     const reader=new FileReader();
-    reader.onload=(ev)=>setLogoB64(ev.target.result);
+    reader.onload=ev=>setter(ev.target.result);
     reader.readAsDataURL(file);
   };
 
   const addTeam=async()=>{
     if(!teamName.trim())return;
     setSaving(true);
-    const t={id:gid(),name:teamName.trim(),logo:logoB64||"",league,ts:Date.now()};
+    const t={id:gid(),name:teamName.trim(),owner_name:teamOwner.trim(),logo:logoB64||"",league,ts:Date.now()};
     await sb.post(`nova_${league}_teams`,t);
     setTeams(prev=>[...prev,t]);
-    setTeamName("");setLogoB64("");setShowAdd(false);setSaving(false);
+    setTeamName("");setTeamOwner("");setLogoB64("");setShowAdd(false);setSaving(false);
+  };
+
+  const openEdit=(team)=>{
+    setEditing(team);
+    setEditName(team.name||"");
+    setEditOwner(team.owner_name||"");
+    setEditLogo(team.logo||"");
+  };
+
+  const saveEdit=async()=>{
+    if(!editing||!editName.trim())return;
+    setEditSaving(true);
+    const patch={name:editName.trim(),owner_name:editOwner.trim(),logo:editLogo};
+    await sb.patch(`nova_${league}_teams`,`?id=eq.${editing.id}`,patch);
+    setTeams(prev=>prev.map(t=>t.id===editing.id?{...t,...patch}:t));
+    // Update players whose team name changed
+    if(editName.trim()!==editing.name){
+      const affected=players.filter(p=>p.team===editing.name);
+      await Promise.all(affected.map(p=>sb.patch(`nova_${league}_players`,`?id=eq.${p.id}`,{team:editName.trim()})));
+      setPlayers(prev=>prev.map(p=>p.team===editing.name?{...p,team:editName.trim()}:p));
+    }
+    setEditSaving(false);setEditing(null);
   };
 
   const deleteTeam=async(id)=>{
-    if(!confirm("Delete this team?"))return;
+    if(!confirm("Delete this team? Players will become free agents."))return;
     setDeleting(id);
     await sb.del(`nova_${league}_teams`,`?id=eq.${id}`);
     setTeams(prev=>prev.filter(t=>t.id!==id));
     setDeleting(null);
   };
 
+  const teamPlayers=(name)=>players.filter(Boolean).filter(p=>p.team===name);
+
+  // Edit view
+  if(editing)return(
+    <div>
+      <button onClick={()=>setEditing(null)} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:11,marginBottom:16,display:"flex",alignItems:"center",gap:5}}>← BACK</button>
+      <Card style={{padding:"18px",maxWidth:500}} hover={false}>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:14,fontWeight:700}}>✏️ EDIT TEAM</div>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          {/* Logo */}
+          <div style={{display:"flex",gap:14,alignItems:"center"}}>
+            <div style={{width:72,height:72,borderRadius:12,overflow:"hidden",background:`${accentColor}18`,border:`2px solid ${accentColor}33`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              {editLogo?<img src={editLogo} style={{width:"100%",height:"100%",objectFit:"contain"}}/>:<span style={{fontSize:32}}>🏟</span>}
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:5}}>TEAM LOGO (max 800KB)</div>
+              <input type="file" accept="image/*" onChange={e=>handleLogo(e,setEditLogo)} style={{fontSize:11,color:"#94A3B8"}}/>
+              {editLogo&&<button onClick={()=>setEditLogo("")} style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer",fontSize:10,display:"block",marginTop:4}}>Remove logo</button>}
+            </div>
+          </div>
+          {/* Name */}
+          <div>
+            <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:4}}>TEAM NAME</div>
+            <input value={editName} onChange={e=>setEditName(e.target.value)} placeholder="Team name…"/>
+            {editName!==editing.name&&<div style={{fontSize:9,color:"#F59E0B",marginTop:3}}>⚠️ Renaming will update all players on this team</div>}
+          </div>
+          {/* Owner */}
+          <div>
+            <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:4}}>GM / TEAM OWNER NAME</div>
+            <input value={editOwner} onChange={e=>setEditOwner(e.target.value)} placeholder="Owner's name…"/>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={saveEdit} disabled={editSaving||!editName.trim()}>{editSaving?"Saving…":"💾 Save Changes"}</Btn>
+            <button onClick={()=>setEditing(null)} style={{padding:"8px 14px",borderRadius:10,background:"none",border:"1px solid rgba(255,255,255,.1)",color:"#475569",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:10}}>Cancel</button>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+
   return(
     <div>
+      {/* Header */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
         <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,color:"#94A3B8",fontWeight:700}}>🏟 TEAMS ({teams.length})</div>
         <button onClick={()=>setShowAdd(o=>!o)}
@@ -8319,26 +8534,22 @@ function DashLeagueTeams({league,accentColor}){
         </button>
       </div>
 
+      {/* Create form */}
       {showAdd&&(
-        <Card style={{padding:"16px",marginBottom:14}} hover={false}>
+        <Card style={{padding:"16px",marginBottom:16}} hover={false}>
           <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:12,fontWeight:700}}>CREATE TEAM</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-            <div style={{gridColumn:"1/-1"}}>
-              <Lbl>Team Name</Lbl>
-              <input value={teamName} onChange={e=>setTeamName(e.target.value)} placeholder="e.g. Nova Knights…"/>
-            </div>
-            <div style={{gridColumn:"1/-1"}}>
-              <Lbl>Team Logo (upload image, max 500KB)</Lbl>
-              <input type="file" accept="image/*" onChange={handleLogo}
-                style={{color:"#94A3B8",fontSize:11,padding:"4px 0"}}/>
-            </div>
-            {logoB64&&(
-              <div style={{gridColumn:"1/-1",display:"flex",alignItems:"center",gap:10}}>
-                <img src={logoB64} style={{width:48,height:48,objectFit:"contain",borderRadius:8,border:`1px solid ${accentColor}44`}}/>
-                <div style={{fontSize:10,color:"#22C55E",fontFamily:"'Orbitron',sans-serif"}}>✓ Logo ready</div>
-                <button onClick={()=>setLogoB64("")} style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer",fontSize:11}}>Remove</button>
+          <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:12}}>
+            <div style={{display:"flex",gap:12,alignItems:"center"}}>
+              <div style={{width:60,height:60,borderRadius:10,overflow:"hidden",background:`${accentColor}18`,border:`1px solid ${accentColor}33`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                {logoB64?<img src={logoB64} style={{width:"100%",height:"100%",objectFit:"contain"}}/>:<span style={{fontSize:26}}>🏟</span>}
               </div>
-            )}
+              <div style={{flex:1}}>
+                <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:4}}>LOGO (max 800KB)</div>
+                <input type="file" accept="image/*" onChange={e=>handleLogo(e,setLogoB64)} style={{fontSize:11,color:"#94A3B8"}}/>
+              </div>
+            </div>
+            <div><Lbl>Team Name</Lbl><input value={teamName} onChange={e=>setTeamName(e.target.value)} placeholder="e.g. Nova Knights…"/></div>
+            <div><Lbl>GM / Team Owner Name</Lbl><input value={teamOwner} onChange={e=>setTeamOwner(e.target.value)} placeholder="Owner name…"/></div>
           </div>
           <Btn onClick={addTeam} disabled={saving||!teamName.trim()}>{saving?"Creating…":"✅ Create Team"}</Btn>
         </Card>
@@ -8346,28 +8557,43 @@ function DashLeagueTeams({league,accentColor}){
 
       {!teams.length&&!showAdd&&<Empty icon="🏟" msg="No teams yet — create one above"/>}
 
-      <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:8}}>
-        {teams.map((t,i)=>(
-          <Card key={i} style={{padding:"12px 14px"}} hover={false}>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <div style={{width:44,height:44,borderRadius:8,background:`${accentColor}18`,border:`1px solid ${accentColor}33`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>
-                {t.logo
-                  ?<img src={t.logo} style={{width:"100%",height:"100%",objectFit:"contain"}}/>
-                  :<span style={{fontSize:20}}>🏟</span>}
+      <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:10}}>
+        {teams.map((t,i)=>{
+          const tp=teamPlayers(t.name);
+          return(
+            <Card key={i} style={{padding:0,overflow:"hidden"}} hover={false}>
+              <div style={{padding:"14px 16px",display:"flex",gap:12,alignItems:"center"}}>
+                <div style={{width:52,height:52,borderRadius:10,overflow:"hidden",background:`${accentColor}18`,border:`1px solid ${accentColor}33`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  {t.logo?<img src={t.logo} style={{width:"100%",height:"100%",objectFit:"contain"}}/>:<span style={{fontSize:24}}>🏟</span>}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,fontWeight:700,color:"#E2E8F0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.name}</div>
+                  {t.owner_name&&<div style={{fontSize:10,color:accentColor,marginTop:1}}>👑 {t.owner_name}</div>}
+                  <div style={{fontSize:9,color:"#475569",marginTop:1}}>{tp.length} players</div>
+                </div>
+                <div style={{display:"flex",gap:5,flexShrink:0}}>
+                  <button onClick={()=>openEdit(t)}
+                    style={{padding:"5px 10px",borderRadius:8,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#94A3B8",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:700}}>✏️ Edit</button>
+                  <button onClick={()=>deleteTeam(t.id)} disabled={deleting===t.id}
+                    style={{padding:"5px 8px",borderRadius:8,background:"rgba(239,68,68,.08)",border:"1px solid rgba(239,68,68,.2)",color:"#EF4444",cursor:"pointer",fontSize:12,opacity:deleting===t.id?.5:1}}>🗑</button>
+                </div>
               </div>
-              <div style={{flex:1}}>
-                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{t.name}</div>
-              </div>
-              <button onClick={()=>deleteTeam(t.id)} disabled={deleting===t.id}
-                style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer",fontSize:14,opacity:deleting===t.id?.5:1}}>🗑</button>
-            </div>
-          </Card>
-        ))}
+              {tp.length>0&&(
+                <div style={{borderTop:`1px solid ${accentColor}14`,padding:"8px 16px",display:"flex",gap:5,flexWrap:"wrap"}}>
+                  {tp.slice(0,5).map((p,j)=>(
+                    <span key={j} style={{fontSize:9,color:"#475569",padding:"2px 7px",borderRadius:5,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.05)"}}>
+                      {p.name.split(" ").slice(-1)[0]} <span style={{color:accentColor}}>{p.position}</span>
+                    </span>
+                  ))}
+                  {tp.length>5&&<span style={{fontSize:9,color:"#334155"}}>+{tp.length-5}</span>}
+                </div>
+              )}
+            </Card>
+          );
+        })}
       </div>
     </div>
-  );
-}
-
+  )
 
 function DashLeagueFeed({league,accentColor,cu}){
   const[feed,setFeed]=useState([]);
