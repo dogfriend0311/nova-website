@@ -1402,21 +1402,45 @@ function GameDetailPage({gameId,sport,navigate}){
 // Uses Claude AI for trade evaluation, simulation, and draft grading
 
 // ─── GM Mode v2 — Step-by-Step Offseason Planner ────────────────────────────
+// Gemini free tier: 15 req/min, 1500/day — queue calls to avoid 429
+const _aiQueue={queue:[],running:0,maxConcurrent:1};
+function _aiEnqueue(fn){return new Promise((res,rej)=>{_aiQueue.queue.push({fn,res,rej});_aiDrain();});}
+async function _aiDrain(){
+  if(_aiQueue.running>=_aiQueue.maxConcurrent||!_aiQueue.queue.length)return;
+  _aiQueue.running++;
+  const{fn,res,rej}=_aiQueue.queue.shift();
+  try{res(await fn());}catch(e){rej(e);}finally{_aiQueue.running--;setTimeout(_aiDrain,800);} // 800ms gap between calls
+}
 async function aiCall(prompt,sys="You are an expert sports analyst. Return only valid JSON.",maxTok=2000){
-  try{
-    const r=await fetch("/api/hyperbeam?gm_ai=1",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({prompt,system:sys,max_tokens:maxTok}),
-    });
-    if(!r.ok)throw new Error(`Proxy ${r.status}`);
-    const d=await r.json();
-    if(d.error){console.warn("aiCall:",d.error);return{error:d.error};}
-    let t=d.text||"{}";
-    t=t.replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/\s*```\s*$/,"").trim();
-    if(!t.startsWith("[")&&!t.startsWith("{")){const m=t.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);if(m)t=m[1];}
-    return JSON.parse(t);
-  }catch(e){console.error("aiCall failed:",e.message);return{error:String(e)};}
+  return _aiEnqueue(async()=>{
+    for(let attempt=0;attempt<4;attempt++){
+      try{
+        const r=await fetch("/api/hyperbeam?gm_ai=1",{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({prompt,system:sys,max_tokens:maxTok}),
+        });
+        if(!r.ok)throw new Error(`Proxy ${r.status}`);
+        const d=await r.json();
+        if(d.error&&d.error.includes("429")){
+          // Rate limited — wait and retry
+          const wait=[5000,15000,30000][attempt]||30000;
+          console.warn(`Gemini 429 — retrying in ${wait/1000}s (attempt ${attempt+1})`);
+          await new Promise(r=>setTimeout(r,wait));
+          continue;
+        }
+        if(d.error){console.warn("aiCall:",d.error);return{error:d.error};}
+        let t=d.text||"{}";
+        t=t.replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/\s*```\s*$/,"").trim();
+        if(!t.startsWith("[")&&!t.startsWith("{")){const m=t.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);if(m)t=m[1];}
+        return JSON.parse(t);
+      }catch(e){
+        if(attempt<3){await new Promise(r=>setTimeout(r,3000*(attempt+1)));continue;}
+        console.error("aiCall failed:",e.message);return{error:String(e)};
+      }
+    }
+    return{error:"Max retries exceeded"};
+  });
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
