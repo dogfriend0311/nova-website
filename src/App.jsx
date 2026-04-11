@@ -83,7 +83,7 @@ const extractMedal   = u => { const m=u.match(/clips\/(\d+)/); return m?m[1]:nul
 const fmtTime = ts => { const d=Math.floor((Date.now()-ts)/1000); if(d<60)return"just now"; if(d<3600)return`${Math.floor(d/60)}m ago`; if(d<86400)return`${Math.floor(d/3600)}h ago`; return new Date(ts).toLocaleDateString("en-US",{month:"short",day:"numeric"}); };
 const fmtAgo  = fmtTime;
 const fmtMsg  = ts => new Date(ts).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
-const ROLE_COLOR  = { Owner:"#F59E0B", "Co-owner":"#FB923C", "Ring Rush Admin":"#EC4899", Moderator:"#00D4FF", "Event Host":"#A78BFA", Helper:"#34D399" };
+const ROLE_COLOR  = { Owner:"#F59E0B", "Co-owner":"#FB923C", "Basketball League Admin":"#EC4899", Moderator:"#00D4FF", "Event Host":"#A78BFA", Helper:"#34D399" };
 const STATUS_META = { online:{color:"#22C55E",label:"Online"}, idle:{color:"#EAB308",label:"Idle"}, dnd:{color:"#EF4444",label:"Do Not Disturb"}, offline:{color:"#6B7280",label:"Offline"} };
 const SOCIAL_ICONS = {
   roblox:    <svg width="16" height="16" viewBox="0 0 512 512" fill="currentColor"><path d="M117.53 0L0 394.47 394.47 512 512 117.53zm177.39 289.73l-94.66-28.46 28.46-94.66 94.66 28.46z"/></svg>,
@@ -3745,9 +3745,9 @@ function HomePage({discordUrl,staffUsers,nav,users}){
     {p:"trivia",icon:"🧠",label:"Trivia",color:"#A855F7",desc:"Challenge yourself with sports trivia across 4 sports and 3 difficulty levels. MVP years, stat records, championships and more."},
     {p:"leaderboard",icon:"🏆",label:"Leaderboard",color:"#F97316",desc:"See who's on top — ranked by followers, trivia score, predictions accuracy, and most liked comments."},
     {p:"hub",icon:"📊",label:"Hub",color:"#00D4FF",desc:"News, live scores, player stats, game logs, standings and predictions all in one place — across MLB, NBA, NHL, and NFL."},
-    {p:"nffl",icon:"🏈",label:"NFFL",color:"#F59E0B",desc:"Nova Football Fusion League — player stats, game feed, transactions and rosters for our community football league."},
-    {p:"nbbl",icon:"⚾",label:"NBBL",color:"#22C55E",desc:"Nova Baseball League — hitting stats, pitching stats, fielding stats and game feed for our community baseball league."},
-    {p:"ringrush",icon:"🏀",label:"Ring Rush",color:"#EC4899",desc:"Ring Rush — the Basketball Legends League. Stats, rosters, game feed and player profiles for our community hoops league."},
+    {p:"nffl",icon:"🏈",label:"Football League",color:"#F59E0B",desc:"Football League — player stats, game feed, transactions and rosters for our community football league."},
+    {p:"nbbl",icon:"⚾",label:"Baseball League",color:"#22C55E",desc:"Baseball League — hitting stats, pitching stats, fielding stats and game feed for our community baseball league."},
+    {p:"ringrush",icon:"🏀",label:"Basketball League",color:"#EC4899",desc:"Ring Rush — the Basketball League. Stats, rosters, game feed and player profiles for our community hoops league."},
     {p:"messages",icon:"💬",label:"Messages",color:"#38BDF8",desc:"Slide into DMs, create group chats, share clips and GIFs, and hop on voice calls with other Nova members."},
   ];
 
@@ -5734,7 +5734,7 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
                 </button>
                 {leaguesOpen&&(
                   <div style={{position:"absolute",top:"calc(100% + 8px)",left:0,background:"linear-gradient(160deg,#0c1220,#10172a)",border:"1px solid rgba(239,68,68,.25)",borderRadius:12,padding:6,minWidth:170,zIndex:200,boxShadow:"0 16px 40px rgba(0,0,0,.7)"}}>
-                    {[["nffl","🏈","#F59E0B","NFFL","Nova Football Fusion League"],["nbbl","⚾","#22C55E","NBBL","Nova Baseball League"],["ringrush","🏀","#EC4899","Ring Rush","Basketball Legends League"]].map(([p,icon,col,label,sub])=>(
+                    {[["nffl","🏈","#F59E0B","Football League","Football League"],["nbbl","⚾","#22C55E","Baseball League","Baseball League"],["ringrush","🏀","#EC4899","Basketball League","Basketball League"]].map(([p,icon,col,label,sub])=>(
                       <button key={p} onClick={()=>{nav(p);setLeaguesOpen(false);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"9px 12px",borderRadius:8,background:page===p?col+"18":"none",border:"none",cursor:"pointer",textAlign:"left",transition:"background .15s"}}>
                         <span style={{fontSize:18,flexShrink:0}}>{icon}</span>
                         <div>
@@ -5765,7 +5765,7 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
                   </div>
                 )}
               </div>
-              {(cu?.is_owner||cu?.staff_role==="Co-owner"||cu?.staff_role==="Ring Rush Admin")&&<button onClick={()=>nav("dashboard")} style={{background:page==="dashboard"?"rgba(245,158,11,.09)":"none",border:page==="dashboard"?"1px solid rgba(245,158,11,.2)":"1px solid transparent",cursor:"pointer",padding:"4px 11px",borderRadius:8,fontFamily:"'Rajdhani',sans-serif",fontSize:13,fontWeight:600,color:page==="dashboard"?"#F59E0B":"#94A3B8"}}>⚡ Dashboard</button>}
+              {(cu?.is_owner||cu?.staff_role==="Co-owner"||cu?.staff_role==="Basketball League Admin")&&<button onClick={()=>nav("dashboard")} style={{background:page==="dashboard"?"rgba(245,158,11,.09)":"none",border:page==="dashboard"?"1px solid rgba(245,158,11,.2)":"1px solid transparent",cursor:"pointer",padding:"4px 11px",borderRadius:8,fontFamily:"'Rajdhani',sans-serif",fontSize:13,fontWeight:600,color:page==="dashboard"?"#F59E0B":"#94A3B8"}}>⚡ Dashboard</button>}
             </div>
           )}
         </div>
@@ -5787,7 +5787,7 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
                 {!mob&&<span style={{maxWidth:90,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cu.display_name}</span>}
               </button>
               {!mob&&<Btn variant="muted" size="sm" onClick={onLogout}>Out</Btn>}
-              {mob&&(cu?.is_owner||cu?.staff_role==="Co-owner"||cu?.staff_role==="Ring Rush Admin")&&<button onClick={()=>nav("dashboard")} style={{background:"none",border:"1px solid rgba(245,158,11,.3)",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:11,color:"#F59E0B",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>⚡</button>}
+              {mob&&(cu?.is_owner||cu?.staff_role==="Co-owner"||cu?.staff_role==="Basketball League Admin")&&<button onClick={()=>nav("dashboard")} style={{background:"none",border:"1px solid rgba(245,158,11,.3)",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:11,color:"#F59E0B",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>⚡</button>}
             </>
           ) : (
             <>
@@ -5842,7 +5842,7 @@ function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,onReadNotifs,onC
         <div style={{position:"fixed",inset:0,zIndex:300,background:"rgba(0,0,0,.7)"}} onClick={()=>setLeaguesOpen(false)}>
           <div style={{position:"absolute",bottom:70,left:0,right:0,background:"linear-gradient(160deg,#0c1220,#10172a)",borderTop:"1px solid rgba(239,68,68,.25)",borderRadius:"20px 20px 0 0",padding:"20px 16px"}} onClick={e=>e.stopPropagation()}>
             <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#475569",letterSpacing:".12em",marginBottom:14}}>🏆 LEAGUES</div>
-            {[["nffl","🏈","#F59E0B","NFFL","Nova Football Fusion League"],["nbbl","⚾","#22C55E","NBBL","Nova Baseball League"],["ringrush","🏀","#EC4899","Ring Rush","Basketball Legends League"]].map(([p,icon,col,label,sub])=>(
+            {[["nffl","🏈","#F59E0B","Football League","Football League"],["nbbl","⚾","#22C55E","Baseball League","Baseball League"],["ringrush","🏀","#EC4899","Basketball League","Basketball League"]].map(([p,icon,col,label,sub])=>(
               <button key={p} onClick={()=>{nav(p);setLeaguesOpen(false);}} style={{display:"flex",alignItems:"center",gap:12,width:"100%",padding:"12px 14px",borderRadius:12,background:page===p?col+"18":"rgba(255,255,255,.03)",border:"1px solid "+(page===p?col+"44":"rgba(255,255,255,.06)"),marginBottom:8,cursor:"pointer",textAlign:"left"}}>
                 <span style={{fontSize:22}}>{icon}</span>
                 <div>
@@ -7899,7 +7899,7 @@ function HubPage({cu,users,setUsers,navigate}){
 }
 
 
-// ─── NFFL Page (Nova Football Fusion League) ─────────────────────────────────
+// ─── NFFL Page (Football League) ─────────────────────────────────
 
 // ─── LeagueTeamsTab — public Teams page + dashboard team editing ───────────────
 function LeagueTeamsTab({teams,players,accentColor,league,cu,onTeamsUpdated,isAdmin,navigate,users}){
@@ -8079,7 +8079,7 @@ function LeagueTeamsTab({teams,players,accentColor,league,cu,onTeamsUpdated,isAd
 
 function NFFLPage({cu,users,navigate}){
   const mob=useIsMobile();
-  const isAdmin=cu?.is_owner||cu?.staff_role==="Co-owner"||cu?.staff_role==="Ring Rush Admin";
+  const isAdmin=cu?.is_owner||cu?.staff_role==="Co-owner"||cu?.staff_role==="Basketball League Admin";
   const[tab,setTab]=useState("feed");
   const[feed,setFeed]=useState([]);
   const[players,setPlayers]=useState([]);
@@ -8105,14 +8105,14 @@ function NFFLPage({cu,users,navigate}){
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
         <span style={{fontSize:28}}>🏈</span>
         <div>
-          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?16:22,fontWeight:900,color:"#F59E0B",letterSpacing:".06em"}}>NFFL</div>
-          <div style={{fontSize:11,color:"#475569"}}>Nova Football Fusion League</div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?16:22,fontWeight:900,color:"#F59E0B",letterSpacing:".06em"}}>Football League</div>
+          <div style={{fontSize:11,color:"#475569"}}>Football League</div>
         </div>
       </div>
       <div style={{display:"flex",gap:5,marginBottom:18,borderBottom:"1px solid rgba(255,255,255,.07)",paddingBottom:10}}>
         {TABS.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{padding:"7px 14px",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,border:"none",background:"none",borderBottom:`2px solid ${tab===t.id?"#F59E0B":"transparent"}`,color:tab===t.id?"#F59E0B":"#475569",transition:"all .18s"}}>{t.label}</button>)}
       </div>
-      {loading&&<div style={{textAlign:"center",padding:60,color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>Loading NFFL data...</div>}
+      {loading&&<div style={{textAlign:"center",padding:60,color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>Loading Football League data...</div>}
       {!loading&&tab==="feed"&&(
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           {feed.length===0&&<Empty icon="🏈" msg="No game feed posts yet — check back soon!"/>}
@@ -8145,10 +8145,10 @@ function NFFLPage({cu,users,navigate}){
   );
 }
 
-// ─── NBBL Page (Nova Baseball League) ─────────────────────────────────────────
+// ─── NBBL Page (Baseball League) ─────────────────────────────────────────
 function NBBLPage({cu,users,navigate}){
   const mob=useIsMobile();
-  const isAdmin=cu?.is_owner||cu?.staff_role==="Co-owner"||cu?.staff_role==="Ring Rush Admin";
+  const isAdmin=cu?.is_owner||cu?.staff_role==="Co-owner"||cu?.staff_role==="Basketball League Admin";
   const[tab,setTab]=useState("feed");
   const[feed,setFeed]=useState([]);
   const[players,setPlayers]=useState([]);
@@ -8182,14 +8182,14 @@ function NBBLPage({cu,users,navigate}){
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
         <span style={{fontSize:28}}>⚾</span>
         <div>
-          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?16:22,fontWeight:900,color:"#22C55E",letterSpacing:".06em"}}>NBBL</div>
-          <div style={{fontSize:11,color:"#475569"}}>Nova Baseball League</div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?16:22,fontWeight:900,color:"#22C55E",letterSpacing:".06em"}}>Baseball League</div>
+          <div style={{fontSize:11,color:"#475569"}}>Baseball League</div>
         </div>
       </div>
       <div style={{display:"flex",gap:5,marginBottom:18,borderBottom:"1px solid rgba(255,255,255,.07)",paddingBottom:10}}>
         {TABS.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{padding:"7px 14px",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,border:"none",background:"none",borderBottom:`2px solid ${tab===t.id?"#22C55E":"transparent"}`,color:tab===t.id?"#22C55E":"#475569",transition:"all .18s"}}>{t.label}</button>)}
       </div>
-      {loading&&<div style={{textAlign:"center",padding:60,color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>Loading NBBL data...</div>}
+      {loading&&<div style={{textAlign:"center",padding:60,color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>Loading Baseball League data...</div>}
       {!loading&&tab==="feed"&&(
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           {feed.length===0&&<Empty icon="⚾" msg="No game feed posts yet — check back soon!"/>}
@@ -8344,10 +8344,10 @@ function AddLeaguePlayer({league,onAdd,cu,sport="",leagueTeams=[]}){
 
 // ─── Dashboard ─────────────────────────────────────────────────────────────────
 
-// ─── Ring Rush Page (Basketball Legends League) ───────────────────────────────
+// ─── Ring Rush Page (Basketball League) ───────────────────────────────
 function RingRushPage({cu,users,navigate}){
   const mob=useIsMobile();
-  const isAdmin=cu?.is_owner||cu?.staff_role==="Co-owner"||cu?.staff_role==="Ring Rush Admin";
+  const isAdmin=cu?.is_owner||cu?.staff_role==="Co-owner"||cu?.staff_role==="Basketball League Admin";
   const[tab,setTab]=useState("feed");
   const[feed,setFeed]=useState([]);
   const[players,setPlayers]=useState([]);
@@ -8386,7 +8386,7 @@ function RingRushPage({cu,users,navigate}){
         <span style={{fontSize:32}}>🏀</span>
         <div>
           <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?16:22,fontWeight:900,color:ac,letterSpacing:".06em"}}>RING RUSH</div>
-          <div style={{fontSize:11,color:"#475569"}}>Basketball Legends League</div>
+          <div style={{fontSize:11,color:"#475569"}}>Basketball League</div>
         </div>
       </div>
 
@@ -8402,7 +8402,7 @@ function RingRushPage({cu,users,navigate}){
         ))}
       </div>
 
-      {loading&&<div style={{textAlign:"center",padding:60,color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>Loading Ring Rush data...</div>}
+      {loading&&<div style={{textAlign:"center",padding:60,color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>Loading Basketball League data...</div>}
 
       {/* Game Feed */}
       {!loading&&tab==="feed"&&(
@@ -9724,7 +9724,7 @@ function DashboardPage({cu,users,setUsers,navigate}){
   const[starBalances,setStarBalances]=useState({});
   const[starLoading,setStarLoading]=useState(false);
   const isCoOwner=cu?.staff_role==="Co-owner";
-  const isRRAdmin=cu?.staff_role==="Ring Rush Admin";
+  const isRRAdmin=cu?.staff_role==="Basketball League Admin";
   if(!cu?.is_owner&&!isCoOwner&&!isRRAdmin)return<div style={{padding:"100px 20px",textAlign:"center",color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>⛔ Access Denied</div>;
 
   const loadStarBalance=async(uid)=>{
@@ -9823,21 +9823,21 @@ function DashboardPage({cu,users,setUsers,navigate}){
         </div>}
         {/* NFFL tabs */}
         {!isRRAdmin&&<div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
-          <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginRight:4,flexShrink:0}}>🏈 NFFL</div>
+          <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginRight:4,flexShrink:0}}>🏈 Football League</div>
           {[["nffl_feed","📢 Game Feed"],["nffl_roster","👥 Roster"],["nffl_stats","📊 Stats"],["nffl_transactions","📋 Transactions"],["nffl_members","👤 Member Pages"],["nffl_teams","🏟 Teams"]].map(([t,l])=>(
             <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 14px",borderRadius:18,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"rgba(245,158,11,.5)":"rgba(255,255,255,.08)"}`,background:tab===t?"rgba(245,158,11,.12)":"rgba(255,255,255,.03)",color:tab===t?"#F59E0B":"#64748B",transition:"all .2s"}}>{l}</button>
           ))}
         </div>}
         {/* NBBL tabs */}
         {!isRRAdmin&&<div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
-          <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginRight:4,flexShrink:0}}>⚾ NBBL</div>
+          <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginRight:4,flexShrink:0}}>⚾ Baseball League</div>
           {[["nbbl_feed","📢 Game Feed"],["nbbl_roster","👥 Roster"],["nbbl_stats","📊 Stats"],["nbbl_transactions","📋 Transactions"],["nbbl_members","👤 Member Pages"],["nbbl_teams","🏟 Teams"]].map(([t,l])=>(
             <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 14px",borderRadius:18,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"rgba(34,197,94,.5)":"rgba(255,255,255,.08)"}`,background:tab===t?"rgba(34,197,94,.12)":"rgba(255,255,255,.03)",color:tab===t?"#22C55E":"#64748B",transition:"all .2s"}}>{l}</button>
           ))}
         </div>}
         {/* Ring Rush tabs */}
         <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
-          <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginRight:4,flexShrink:0}}>🏀 Ring Rush</div>
+          <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginRight:4,flexShrink:0}}>🏀 Basketball League</div>
           {[["rr_feed","📢 Game Feed"],["rr_roster","👥 Roster"],["rr_stats","📊 Stats"],["rr_transactions","📋 Transactions"],["rr_members","👤 Member Pages"],["rr_teams","🏟 Teams"]].map(([t,l])=>(
             <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 14px",borderRadius:18,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"rgba(236,72,153,.5)":"rgba(255,255,255,.08)"}`,background:tab===t?"rgba(236,72,153,.12)":"rgba(255,255,255,.03)",color:tab===t?"#EC4899":"#64748B",transition:"all .2s"}}>{l}</button>
           ))}
@@ -10044,9 +10044,9 @@ function DashboardPage({cu,users,setUsers,navigate}){
       )}
       {/* NFFL flat tabs */}
       {tab==="gm_ovr"&&<DashGMOvrTab cu={cu}/>}
-      {tab==="ratings"&&<DashRatingsTab league="nffl" accentColor="#F59E0B" label="NFFL"/>}
-      {tab==="ratings"&&<DashRatingsTab league="nbbl" accentColor="#22C55E" label="NBBL"/>}
-      {tab==="ratings"&&<DashRatingsTab league="ringrush" accentColor="#EC4899" label="Ring Rush"/>}
+      {tab==="ratings"&&<DashRatingsTab league="nffl" accentColor="#F59E0B" label="Football League"/>}
+      {tab==="ratings"&&<DashRatingsTab league="nbbl" accentColor="#22C55E" label="Baseball League"/>}
+      {tab==="ratings"&&<DashRatingsTab league="ringrush" accentColor="#EC4899" label="Basketball League"/>}
       {!isRRAdmin&&tab==="nffl_feed"&&<DashLeagueFeed league="nffl" accentColor="#F59E0B" cu={cu}/>}
       {!isRRAdmin&&tab==="nffl_roster"&&<DashLeagueRoster league="nffl" accentColor="#F59E0B" cu={cu}/>}
       {tab==="nffl_stats"&&<DashLeagueStats league="nffl" accentColor="#F59E0B" isBaseball={false}/>}
@@ -10428,7 +10428,1533 @@ function RegisterModal({onRegister,onClose}){
   );
 }
 
-// ─── App ───────────────────────────────────────────────────────────────────────
+// ─── MatchupPage.jsx ──────────────────────────────────────────────────────────
+// Batter vs. Pitcher simulation using pre-computed Statcast tendencies.
+// Add this component to App.jsx and render it on page "matchup".
+//
+// Wiring (in App.jsx):
+//   import MatchupPage from './MatchupPage';   // if split out
+//   OR paste this entire file directly into App.jsx before the closing `}`
+//
+// In App content() function, add:
+//   if(page==="matchup") return <MatchupPage />;
+//
+// In the nav/sidebar, add a link:
+//   <button onClick={()=>nav("matchup")}>⚔️ Matchup Sim</button>
+          <button onClick={()=>nav("animecards")}>🌸 Anime Cards</button>
+
+// ─── Simulation engine (pure JS, no dependencies) ─────────────────────────────
+
+
+// ─── Batter vs Pitcher Matchup Simulator v2 ───────────────────────────────────
+// Uses MLB Stats API (2025 + 2026 season) via /api/hyperbeam proxy
+// No CSV needed — fetches real stats on demand, caches per player
+
+const SIM_CACHE = {};
+const PLAYER_STAT_CACHE = {};
+
+const PITCH_LABELS = {
+  "FF":"4-Seam FB","FA":"Fastball","FT":"2-Seam FB","SI":"Sinker","FC":"Cutter",
+  "SL":"Slider","CU":"Curveball","KC":"Knuckle Curve","CH":"Changeup",
+  "FS":"Splitter","KN":"Knuckleball","UN":"Unknown","SW":"Sweeper","ST":"Sweeper",
+};
+const OUTCOME_LABELS = {
+  "1B":"Single","2B":"Double","3B":"Triple","HR":"Home Run","BB":"Walk",
+  "HBP":"Hit By Pitch","K":"Strikeout","OUT":"Out","GIDP":"Double Play",
+};
+const DEFAULT_OUTCOMES = {
+  "1B":0.150,"2B":0.045,"3B":0.005,"HR":0.030,"BB":0.085,
+  "K":0.220,"OUT":0.420,"HBP":0.010,"GIDP":0.025,"SF":0.007,
+};
+const OUTCOME_COLORS = {
+  "HR":"#A855F7","3B":"#EC4899","2B":"#F59E0B","1B":"#22C55E",
+  "BB":"#3B82F6","HBP":"#06B6D4","K":"#EF4444","OUT":"#475569","GIDP":"#374151",
+};
+
+function wRandom(weights){
+  const keys=Object.keys(weights);
+  const vals=keys.map(k=>weights[k]);
+  const total=vals.reduce((a,b)=>a+b,0);
+  if(total===0)return keys[Math.floor(Math.random()*keys.length)];
+  let r=Math.random()*total;
+  for(let i=0;i<keys.length;i++){r-=vals[i];if(r<=0)return keys[i];}
+  return keys[keys.length-1];
+}
+
+function buildProfileFromStats(s,type){
+  const avg=parseFloat(s.avg||s.battingAverage||0.250);
+  const obp=parseFloat(s.obp||s.onBasePercentage||0.320);
+  const slg=parseFloat(s.slg||s.sluggingPercentage||0.420);
+  const kpct=s.strikeOuts&&s.plateAppearances?parseInt(s.strikeOuts)/parseInt(s.plateAppearances):0.22;
+  const bbpct=s.baseOnBalls&&s.plateAppearances?parseInt(s.baseOnBalls)/parseInt(s.plateAppearances):0.085;
+  const hr=s.homeRuns&&s.plateAppearances?parseInt(s.homeRuns)/parseInt(s.plateAppearances):0.030;
+  const hits=s.hits&&s.atBats?parseInt(s.hits)/parseInt(s.atBats):avg;
+  const doubles=s.doubles&&s.atBats?parseInt(s.doubles)/parseInt(s.atBats):hits*0.20;
+  const triples=s.triples&&s.atBats?parseInt(s.triples)/parseInt(s.atBats):hits*0.03;
+  const singles=Math.max(0,hits-doubles-triples-hr);
+  const out=Math.max(0,1-kpct-bbpct-singles-doubles-triples-hr-0.01);
+  const pMix={"FF":0.35,"SL":0.22,"CH":0.18,"FC":0.12,"CU":0.08,"SI":0.05};
+  return{
+    overall:{avg,obp,slg,k_pct:kpct,bb_pct:bbpct,hard_hit:slg>0.45?0.48:0.38},
+    pitch_mix:pMix,
+    vs_pitch:Object.fromEntries(Object.keys(pMix).map(pt=>{
+      const fb=pt==="FF"||pt==="SI"||pt==="FC";
+      const bk=pt==="SL"||pt==="CU";
+      const bonus=(fb?(slg>0.50?0.06:-0.03):0)+(bk?(kpct<0.18?-0.04:0.05):0);
+      const aAvg=Math.max(0.100,Math.min(0.400,avg+bonus));
+      const aSlg=Math.max(0.150,Math.min(0.750,slg+bonus*1.8));
+      const aK=Math.max(0.05,Math.min(0.55,kpct+(bk?0.06:-0.03)));
+      const aBB=Math.max(0.02,bbpct);
+      const h=aAvg;const d2=aSlg*0.20;const d3=aSlg*0.02;const ehr=aSlg*0.08;
+      const s1=Math.max(0,h-d2-d3-ehr);const ot=Math.max(0,1-aK-aBB-s1-d2-d3-ehr-0.01);
+      return[pt,{pct:pMix[pt],sample:200,avg:+aAvg.toFixed(3),obp:+(aAvg+aBB+0.01).toFixed(3),
+        slg:+aSlg.toFixed(3),k_pct:+aK.toFixed(3),bb_pct:+aBB.toFixed(3),hard_hit:slg>0.45?0.48:0.35,
+        outcomes:{"1B":+s1.toFixed(4),"2B":+d2.toFixed(4),"3B":+d3.toFixed(4),"HR":+ehr.toFixed(4),
+          "BB":+aBB.toFixed(4),"K":+aK.toFixed(4),"OUT":+Math.max(0,ot).toFixed(4),"HBP":0.01,"GIDP":0.015}}];
+    })),
+  };
+}
+
+async function fetchPlayerStats(playerId,season){
+  const key=`${playerId}_${season}`;
+  if(PLAYER_STAT_CACHE[key])return PLAYER_STAT_CACHE[key];
+  try{
+    const url=encodeURIComponent(`https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=season&group=hitting,pitching&season=${season}&sportId=1`);
+    const r=await fetch(`/api/hyperbeam?espn_proxy=1&url=${url}`);
+    if(r.ok){
+      const d=await r.json();
+      const stats=(d?.stats||[]).flatMap(g=>g.splits||[]).find(s=>s.stat)?.stat||null;
+      if(stats){PLAYER_STAT_CACHE[key]=stats;return stats;}
+    }
+  }catch(e){}
+  return null;
+}
+
+async function buildMatchupProfiles(batterId,pitcherId){
+  const[b26,b25,p26,p25]=await Promise.all([
+    fetchPlayerStats(batterId,2026),fetchPlayerStats(batterId,2025),
+    fetchPlayerStats(pitcherId,2026),fetchPlayerStats(pitcherId,2025),
+  ]);
+  const merge=(s26,s25)=>{
+    if(!s25&&!s26)return[null,"N/A"];
+    if(!s25)return[s26,"2026"];
+    if(!s26)return[s25,"2025"];
+    const pa26=parseInt(s26.plateAppearances||0);
+    if(pa26>=80)return[s26,"2026"];
+    if(pa26>0){
+      const w=pa26/(pa26+parseInt(s25.plateAppearances||100));
+      const bl=(a,b)=>+(parseFloat(a||0)*w+parseFloat(b||0)*(1-w)).toFixed(3);
+      return[{...s25,...s26,avg:bl(s26.avg,s25.avg).toString(),obp:bl(s26.obp,s25.obp).toString(),slg:bl(s26.slg,s25.slg).toString(),_blended:true},"2025+2026"];
+    }
+    return[s25,"2025"];
+  };
+  const[bS,bSn]=merge(b26,b25);
+  const[pS,pSn]=merge(p26,p25);
+  return{
+    batter:buildProfileFromStats(bS||{},"batter"),
+    pitcher:buildProfileFromStats(pS||{},"pitcher"),
+    bSeasons:bSn,pSeasons:pSn,bRaw:bS,pRaw:pS,
+  };
+}
+
+function blendOutcomes(b,p,bw=0.6){
+  const keys=new Set([...Object.keys(b||{}),...Object.keys(p||{}),...Object.keys(DEFAULT_OUTCOMES)]);
+  const bl={};
+  for(const k of keys)bl[k]=(b?.[k]??DEFAULT_OUTCOMES[k]??0)*bw+(p?.[k]??DEFAULT_OUTCOMES[k]??0)*(1-bw)+(DEFAULT_OUTCOMES[k]??0)*0.05;
+  const t=Object.values(bl).reduce((a,c)=>a+c,0);
+  for(const k of Object.keys(bl))bl[k]/=t;
+  return bl;
+}
+
+function runSimulation(bProf,pProf,nSims=1000){
+  const outC={};const pitchC={};const seqLog={};
+  const pMix=pProf.pitch_mix||{"FF":1};let prev=null;
+  for(let i=0;i<nSims;i++){
+    const pt=wRandom(pMix);pitchC[pt]=(pitchC[pt]||0)+1;
+    if(prev){const s=`${prev}→${pt}`;seqLog[s]=(seqLog[s]||0)+1;}prev=pt;
+    const ev=wRandom(blendOutcomes(bProf.vs_pitch?.[pt]?.outcomes||null,pProf.vs_pitch?.[pt]?.outcomes||null));
+    outC[ev]=(outC[ev]||0)+1;
+  }
+  const H=(outC["1B"]||0)+(outC["2B"]||0)+(outC["3B"]||0)+(outC["HR"]||0);
+  const W=(outC["BB"]||0)+(outC["HBP"]||0);
+  const AB=nSims-W-(outC["SF"]||0)-(outC["SB"]||0);
+  const TB=(outC["1B"]||0)+2*(outC["2B"]||0)+3*(outC["3B"]||0)+4*(outC["HR"]||0);
+  const avg=AB>0?H/AB:0,obp=nSims>0?(H+W)/nSims:0,slg=AB>0?TB/AB:0;
+  const bo=bProf.overall||{};
+  const insights=[];
+  const vsp=bProf.vs_pitch||{};
+  const pts=Object.entries(vsp).filter(([,d])=>d.sample>=20).map(([pt,d])=>({pt,label:PITCH_LABELS[pt]||pt,...d}));
+  if(pts.length>=2){
+    const bySlg=[...pts].sort((a,b)=>(b.slg||0)-(a.slg||0));
+    if(bySlg[0]?.slg>=0.45)insights.push(`Crushes ${bySlg[0].label}s (.${Math.round((bySlg[0].slg||0)*1000)} SLG)`);
+    if(bySlg[bySlg.length-1]?.slg<=0.30)insights.push(`Struggles vs ${bySlg[bySlg.length-1].label}s (.${Math.round((bySlg[bySlg.length-1].slg||0)*1000)} SLG)`);
+    const byK=[...pts].sort((a,b)=>(b.k_pct||0)-(a.k_pct||0));
+    if(byK[0]?.k_pct>=0.30)insights.push(`High K rate vs ${byK[0].label}s (${Math.round((byK[0].k_pct||0)*100)}%)`);
+  }
+  if((bo.hard_hit||0)>=0.44)insights.push(`Hard contact machine — ${Math.round((bo.hard_hit||0)*100)}% hard hit rate`);
+  if((bo.k_pct||0)>=0.28)insights.push(`Strikeout risk (${Math.round((bo.k_pct||0)*100)}% K rate)`);
+  if((bo.bb_pct||0)>=0.12)insights.push(`Patient — ${Math.round((bo.bb_pct||0)*100)}% walk rate`);
+  if(insights.length===0)insights.push("Simulation built from 2025+2026 season stats.");
+  return{
+    stats:{avg:+avg.toFixed(3),obp:+obp.toFixed(3),slg:+slg.toFixed(3),ops:+(obp+slg).toFixed(3),kPct:+(outC["K"]||0)/nSims,bbPct:W/nSims,hrPct:+(outC["HR"]||0)/nSims},
+    outcomes:Object.entries(outC).sort((a,b)=>b[1]-a[1]).map(([ev,n])=>({ev,label:OUTCOME_LABELS[ev]||ev,n,pct:n/nSims})),
+    pitchUsage:Object.entries(pitchC).sort((a,b)=>b[1]-a[1]).map(([pt,n])=>({pt,label:PITCH_LABELS[pt]||pt,pct:n/nSims})),
+    sequences:Object.entries(seqLog).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([s,n])=>{const[p1,p2]=s.split("→");return{label:`${PITCH_LABELS[p1]||p1} → ${PITCH_LABELS[p2]||p2}`,pct:n/nSims};}),
+    insights,nSims,
+  };
+}
+
+function MatchupPage(){
+  const mob=useIsMobile();
+  const[bSearch,setBSearch]=useState("");
+  const[pSearch,setPSearch]=useState("");
+  const[bResults,setBResults]=useState([]);
+  const[pResults,setPResults]=useState([]);
+  const[selBatter,setSelBatter]=useState(null);
+  const[selPitcher,setSelPitcher]=useState(null);
+  const[simResult,setSimResult]=useState(null);
+  const[loading,setLoading]=useState(false);
+  const[loadMsg,setLoadMsg]=useState("");
+  const[nSims,setNSims]=useState(1000);
+  const[showBDD,setShowBDD]=useState(false);
+  const[showPDD,setShowPDD]=useState(false);
+  const[bStats,setBStats]=useState(null);
+  const[pStats,setPStats]=useState(null);
+  const[dataSeasons,setDataSeasons]=useState({b:"",p:""});
+  const AC="#F59E0B";
+  const searchPlayers=async(q,setter,showDD)=>{
+    if(q.length<2){setter([]);return;}
+    try{const r=await fetch(`/api/hyperbeam?search=${encodeURIComponent(q)}&sport=mlb`);if(r.ok){const d=await r.json();setter(d.athletes||[]);showDD(true);}}catch(e){setter([]);}
+  };
+  const scol=(k,v)=>{
+    if(k==="avg")return v>=0.280?"#22C55E":v>=0.240?"#F59E0B":"#EF4444";
+    if(k==="obp")return v>=0.350?"#22C55E":v>=0.310?"#F59E0B":"#EF4444";
+    if(k==="slg")return v>=0.450?"#22C55E":v>=0.380?"#F59E0B":"#EF4444";
+    if(k==="ops")return v>=0.800?"#22C55E":v>=0.700?"#F59E0B":"#EF4444";
+    if(k==="kPct")return v<=0.18?"#22C55E":v<=0.25?"#F59E0B":"#EF4444";
+    if(k==="bbPct")return v>=0.10?"#22C55E":v>=0.07?"#F59E0B":"#64748B";
+    return"#94A3B8";
+  };
+  const fmtS=(k,v)=>{
+    if(["kPct","bbPct","hrPct"].includes(k))return`${(v*100).toFixed(1)}%`;
+    if(["avg","obp","slg"].includes(k)){const s=v.toFixed(3);return s.startsWith("0")?s.slice(1):s;}
+    return v.toFixed(3);
+  };
+  const inp={width:"100%",padding:"9px 13px",borderRadius:10,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",color:"#E2E8F0",fontSize:13,outline:"none"};
+  const runSim=async()=>{
+    if(!selBatter||!selPitcher)return;
+    const ck=`${selBatter.id}|${selPitcher.id}|${nSims}`;
+    if(SIM_CACHE[ck]){setSimResult(SIM_CACHE[ck]);return;}
+    setLoading(true);setLoadMsg("Fetching 2025 & 2026 stats…");
+    try{
+      const{batter,pitcher,bSeasons,pSeasons,bRaw,pRaw}=await buildMatchupProfiles(selBatter.id,selPitcher.id);
+      setBStats(bRaw);setPStats(pRaw);setDataSeasons({b:bSeasons,p:pSeasons});
+      setLoadMsg("Running simulations…");
+      await new Promise(r=>setTimeout(r,16));
+      const result=runSimulation(batter,pitcher,nSims);
+      SIM_CACHE[ck]=result;setSimResult(result);
+    }catch(e){console.error(e);}
+    setLoading(false);setLoadMsg("");
+  };
+  return(
+    <div style={{maxWidth:900,margin:"0 auto",padding:mob?"10px 10px 100px":"20px 20px 80px"}}>
+      {loading&&<div style={{position:"fixed",inset:0,background:"rgba(3,7,18,.88)",zIndex:500,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12}}><div style={{fontSize:36}}>⚾</div><div style={{fontFamily:"'Orbitron',sans-serif",color:"#F59E0B",fontSize:13}}>{loadMsg}</div></div>}
+      <div style={{marginBottom:18}}>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?18:24,fontWeight:900,color:"#E2E8F0",marginBottom:4}}>⚔️ BATTER vs PITCHER</div>
+        <div style={{fontSize:11,color:"#475569"}}>Monte Carlo simulation · Real MLB 2025 + 2026 stats</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:14,marginBottom:14}}>
+        <div>
+          <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".12em",marginBottom:5}}>BATTER</div>
+          <div style={{position:"relative"}}>
+            <input style={inp} placeholder="Search batter…" value={bSearch}
+              onChange={e=>{setBSearch(e.target.value);searchPlayers(e.target.value,setBResults,setShowBDD);setSelBatter(null);setSimResult(null);}}
+              onFocus={()=>bResults.length>0&&setShowBDD(true)}
+              onBlur={()=>setTimeout(()=>setShowBDD(false),150)}/>
+            {selBatter&&<div style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",width:7,height:7,borderRadius:"50%",background:"#22C55E"}}/>}
+            {showBDD&&bResults.length>0&&<div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:100,background:"#0F172A",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,maxHeight:200,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,.6)"}}>
+              {bResults.map(p=><div key={p.id} onMouseDown={()=>{setSelBatter(p);setBSearch(p.name);setShowBDD(false);setBResults([]);}}
+                style={{padding:"9px 14px",cursor:"pointer",fontSize:12,color:"#CBD5E1",borderBottom:"1px solid rgba(255,255,255,.04)"}}
+                onMouseEnter={e=>e.currentTarget.style.background="rgba(245,158,11,.08)"}
+                onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                {p.name}<span style={{fontSize:10,color:"#334155",marginLeft:6}}>{p.team||""}</span></div>)}
+            </div>}
+          </div>
+          {selBatter&&bStats&&<div style={{marginTop:5,padding:"5px 9px",borderRadius:7,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",fontSize:10}}>
+            <span style={{color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:8}}>{dataSeasons.b} · </span>
+            {[["AVG",bStats.avg||"—"],["OBP",bStats.obp||"—"],["SLG",bStats.slg||"—"],["HR",bStats.homeRuns||"—"]].map(([l,v])=><span key={l} style={{marginRight:8}}><span style={{color:"#475569",fontSize:9}}>{l} </span><span style={{color:AC,fontWeight:700}}>{v}</span></span>)}
+          </div>}
+        </div>
+        <div>
+          <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif",letterSpacing:".12em",marginBottom:5}}>PITCHER</div>
+          <div style={{position:"relative"}}>
+            <input style={inp} placeholder="Search pitcher…" value={pSearch}
+              onChange={e=>{setPSearch(e.target.value);searchPlayers(e.target.value,setPResults,setShowPDD);setSelPitcher(null);setSimResult(null);}}
+              onFocus={()=>pResults.length>0&&setShowPDD(true)}
+              onBlur={()=>setTimeout(()=>setShowPDD(false),150)}/>
+            {selPitcher&&<div style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",width:7,height:7,borderRadius:"50%",background:"#22C55E"}}/>}
+            {showPDD&&pResults.length>0&&<div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:100,background:"#0F172A",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,maxHeight:200,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,.6)"}}>
+              {pResults.map(p=><div key={p.id} onMouseDown={()=>{setSelPitcher(p);setPSearch(p.name);setShowPDD(false);setPResults([]);}}
+                style={{padding:"9px 14px",cursor:"pointer",fontSize:12,color:"#CBD5E1",borderBottom:"1px solid rgba(255,255,255,.04)"}}
+                onMouseEnter={e=>e.currentTarget.style.background="rgba(245,158,11,.08)"}
+                onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                {p.name}<span style={{fontSize:10,color:"#334155",marginLeft:6}}>{p.team||""}</span></div>)}
+            </div>}
+          </div>
+          {selPitcher&&pStats&&<div style={{marginTop:5,padding:"5px 9px",borderRadius:7,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",fontSize:10}}>
+            <span style={{color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:8}}>{dataSeasons.p} · </span>
+            {[["ERA",pStats.era||"—"],["K",pStats.strikeOuts||"—"],["BB",pStats.baseOnBalls||"—"],["WHIP",pStats.whip||"—"]].map(([l,v])=><span key={l} style={{marginRight:8}}><span style={{color:"#475569",fontSize:9}}>{l} </span><span style={{color:AC,fontWeight:700}}>{v}</span></span>)}
+          </div>}
+        </div>
+      </div>
+      <div style={{display:"flex",gap:7,alignItems:"center",marginBottom:16,flexWrap:"wrap"}}>
+        <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif"}}>SIMS:</div>
+        {[500,1000,5000,10000].map(n=><button key={n} onClick={()=>{setNSims(n);setSimResult(null);}}
+          style={{padding:"4px 11px",borderRadius:9,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:700,
+            border:`1px solid ${nSims===n?AC+"66":"rgba(255,255,255,.08)"}`,background:nSims===n?AC+"14":"rgba(255,255,255,.02)",color:nSims===n?AC:"#475569"}}>{n.toLocaleString()}</button>)}
+        <button onClick={runSim} disabled={!selBatter||!selPitcher||loading}
+          style={{marginLeft:"auto",padding:"10px 22px",borderRadius:12,border:"none",cursor:!selBatter||!selPitcher?"not-allowed":"pointer",
+            fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:900,color:"#fff",
+            background:!selBatter||!selPitcher?"rgba(255,255,255,.06)":`linear-gradient(135deg,${AC},${AC}cc)`,
+            opacity:!selBatter||!selPitcher?0.4:1}}>
+          {loading?"Running…":"▶ SIMULATE"}
+        </button>
+      </div>
+      {selBatter&&selPitcher&&<div style={{textAlign:"center",padding:"7px 0",marginBottom:12,fontSize:mob?13:16,fontFamily:"'Orbitron',sans-serif",fontWeight:900,color:"#E2E8F0"}}>
+        {selBatter.name} <span style={{color:"#334155",fontWeight:400,fontSize:11}}>vs</span> {selPitcher.name}
+      </div>}
+      {simResult&&<SimResultsBlock result={simResult} scol={scol} fmtS={fmtS} ac={AC} dataSeasons={dataSeasons} mob={mob}/>}
+    </div>
+  );
+}
+
+function SimResultsBlock({result,scol,fmtS,ac,dataSeasons,mob}){
+  const maxPct=result.outcomes[0]?.pct||1;
+  return(
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:mob?"repeat(4,1fr)":"repeat(7,1fr)",gap:7,marginBottom:14}}>
+        {[["avg","AVG"],["obp","OBP"],["slg","SLG"],["ops","OPS"],["kPct","K%"],["bbPct","BB%"],["hrPct","HR%"]].map(([k,l])=>(
+          <div key={k} style={{textAlign:"center",padding:"9px 5px",borderRadius:11,background:"rgba(255,255,255,.04)",border:`1px solid ${scol(k,result.stats[k])}33`}}>
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:8,color:"#475569",marginBottom:3}}>{l}</div>
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?14:18,fontWeight:900,color:scol(k,result.stats[k])}}>{fmtS(k,result.stats[k])}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{padding:"12px 14px",borderRadius:14,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)",marginBottom:12}}>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#475569",marginBottom:9}}>OUTCOME DISTRIBUTION</div>
+        {result.outcomes.slice(0,8).map(({ev,label,pct})=>(
+          <div key={ev} style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+            <div style={{width:mob?52:70,fontSize:10,color:OUTCOME_COLORS[ev]||"#64748B",fontFamily:"'Orbitron',sans-serif",fontWeight:700,textAlign:"right",flexShrink:0}}>{label}</div>
+            <div style={{flex:1,background:"rgba(255,255,255,.05)",borderRadius:4,height:15,position:"relative",overflow:"hidden"}}>
+              <div style={{position:"absolute",left:0,top:0,bottom:0,borderRadius:4,background:(OUTCOME_COLORS[ev]||"#64748B")+"bb",width:`${(pct/maxPct)*100}%`,transition:"width .5s"}}/>
+              <div style={{position:"absolute",right:5,top:"50%",transform:"translateY(-50%)",fontSize:9,color:"#E2E8F0",fontFamily:"'Orbitron',sans-serif",fontWeight:700,zIndex:1}}>{(pct*100).toFixed(1)}%</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:10,marginBottom:12}}>
+        <div style={{padding:"12px 14px",borderRadius:14,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)"}}>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#475569",marginBottom:9}}>PITCH USAGE</div>
+          {result.pitchUsage.slice(0,6).map(({pt,label,pct})=>(
+            <div key={pt} style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+              <div style={{width:75,fontSize:10,color:"#94A3B8",flexShrink:0}}>{label}</div>
+              <div style={{flex:1,background:"rgba(255,255,255,.04)",borderRadius:3,height:10}}>
+                <div style={{height:"100%",borderRadius:3,background:ac+"99",width:`${pct*100}%`,transition:"width .4s"}}/>
+              </div>
+              <div style={{fontSize:9,color:"#64748B",width:30,textAlign:"right",fontFamily:"'Orbitron',sans-serif"}}>{(pct*100).toFixed(0)}%</div>
+            </div>
+          ))}
+        </div>
+        <div style={{padding:"12px 14px",borderRadius:14,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)"}}>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#475569",marginBottom:9}}>PITCH SEQUENCES</div>
+          {result.sequences.map(({label,pct},i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+              <span style={{fontSize:10,color:"#94A3B8"}}>{label}</span>
+              <span style={{fontSize:10,color:ac,fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{(pct*100).toFixed(0)}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{padding:"12px 14px",borderRadius:14,background:"rgba(168,85,247,.06)",border:"1px solid rgba(168,85,247,.18)"}}>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#A855F7",marginBottom:8}}>🔍 MATCHUP INSIGHTS</div>
+        {result.insights.map((t,i)=><div key={i} style={{display:"flex",gap:7,marginBottom:5}}><span style={{color:"#A855F7",flexShrink:0}}>•</span><span style={{fontSize:12,color:"#CBD5E1",lineHeight:1.5}}>{t}</span></div>)}
+        <div style={{marginTop:7,fontSize:9,color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>{result.nSims.toLocaleString()} simulated PAs · Data: {dataSeasons.b||"2025"} batter / {dataSeasons.p||"2025"} pitcher</div>
+      </div>
+    </div>
+  );
+}
+
+
+// ─── AnimeCardGame.jsx ────────────────────────────────────────────────────────
+// Full anime card collecting + battle game
+// Add to App.jsx and render on page "animecards"
+
+// ── Card Data ─────────────────────────────────────────────────────────────────
+const ANIME_CHARACTERS = [
+  // [id, name, series, type, atk, def, hp, ability, abilityDesc, rarity, element]
+  // ICONIC (1%)
+  ["gc01","Goku (Ultra Instinct)","Dragon Ball","Fighter",98,88,200,"Ultra Instinct","Dodge all attacks this turn with 70% chance","Iconic","Fire"],
+  ["gc02","Naruto (Baryon Mode)","Naruto","Fighter",97,82,195,"Baryon Burn","Deal 3x damage, lose 15HP after","Iconic","Wind"],
+  ["gc03","Saitama","One Punch Man","Fighter",99,70,180,"One Punch","Instantly KO any enemy under 50% HP","Iconic","Lightning"],
+  ["gc04","Monkey D. Luffy (Gear 5)","One Piece","Fighter",96,85,200,"Nika Awakening","Double all damage for 2 turns","Iconic","Lightning"],
+  ["gc05","Itachi Uchiha","Naruto","Mage",90,80,175,"Tsukuyomi","Skip opponent's next turn, deal 40 damage","Iconic","Shadow"],
+  // MYSTIC (3%)
+  ["mc01","Vegeta (Super Saiyan Blue)","Dragon Ball","Fighter",92,84,185,"Final Flash","Charge turn, then deal 80 damage","Mystic","Fire"],
+  ["mc02","Sasuke Uchiha (Rinnegan)","Naruto","Mage",91,78,175,"Amenotejikara","Switch places with opponent, deal 35 damage","Mystic","Shadow"],
+  ["mc03","Levi Ackermann","Attack on Titan","Fighter",88,75,165,"Thunder Slash","Hit 4 times rapidly, 20 damage each","Mystic","Wind"],
+  ["mc04","Killua Zoldyck","HxH","Fighter",87,72,160,"Godspeed","Gain +40 speed, auto-dodge next attack","Mystic","Lightning"],
+  ["mc05","Erza Scarlet","Fairy Tail","Fighter",89,86,178,"Heaven's Wheel","Deal 60 damage, gain 20 armor","Mystic","Holy"],
+  ["mc06","Gojo Satoru","Jujutsu Kaisen","Mage",95,90,185,"Infinity","Block all damage for 1 turn","Mystic","Holy"],
+  ["mc07","Ryomen Sukuna","Jujutsu Kaisen","Demon",94,75,180,"Malevolent Shrine","Deal 70 damage to all enemies","Mystic","Shadow"],
+  ["mc08","Zoro (Enma)","One Piece","Fighter",90,82,175,"Three Sword Style","Three hits for 25 damage each","Mystic","Wind"],
+  ["mc09","Alucard","Hellsing","Demon",92,80,200,"Cromwell Initiation","Drain 30 HP from enemy, heal self","Mystic","Shadow"],
+  ["mc10","Madara Uchiha","Naruto","Mage",93,85,185,"Perfect Susanoo","Deal 65 damage, block 30 next turn","Mystic","Shadow"],
+  // LEGENDARY (7%)
+  ["lc01","Edward Elric","Fullmetal Alchemist","Mage",82,70,155,"Transmutation","Transform terrain, deal 45 damage","Legendary","Earth"],
+  ["lc02","Hisoka Morow","HxH","Fighter",85,68,158,"Bungee Gum","Bind enemy for 1 turn, deal 35 damage","Legendary","Shadow"],
+  ["lc03","Kakashi Hatake","Naruto","Mage",80,75,160,"Kamui","Remove enemy buff AND deal 30 damage","Legendary","Lightning"],
+  ["lc04","Roronoa Zoro","One Piece","Fighter",84,78,165,"Ittoryu","Single devastating hit for 55 damage","Legendary","Wind"],
+  ["lc05","Gon Freecss","HxH","Fighter",83,65,162,"Jajanken Rock","Deal 50 damage, chance to stun","Legendary","Earth"],
+  ["lc06","Meruem","HxH","Demon",88,80,172,"Photon","Steal 25% of enemy's attack stat","Legendary","Shadow"],
+  ["lc07","Ken Kaneki","Tokyo Ghoul","Demon",82,70,168,"Kakuja","Go berserk: +30 ATK, -20 DEF for 3 turns","Legendary","Shadow"],
+  ["lc08","Tanjiro Kamado","Demon Slayer","Fighter",80,72,158,"Hinokami Kagura","Sun breathing: 45 damage + burn","Legendary","Fire"],
+  ["lc09","Ichigo Kurosaki","Bleach","Fighter",86,74,170,"Bankai","Massively boost ATK for 2 turns","Legendary","Lightning"],
+  ["lc10","Mikasa Ackermann","Attack on Titan","Fighter",81,74,160,"Ackermann Clan","Counter-attack: reflect 50% damage","Legendary","Wind"],
+  ["lc11","Rimuru Tempest","That Time I Got Reincarnated","Mage",84,76,165,"Predator","Copy enemy's ability for this battle","Legendary","Water"],
+  ["lc12","Sung Jin-Woo","Solo Leveling","Fighter",87,78,172,"Shadow Army","Summon shadow minion, deal 40 damage","Legendary","Shadow"],
+  ["lc13","Ban","Seven Deadly Sins","Fighter",83,72,165,"Snatch","Steal 20 STR from enemy permanently","Legendary","Earth"],
+  ["lc14","Escanor","Seven Deadly Sins","Fighter",86,75,168,"The One","At noon: untouchable, deal 60 damage","Legendary","Fire"],
+  ["lc15","Ainz Ooal Gown","Overlord","Mage",85,80,170,"Grasp Heart","50% chance to instant KO","Legendary","Shadow"],
+  // EPIC (14%)
+  ["ec01","Mob","Mob Psycho 100","Mage",78,65,150,"100%","Unleash psychic power: 40 damage","Epic","Holy"],
+  ["ec02","Shoto Todoroki","My Hero Academia","Fighter",76,70,152,"Half Cold Half Hot","Choose: freeze or burn enemy (30 dmg each)","Epic","Fire"],
+  ["ec03","Bakugo Katsuki","My Hero Academia","Fighter",80,62,148,"Howitzer Impact","Explosive blast: 45 damage","Epic","Fire"],
+  ["ec04","All Might","My Hero Academia","Fighter",82,68,158,"United States of Smash","Massive blow: 50 damage, may stun","Epic","Lightning"],
+  ["ec05","Natsu Dragneel","Fairy Tail","Fighter",79,64,152,"Fire Dragon King Mode","Triple fire damage for 1 turn","Epic","Fire"],
+  ["ec06","Lucy Heartfilia","Fairy Tail","Mage",72,68,145,"Celestial Spirits","Summon 3 spirits, 15 damage each","Epic","Holy"],
+  ["ec07","Nobara Kugisaki","Jujutsu Kaisen","Mage",74,70,148,"Resonance","Link to enemy doll: deal 35 shared damage","Epic","Earth"],
+  ["ec08","Yuji Itadori","Jujutsu Kaisen","Fighter",78,72,155,"Divergent Fist","Delay burst punch: 40 damage","Epic","Lightning"],
+  ["ec09","Muzan Kibutsuji","Demon Slayer","Demon",80,72,160,"Absorption","Heal 25HP and boost ATK","Epic","Shadow"],
+  ["ec10","Akaza","Demon Slayer","Demon",78,68,155,"Destructive Death","Spinning assault: 35 damage","Epic","Wind"],
+  ["ec11","Shinobu Kocho","Demon Slayer","Mage",70,66,140,"Insect Breathing","Poison enemy: 8 damage per turn for 4 turns","Epic","Wind"],
+  ["ec12","Giyu Tomioka","Demon Slayer","Fighter",76,75,155,"Water Breathing","Flowing counter: reflect 40% incoming damage","Epic","Water"],
+  ["ec13","Spike Spiegel","Cowboy Bebop","Fighter",74,65,148,"See You Space Cowboy","Dual guns: 2x25 damage","Epic","Wind"],
+  ["ec14","Reigen Arataka","Mob Psycho 100","Fighter",65,60,140,"100% Shot","Borrow Mob's power: 35 damage once","Epic","Holy"],
+  ["ec15","Light Yagami","Death Note","Mage",72,68,145,"Death Note","Skip enemy turn with 60% success rate","Epic","Shadow"],
+  ["ec16","L Lawliet","Death Note","Mage",70,70,145,"Deduction","Reveal enemy hand, steal their buff","Epic","Holy"],
+  ["ec17","Accelerator","A Certain Magical Index","Mage",82,78,162,"Vector Control","Reflect all projectile attacks back","Epic","Lightning"],
+  ["ec18","Kaguya Otsutsuki","Naruto","Mage",80,78,165,"All-Killing Ash Bones","Hit ignores all defense","Epic","Shadow"],
+  ["ec19","Dio Brando","JoJo","Demon",79,72,158,"ZA WARUDO","Stop time: deal 45 damage uncontested","Epic","Shadow"],
+  ["ec20","Jotaro Kujo","JoJo","Fighter",78,74,158,"ORA ORA ORA","11 hit combo: 8 damage per hit","Epic","Lightning"],
+  // RARE (22%)
+  ["rc01","Deku (Full Cowl)","My Hero Academia","Fighter",72,65,142,"One For All 100%","Smash for 35 damage, recoil 10","Rare","Lightning"],
+  ["rc02","Inosuke Hashibira","Demon Slayer","Fighter",70,60,138,"Beast Breathing","Wild slashes: 28 damage","Rare","Wind"],
+  ["rc03","Zenitsu Agatsuma","Demon Slayer","Fighter",68,58,136,"Thunderclap Flash","Lightning speed: 32 damage","Rare","Lightning"],
+  ["rc04","Shanks","One Piece","Fighter",75,70,150,"Haki Burst","Intimidate: lower enemy ATK by 20","Rare","Wind"],
+  ["rc05","Nami","One Piece","Mage",65,62,132,"Clima-Tact","Weather manipulation: 22 damage","Rare","Lightning"],
+  ["rc06","Sanji","One Piece","Fighter",73,65,145,"Hell Memories","Flaming kick: 30 damage","Rare","Fire"],
+  ["rc07","Brook","One Piece","Mage",68,60,138,"Soul King","Soul music: paralyze enemy 1 turn","Rare","Shadow"],
+  ["rc08","Rin Okumura","Blue Exorcist","Fighter",72,64,142,"Blue Flame","Demonic fire: 28 damage + burn","Rare","Fire"],
+  ["rc09","Maka Albarn","Soul Eater","Fighter",70,65,140,"Soul Wavelength","Resonance: 30 damage","Rare","Holy"],
+  ["rc10","Death the Kid","Soul Eater","Fighter",71,66,141,"Death Cannon","Dual pistols: 2x18 damage","Rare","Shadow"],
+  ["rc11","Yor Forger","Spy x Family","Fighter",72,64,140,"Thorn Princess","Hidden blades: 28 damage","Rare","Wind"],
+  ["rc12","Loid Forger","Spy x Family","Fighter",70,68,140,"Wise Agent","Tactical strike: 25 damage + stun","Rare","Shadow"],
+  ["rc13","Anya Forger","Spy x Family","Mage",55,55,120,"Telepath","Read mind: copy enemy ability once","Rare","Holy"],
+  ["rc14","Gintoki Sakata","Gintama","Fighter",73,66,145,"Silver Soul","Lazy slash: 28 damage, chance to crit","Rare","Wind"],
+  ["rc15","Taiga Aisaka","Toradora","Fighter",60,55,125,"Palmtop Tiger","Rage mode: +30 ATK when below 40% HP","Rare","Fire"],
+  ["rc16","Yato","Noragami","Fighter",71,65,140,"Borderline","Divine slice: 30 damage","Rare","Holy"],
+  ["rc17","Ryuko Matoi","Kill la Kill","Fighter",74,67,145,"Scissor Blade","Life fiber: 32 damage","Rare","Fire"],
+  ["rc18","Simon","Gurren Lagann","Fighter",75,68,148,"Giga Drill","Spiral power: 35 damage","Rare","Earth"],
+  ["rc19","Lelouch vi Britannia","Code Geass","Mage",68,65,138,"Geass","Force enemy to obey: skip their turn","Rare","Shadow"],
+  ["rc20","Usagi Tsukino","Sailor Moon","Mage",67,63,135,"Moon Prism Power","Healing + 25 damage beam","Rare","Holy"],
+  // UNCOMMON (25%)
+  ["uc01","Toga Himiko","My Hero Academia","Demon",62,55,128,"Transform","Mimic: copy appearance and gain 20 HP","Uncommon","Shadow"],
+  ["uc02","Denki Kaminari","My Hero Academia","Mage",63,55,128,"Electrification","Shock: 22 damage, may paralyze","Uncommon","Lightning"],
+  ["uc03","Momo Yaoyorozu","My Hero Academia","Mage",64,62,130,"Creation","Create shield: block 20 damage","Uncommon","Earth"],
+  ["uc04","Ochaco Uraraka","My Hero Academia","Mage",60,58,126,"Zero Gravity","Float enemy, reduce their DEF by 25","Uncommon","Wind"],
+  ["uc05","Connie Springer","Attack on Titan","Fighter",60,58,126,"ODM Gear","Swift aerial: 20 damage","Uncommon","Wind"],
+  ["uc06","Jean Kirstein","Attack on Titan","Fighter",62,60,130,"Tactical Mind","Team boost: +15 ATK to all cards","Uncommon","Wind"],
+  ["uc07","Armin Arlert","Mage",65,60,128,"Colossal Titan","Giant transformation: 30 damage AOE","Uncommon","Earth"],
+  ["uc08","Historia Reiss","Attack on Titan","Healer",55,58,125,"Ymir's Blood","Heal 30 HP, restore shield","Uncommon","Holy"],
+  ["uc09","Yuno","Black Clover","Mage",65,60,130,"Spirit of Zephyr","Wind magic: 25 damage","Uncommon","Wind"],
+  ["uc10","Noelle Silva","Black Clover","Mage",63,62,128,"Valkyrie Armor","Magic armor: block 25 + counter 15","Uncommon","Water"],
+  ["uc11","Asta","Black Clover","Fighter",66,62,132,"Anti-Magic Sword","Null all buffs, deal 28 damage","Uncommon","Earth"],
+  ["uc12","Yami Sukehiro","Black Clover","Fighter",70,65,138,"Dark Cloaked Dimension Slash","Shadow slice: 30 damage","Uncommon","Shadow"],
+  ["uc13","Osamu Dazai","Bungo Stray Dogs","Mage",62,60,130,"No Longer Human","Nullify ability for 2 turns","Uncommon","Shadow"],
+  ["uc14","Chuuya Nakahara","Bungo Stray Dogs","Fighter",66,62,132,"Corruption","Gravity manipulation: 30 damage","Uncommon","Earth"],
+  ["uc15","Hange Zoe","Attack on Titan","Mage",63,60,128,"Research Frenzy","Titan knowledge: analyze + boost","Uncommon","Earth"],
+  // COMMON (28%)
+  ["cc01","Usopp","One Piece","Fighter",55,50,115,"Kabuto Slingshot","Snipe: 18 damage from distance","Common","Wind"],
+  ["cc02","Chopper","One Piece","Healer",50,55,120,"Rumble Ball","Heal 20 HP, multiple forms","Common","Earth"],
+  ["cc03","Robin","One Piece","Mage",58,55,120,"Cien Fleur","Bloom arms: 18 damage","Common","Earth"],
+  ["cc04","Franky","One Piece","Fighter",60,58,125,"Coup de Vent","Cannon blast: 22 damage","Common","Earth"],
+  ["cc05","Mineta Minoru","My Hero Academia","Mage",45,50,110,"Pop Off","Sticky balls: immobilize 1 turn","Common","Earth"],
+  ["cc06","Iida Tenya","My Hero Academia","Fighter",60,58,125,"Recipro Burst","Speed dash: 20 damage","Common","Lightning"],
+  ["cc07","Kirishima Eijiro","My Hero Academia","Fighter",62,68,135,"Unbreakable","Harden: take 50% less damage for 1 turn","Common","Earth"],
+  ["cc08","Froppy","My Hero Academia","Fighter",55,55,122,"Frog Quirk","Tongue grab: 16 damage + stun","Common","Water"],
+  ["cc09","Inuyasha","Inuyasha","Fighter",64,60,130,"Wind Scar","Wave attack: 25 damage","Common","Wind"],
+  ["cc10","Kagome Higurashi","Inuyasha","Mage",58,55,120,"Sacred Arrow","Purify: 22 damage vs demons","Common","Holy"],
+  ["cc11","Mirko","My Hero Academia","Fighter",66,62,132,"Luna Tijeras","Scissor kick: 26 damage","Common","Lightning"],
+  ["cc12","Hawks","My Hero Academia","Fighter",65,60,130,"Fierce Wings","Feather assault: 24 damage","Common","Wind"],
+  ["cc13","Hanta Sero","My Hero Academia","Fighter",55,56,118,"Tape Whip","Restrain: 16 damage + reduce enemy speed","Common","Earth"],
+  ["cc14","Fumikage Tokoyami","My Hero Academia","Mage",62,60,128,"Dark Shadow","Shadow beast: 24 damage","Common","Shadow"],
+  ["cc15","Mina Ashido","My Hero Academia","Mage",58,54,120,"Acid Man","Acid splash: 20 damage + melt armor","Common","Earth"],
+];
+
+const RARITY_ORDER = ["Iconic","Mystic","Legendary","Epic","Rare","Uncommon","Common"];
+const RARITY_COLORS = {
+  Iconic:"#F0E130",Mystic:"#E040FB",Legendary:"#FF6D00",
+  Epic:"#AA00FF",Rare:"#2979FF",Uncommon:"#00C853",Common:"#546E7A"
+};
+const RARITY_RATES = {Iconic:0.01,Mystic:0.03,Legendary:0.07,Epic:0.14,Rare:0.22,Uncommon:0.25,Common:0.28};
+const ELEMENT_COLORS = {
+  Fire:"#EF5350",Water:"#42A5F5",Wind:"#66BB6A",Lightning:"#FFD600",
+  Shadow:"#7B1FA2",Holy:"#FFF176",Earth:"#8D6E63"
+};
+const ELEMENT_EMOJI = {Fire:"🔥",Water:"💧",Wind:"🌊",Lightning:"⚡",Shadow:"🌑",Holy:"✨",Earth:"🌍"};
+const TYPE_COLORS = {Fighter:"#EF4444",Mage:"#7C3AED",Demon:"#1F2937",Healer:"#059669"};
+
+// Pack types
+const PACK_TYPES = [
+  {id:"standard",name:"Standard Pack",cost:100,cards:5,rates:{Iconic:0.01,Mystic:0.03,Legendary:0.07,Epic:0.14,Rare:0.22,Uncommon:0.25,Common:0.28},color:"#475569",desc:"5 cards, standard rates"},
+  {id:"premium",name:"Premium Pack",cost:300,cards:5,rates:{Iconic:0.03,Mystic:0.08,Legendary:0.15,Epic:0.22,Rare:0.25,Uncommon:0.18,Common:0.09},color:"#7C3AED",desc:"5 cards, boosted rare rates"},
+  {id:"legendary",name:"Legend Pack",cost:800,cards:5,rates:{Iconic:0.08,Mystic:0.15,Legendary:0.25,Epic:0.28,Rare:0.16,Uncommon:0.06,Common:0.02},color:"#F59E0B",desc:"5 cards — guaranteed Legendary+"},
+  {id:"single",name:"Single Pull",cost:50,cards:1,rates:{Iconic:0.01,Mystic:0.03,Legendary:0.07,Epic:0.14,Rare:0.22,Uncommon:0.25,Common:0.28},color:"#64748B",desc:"1 card pull"},
+];
+
+// ── Anime Save Helpers ─────────────────────────────────────────────────────────
+const ANIME_SAVE_KEY = "nova_anime_cards";
+function loadAnimeState(){
+  try{const r=localStorage.getItem(ANIME_SAVE_KEY);return r?JSON.parse(r):null;}catch{return null;}
+}
+function saveAnimeState(s){
+  try{localStorage.setItem(ANIME_SAVE_KEY,JSON.stringify(s));}catch(e){}
+}
+function freshAnimeState(){
+  return {coins:500,collection:[],deck:[],battleHistory:[],totalPulls:0,wins:0,losses:0};
+}
+
+// ── Card lookup helpers ────────────────────────────────────────────────────────
+const CHAR_MAP = Object.fromEntries(ANIME_CHARACTERS.map(c=>([c[0],{id:c[0],name:c[1],series:c[2],type:c[3],atk:c[4],def:c[5],hp:c[6],ability:c[7],abilityDesc:c[8],rarity:c[9],element:c[10]}])));
+function getCard(id){return CHAR_MAP[id]||null;}
+
+function pullCard(rates){
+  const r=Math.random();let cum=0;
+  for(const [rar,rate] of Object.entries(rates)){
+    cum+=rate;
+    if(r<cum){
+      const pool=ANIME_CHARACTERS.filter(c=>c[9]===rar);
+      if(pool.length===0)continue;
+      const c=pool[Math.floor(Math.random()*pool.length)];
+      return{...getCard(c[0]),instanceId:`${c[0]}_${Date.now()}_${Math.random().toString(36).slice(2)}`};
+    }
+  }
+  const fallback=ANIME_CHARACTERS[Math.floor(Math.random()*ANIME_CHARACTERS.length)];
+  return{...getCard(fallback[0]),instanceId:`${fallback[0]}_${Date.now()}`};
+}
+
+// ── AI Opponent Deck ──────────────────────────────────────────────────────────
+function buildAIDeck(){
+  const deck=[];
+  const rarityPool=["Legendary","Epic","Rare","Uncommon","Common","Epic","Rare","Uncommon"];
+  while(deck.length<5){
+    const rar=rarityPool[Math.floor(Math.random()*rarityPool.length)];
+    const pool=ANIME_CHARACTERS.filter(c=>c[9]===rar);
+    if(!pool.length)continue;
+    const c=pool[Math.floor(Math.random()*pool.length)];
+    deck.push({...getCard(c[0]),instanceId:`ai_${c[0]}_${Math.random().toString(36).slice(2)}`});
+  }
+  return deck;
+}
+
+// ── Battle Engine ─────────────────────────────────────────────────────────────
+function applyAbility(caster, target, log){
+  const ab=caster.ability;
+  let dmg=0,heal=0,skipTurn=false,block=0,dotDmg=0,dotTurns=0;
+  if(ab==="Ultra Instinct"){if(Math.random()<0.7){log.push("🌀 Dodge!");return{dmgToTarget:0,healCaster:0,skipTarget:false,block:0};}else dmg=Math.round(caster.atk*0.9);}
+  else if(ab==="Baryon Burn"){dmg=Math.round(caster.atk*3.0);heal=-15;}
+  else if(ab==="One Punch"){dmg=target.currentHp<target.hp*0.5?target.currentHp:Math.round(caster.atk*1.2);}
+  else if(ab==="Nika Awakening"){dmg=Math.round(caster.atk*2.0);caster._powered=2;}
+  else if(ab==="Tsukuyomi"){skipTurn=true;dmg=40;}
+  else if(ab==="Final Flash"){if(!caster._charging){caster._charging=true;log.push("⚡ Charging Final Flash...");return{dmgToTarget:0,healCaster:0,skipTarget:false,block:0};}else{dmg=80;caster._charging=false;}}
+  else if(ab==="Godspeed"){block=40;caster._speed=true;}
+  else if(ab==="Infinity"){block=9999;}
+  else if(ab==="Malevolent Shrine"){dmg=70;}
+  else if(ab==="Three Sword Style"){dmg=25*3;}
+  else if(ab==="Predator"){caster._copiedAbility=target.ability;}
+  else if(ab==="Shadow Army"){dmg=40;}
+  else if(ab==="ZA WARUDO"){dmg=45;skipTurn=true;}
+  else if(ab==="ORA ORA ORA"){dmg=8*11;}
+  else if(ab==="Insect Breathing"){dotDmg=8;dotTurns=4;}
+  else if(ab==="Vector Control"){block=9999;caster._reflect=true;}
+  else if(ab==="Death Note"){skipTurn=Math.random()<0.6;}
+  else if(ab==="Geass"){skipTurn=true;}
+  else if(ab==="Absorption"){heal=25;dmg=Math.round(caster.atk*0.9);caster.atk=Math.round(caster.atk*1.05);}
+  else if(ab==="No Longer Human"){target._abilityDisabled=2;}
+  else{// Default: ability does 30% more than normal attack
+    dmg=Math.round(caster.atk*(0.9+Math.random()*0.5));
+  }
+  return{dmgToTarget:Math.max(0,dmg),healCaster:heal,skipTarget:skipTurn,block,dotDmg,dotTurns};
+}
+
+function battleRound(attacker,defender,useAbility,log){
+  let abilRes={dmgToTarget:0,healCaster:0,skipTarget:false,block:0,dotDmg:0,dotTurns:0};
+  if(useAbility&&!attacker._abilityUsed&&!attacker._abilityDisabled){
+    abilRes=applyAbility(attacker,defender,log);
+    attacker._abilityUsed=true;
+    if(abilRes.dmgToTarget>0)log.push(`💥 ${attacker.name} uses ${attacker.ability}! ${abilRes.dmgToTarget} damage`);
+    if(abilRes.healCaster!==0)log.push(`${abilRes.healCaster<0?'🤕':'💊'} ${attacker.name} ${abilRes.healCaster<0?'loses':'recovers'} ${Math.abs(abilRes.healCaster)} HP`);
+    if(abilRes.skipTarget)log.push(`😵 ${defender.name} is stunned! Loses next action`);
+  }else{
+    const dmg=Math.max(1,Math.round((attacker.atk*(0.8+Math.random()*0.4))-(defender.def*(0.3+Math.random()*0.2))));
+    abilRes.dmgToTarget=dmg;
+    log.push(`⚔️ ${attacker.name} attacks for ${dmg} damage`);
+  }
+  // Apply defender's block
+  const blocked=Math.min(abilRes.dmgToTarget,defender._block||0);
+  const finalDmg=abilRes.dmgToTarget-blocked;
+  if(blocked>0)log.push(`🛡 ${defender.name} blocks ${blocked}!`);
+  defender.currentHp=Math.max(0,defender.currentHp-finalDmg);
+  attacker.currentHp=Math.max(0,Math.min(attacker.hp,attacker.currentHp+(abilRes.healCaster||0)));
+  // DOT
+  if(abilRes.dotDmg&&abilRes.dotTurns){defender._dot={dmg:abilRes.dotDmg,turns:abilRes.dotTurns};}
+  if(defender._dot&&defender._dot.turns>0){
+    defender.currentHp=Math.max(0,defender.currentHp-defender._dot.dmg);
+    log.push(`☠️ Poison: ${defender.name} takes ${defender._dot.dmg}`);
+    defender._dot.turns--;
+  }
+  // Block fades
+  if(abilRes.block)attacker._block=abilRes.block;
+  else attacker._block=0;
+  if(abilRes.skipTarget)defender._skip=true;
+  return defender.currentHp<=0;
+}
+
+function simulateBattle(playerDeck,aiDeck){
+  const pDeck=playerDeck.map(c=>({...c,currentHp:c.hp,_abilityUsed:false,_block:0,_skip:false}));
+  const aDeck=aiDeck.map(c=>({...c,currentHp:c.hp,_abilityUsed:false,_block:0,_skip:false}));
+  const allLog=[];let turn=0;
+  let pi=0,ai=0;
+  while(pi<pDeck.length&&ai<aDeck.length&&turn<200){
+    const pc=pDeck[pi],ac=aDeck[ai];turn++;
+    const log=[];
+    log.push(`--- Turn ${turn} ---`);
+    // Player turn
+    if(pc._skip){log.push(`😵 ${pc.name} is stunned!`);pc._skip=false;}
+    else{const useAb=!pc._abilityUsed&&Math.random()<0.5;if(battleRound(pc,ac,useAb,log)){log.push(`💀 ${ac.name} is defeated!`);ai++;}}
+    // AI turn
+    if(ai<aDeck.length){
+      const ac2=aDeck[ai];
+      if(ac2._skip){log.push(`😵 ${ac2.name} is stunned!`);ac2._skip=false;}
+      else{const useAb=!ac2._abilityUsed&&Math.random()<0.6;if(battleRound(ac2,pc,useAb,log)){log.push(`💀 ${pc.name} is defeated!`);pi++;}}
+    }
+    allLog.push(...log);
+  }
+  return{playerWon:pi<pDeck.length&&ai>=aDeck.length,log:allLog,pDeck,aDeck};
+}
+
+// ── AnimeCardGame Component ───────────────────────────────────────────────────
+function AnimeCardGame({cu,navigate}){
+  const mob=useIsMobile();
+  const[state,setState]=useState(()=>{
+    const saved=loadAnimeState();
+    return saved||freshAnimeState();
+  });
+  const[tab,setTab]=useState("home"); // home|collection|packs|deck|battle|results
+  const[openingPack,setOpeningPack]=useState(false);
+  const[newCards,setNewCards]=useState([]);
+  const[revealIdx,setRevealIdx]=useState(0);
+  const[battleState,setBattleState]=useState(null); // null|{log,result,...}
+  const[filterRarity,setFilterRarity]=useState("All");
+  const[filterSeries,setFilterSeries]=useState("All");
+  const[sortBy,setSortBy]=useState("rarity");
+  const[searchQ,setSearchQ]=useState("");
+  const[deckMsg,setDeckMsg]=useState("");
+
+  const persist=(patch)=>{const ns={...state,...patch};setState(ns);saveAnimeState(ns);};
+
+  const allSeries=[...new Set(ANIME_CHARACTERS.map(c=>c[2]))].sort();
+
+  // ── PACKS ─────────────────────────────────────────────────────────────────
+  const openPack=(pack)=>{
+    if(state.coins<pack.cost){setDeckMsg(`Need ${pack.cost} coins!`);setTimeout(()=>setDeckMsg(""),2000);return;}
+    const pulled=[];
+    for(let i=0;i<pack.cards;i++)pulled.push(pullCard(pack.rates));
+    const newCol=[...state.collection,...pulled];
+    persist({coins:state.coins-pack.cost,collection:newCol,totalPulls:state.totalPulls+pack.cards});
+    setNewCards(pulled);setRevealIdx(0);setOpeningPack(true);
+  };
+
+  const nextReveal=()=>{
+    if(revealIdx<newCards.length-1)setRevealIdx(r=>r+1);
+    else{setOpeningPack(false);setNewCards([]);setRevealIdx(0);}
+  };
+
+  // ── DECK ──────────────────────────────────────────────────────────────────
+  const addToDeck=(card)=>{
+    if(state.deck.length>=5){setDeckMsg("Deck is full! (max 5)");setTimeout(()=>setDeckMsg(""),2000);return;}
+    if(state.deck.find(c=>c.instanceId===card.instanceId)){setDeckMsg("Already in deck");setTimeout(()=>setDeckMsg(""),2000);return;}
+    persist({deck:[...state.deck,card]});
+  };
+  const removeFromDeck=(iid)=>persist({deck:state.deck.filter(c=>c.instanceId!==iid)});
+
+  // ── BATTLE ────────────────────────────────────────────────────────────────
+  const startBattle=()=>{
+    if(state.deck.length<3){setDeckMsg("Need at least 3 cards in deck!");setTimeout(()=>setDeckMsg(""),2500);return;}
+    const ai=buildAIDeck();
+    const res=simulateBattle(state.deck,ai);
+    const newWins=res.playerWon?state.wins+1:state.wins;
+    const newLosses=res.playerWon?state.losses:state.losses+1;
+    const reward=res.playerWon?150:30;
+    persist({coins:state.coins+reward,wins:newWins,losses:newLosses,
+      battleHistory:[{won:res.playerWon,opponent:ai.map(c=>c.name).join(", "),date:Date.now()},...state.battleHistory.slice(0,9)]});
+    setBattleState({...res,aiDeckCards:ai,reward});
+    setTab("battle");
+  };
+
+  // ── Collection filtering ──────────────────────────────────────────────────
+  const filteredCol=state.collection.filter(c=>{
+    if(filterRarity!=="All"&&c.rarity!==filterRarity)return false;
+    if(filterSeries!=="All"&&c.series!==filterSeries)return false;
+    if(searchQ&&!c.name.toLowerCase().includes(searchQ.toLowerCase()))return false;
+    return true;
+  }).sort((a,b)=>{
+    if(sortBy==="rarity")return RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity);
+    if(sortBy==="atk")return b.atk-a.atk;
+    if(sortBy==="name")return a.name.localeCompare(b.name);
+    return 0;
+  });
+
+  const accentColor="#E040FB";
+
+  // ── CARD COMPONENT ────────────────────────────────────────────────────────
+  const AnimeCard=({card,size="md",onClick,inDeck,onRemove})=>{
+    const rc=RARITY_COLORS[card.rarity]||"#64748B";
+    const ec=ELEMENT_COLORS[card.element]||"#64748B";
+    const tc=TYPE_COLORS[card.type]||"#64748B";
+    const sm=size==="sm";
+    return(
+      <div onClick={onClick} style={{
+        borderRadius:sm?10:14,cursor:onClick?"pointer":"default",
+        border:`2px solid ${rc}`,
+        background:`linear-gradient(160deg,rgba(0,0,0,.85),${ec}18)`,
+        overflow:"hidden",transition:"transform .18s,box-shadow .18s",
+        width:sm?120:mob?140:160,flexShrink:0,
+        boxShadow:`0 4px 20px ${rc}44`,
+        position:"relative",
+      }}
+        onMouseEnter={e=>{if(onClick){e.currentTarget.style.transform="scale(1.04)";e.currentTarget.style.boxShadow=`0 8px 32px ${rc}88`;}}}
+        onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow=`0 4px 20px ${rc}44`;}}>
+        {/* Rarity glow bar */}
+        <div style={{height:3,background:rc,width:"100%"}}/>
+        {/* Card header */}
+        <div style={{padding:sm?"6px 8px":"8px 10px",background:`${rc}22`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{fontSize:sm?7:8,color:rc,fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{card.rarity.toUpperCase()}</div>
+            <div style={{fontSize:sm?10:13}}>{ELEMENT_EMOJI[card.element]||"⚡"}</div>
+          </div>
+        </div>
+        {/* Character avatar (emoji-based visual) */}
+        <div style={{height:sm?60:80,display:"flex",alignItems:"center",justifyContent:"center",background:`linear-gradient(180deg,${ec}18,transparent)`,fontSize:sm?32:44}}>
+          {card.type==="Fighter"?"🥷":card.type==="Mage"?"🧙":card.type==="Demon"?"😈":"💊"}
+        </div>
+        {/* Name & series */}
+        <div style={{padding:sm?"4px 8px":"6px 10px"}}>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:sm?8:10,fontWeight:700,color:"#E2E8F0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{card.name}</div>
+          {!sm&&<div style={{fontSize:8,color:"#64748B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{card.series}</div>}
+        </div>
+        {/* Stats */}
+        <div style={{padding:sm?"0 8px 6px":"0 10px 8px",display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:2}}>
+          {[["ATK",card.atk,"#EF4444"],["DEF",card.def,"#3B82F6"],["HP",card.hp,"#22C55E"]].map(([l,v,c])=>(
+            <div key={l} style={{textAlign:"center",padding:"2px 0",borderRadius:4,background:"rgba(0,0,0,.3)"}}>
+              <div style={{fontSize:sm?6:7,color:"#475569",fontFamily:"'Orbitron',sans-serif"}}>{l}</div>
+              <div style={{fontSize:sm?9:11,color:c,fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{v}</div>
+            </div>
+          ))}
+        </div>
+        {/* Ability name */}
+        {!sm&&(
+          <div style={{padding:"0 10px 8px"}}>
+            <div style={{fontSize:8,color:rc,fontFamily:"'Orbitron',sans-serif",fontWeight:700,padding:"2px 6px",borderRadius:5,background:`${rc}18`,border:`1px solid ${rc}33`,textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{card.ability}</div>
+          </div>
+        )}
+        {/* Type badge */}
+        <div style={{position:"absolute",top:20,right:6,fontSize:7,color:tc,fontFamily:"'Orbitron',sans-serif",fontWeight:700,background:`${tc}22`,padding:"1px 4px",borderRadius:4}}>{card.type}</div>
+        {/* In deck badge */}
+        {inDeck&&<div style={{position:"absolute",top:20,left:6,fontSize:8,background:"#22C55E",color:"#fff",borderRadius:4,padding:"1px 5px",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>✓</div>}
+        {/* Remove from deck button */}
+        {onRemove&&<button onClick={e=>{e.stopPropagation();onRemove(card.instanceId);}} style={{position:"absolute",bottom:6,right:6,background:"rgba(239,68,68,.8)",border:"none",borderRadius:4,color:"#fff",cursor:"pointer",fontSize:10,padding:"1px 5px"}}>×</button>}
+      </div>
+    );
+  };
+
+  // ── PACK OPENING SCREEN ───────────────────────────────────────────────────
+  if(openingPack){
+    const card=newCards[revealIdx];
+    const rc=RARITY_COLORS[card?.rarity]||"#64748B";
+    return(
+      <div style={{maxWidth:500,margin:"0 auto",padding:"20px",textAlign:"center"}}>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,color:"#475569",marginBottom:4}}>{revealIdx+1} / {newCards.length}</div>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:18,fontWeight:900,color:rc,marginBottom:20,letterSpacing:".08em"}}>{card?.rarity.toUpperCase()}!</div>
+        {card&&(
+          <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
+            <AnimeCard card={card} size="lg"/>
+          </div>
+        )}
+        <div style={{fontSize:11,color:"#64748B",marginBottom:16}}>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:14,fontWeight:700,color:"#E2E8F0"}}>{card?.name}</div>
+          <div style={{fontSize:10,color:"#94A3B8"}}>{card?.series}</div>
+          <div style={{fontSize:10,color:rc,marginTop:4}}>{card?.ability} — {card?.abilityDesc}</div>
+        </div>
+        <button onClick={nextReveal} style={{padding:"12px 32px",borderRadius:14,background:`linear-gradient(135deg,${rc},${rc}99)`,border:"none",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:13,fontWeight:900,color:"#fff"}}>
+          {revealIdx<newCards.length-1?"NEXT CARD ▶":"DONE ✓"}
+        </button>
+      </div>
+    );
+  }
+
+  // ── BATTLE SCREEN ─────────────────────────────────────────────────────────
+  if(tab==="battle"&&battleState){
+    const won=battleState.playerWon;
+    return(
+      <div style={{maxWidth:700,margin:"0 auto",padding:mob?"10px":"20px"}}>
+        <div style={{textAlign:"center",padding:"20px",borderRadius:18,background:won?"rgba(34,197,94,.1)":"rgba(239,68,68,.1)",border:`2px solid ${won?"rgba(34,197,94,.4)":"rgba(239,68,68,.3)"}`,marginBottom:18}}>
+          <div style={{fontSize:52,marginBottom:8}}>{won?"🏆":"💀"}</div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:24,fontWeight:900,color:won?"#22C55E":"#EF4444"}}>{won?"VICTORY!":"DEFEAT"}</div>
+          <div style={{fontSize:12,color:"#64748B",marginTop:4}}>+{battleState.reward} coins earned</div>
+        </div>
+        {/* Battle log */}
+        <div style={{maxHeight:300,overflowY:"auto",padding:"12px 14px",borderRadius:12,background:"rgba(0,0,0,.4)",border:"1px solid rgba(255,255,255,.07)",marginBottom:14,fontFamily:"monospace",fontSize:11,lineHeight:1.8}}>
+          {battleState.log.map((l,i)=>(
+            <div key={i} style={{color:l.startsWith("---")?"#475569":l.includes("defeated")?"#EF4444":l.includes("heals")||l.includes("recovers")?"#22C55E":"#94A3B8"}}>{l}</div>
+          ))}
+        </div>
+        {/* Card states */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+          {[["Your Cards",battleState.pDeck,"#22C55E"],["Opponent",battleState.aDeck,"#EF4444"]].map(([label,deck,col])=>(
+            <div key={label} style={{padding:"12px",borderRadius:12,background:"rgba(255,255,255,.03)",border:`1px solid ${col}33`}}>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:col,marginBottom:8}}>{label}</div>
+              {deck.map((c,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:10,padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)",color:c.currentHp<=0?"#EF4444":"#94A3B8"}}>
+                  <span>{c.name}</span>
+                  <span style={{fontFamily:"'Orbitron',sans-serif",color:c.currentHp<=0?"#EF4444":"#22C55E"}}>{c.currentHp<=0?"KO":`${c.currentHp}HP`}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        <button onClick={()=>{setBattleState(null);setTab("home");}} style={{width:"100%",padding:"12px",borderRadius:12,background:`linear-gradient(135deg,${accentColor},${accentColor}99)`,border:"none",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:900,color:"#fff"}}>← BACK TO HQ</button>
+      </div>
+    );
+  }
+
+  // ── MAIN LAYOUT ───────────────────────────────────────────────────────────
+  const tabList=[["home","🏠 Home"],["collection","📦 Collection"],["packs","🎁 Packs"],["deck","⚔️ Deck Builder"],["battle","🥊 Battle"]];
+
+  return(
+    <div style={{maxWidth:1000,margin:"0 auto",padding:mob?"8px 8px 100px":"16px 20px 80px"}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}>
+        <div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?18:24,fontWeight:900,color:accentColor,letterSpacing:".06em"}}>🌸 ANIME CARDS</div>
+          <div style={{fontSize:10,color:"#475569"}}>{ANIME_CHARACTERS.length} characters · {state.collection.length} collected</div>
+        </div>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          <div style={{padding:"6px 14px",borderRadius:20,background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.3)",fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:"#F59E0B"}}>
+            🪙 {state.coins.toLocaleString()}
+          </div>
+          <div style={{fontSize:10,color:"#22C55E",fontFamily:"'Orbitron',sans-serif"}}>{state.wins}W–{state.losses}L</div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{display:"flex",gap:4,marginBottom:16,flexWrap:"wrap"}}>
+        {tabList.map(([t,l])=>(
+          <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 14px",borderRadius:20,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:mob?9:10,fontWeight:700,border:`1px solid ${tab===t?accentColor+"66":"rgba(255,255,255,.08)"}`,background:tab===t?accentColor+"18":"rgba(255,255,255,.03)",color:tab===t?accentColor:"#475569",transition:"all .15s"}}>
+            {l}{t==="deck"&&state.deck.length>0?` (${state.deck.length}/5)`:""}
+          </button>
+        ))}
+      </div>
+
+      {deckMsg&&<div style={{marginBottom:12,padding:"8px 14px",borderRadius:10,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.3)",color:"#EF4444",fontSize:12,fontFamily:"'Orbitron',sans-serif"}}>{deckMsg}</div>}
+
+      {/* ── HOME ── */}
+      {tab==="home"&&(
+        <div>
+          {/* Stats banner */}
+          <div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(4,1fr)",gap:10,marginBottom:20}}>
+            {[["Cards Owned",state.collection.length,accentColor],["Total Pulls",state.totalPulls,"#F59E0B"],["Battle W",state.wins,"#22C55E"],["Battle L",state.losses,"#EF4444"]].map(([l,v,c])=>(
+              <div key={l} style={{textAlign:"center",padding:"14px",borderRadius:14,background:"rgba(255,255,255,.04)",border:`1px solid ${c}33`}}>
+                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:22,fontWeight:900,color:c}}>{v}</div>
+                <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif"}}>{l}</div>
+              </div>
+            ))}
+          </div>
+          {/* Quick actions */}
+          <div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"1fr 1fr 1fr",gap:10,marginBottom:20}}>
+            {[
+              {label:"Open Standard Pack",cost:"100 🪙",col:"#475569",action:()=>{openPack(PACK_TYPES[0]);setTab("packs");}},
+              {label:"Open Premium Pack",cost:"300 🪙",col:"#7C3AED",action:()=>{openPack(PACK_TYPES[1]);setTab("packs");}},
+              {label:"Go Battle!",cost:state.deck.length>=3?"Ready!":"Need 3+ cards",col:"#EF4444",action:startBattle},
+            ].map(({label,cost,col,action})=>(
+              <button key={label} onClick={action} style={{padding:"16px",borderRadius:14,cursor:"pointer",border:`2px solid ${col}55`,background:`${col}18`,fontFamily:"'Orbitron',sans-serif",textAlign:"left",transition:"all .2s"}}
+                onMouseEnter={e=>e.currentTarget.style.background=`${col}28`}
+                onMouseLeave={e=>e.currentTarget.style.background=`${col}18`}>
+                <div style={{fontSize:11,fontWeight:700,color:col,marginBottom:4}}>{label}</div>
+                <div style={{fontSize:10,color:"#64748B"}}>{cost}</div>
+              </button>
+            ))}
+          </div>
+          {/* Recent cards */}
+          {state.collection.length>0&&(
+            <div>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".12em",marginBottom:10}}>RECENTLY PULLED</div>
+              <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:8}}>
+                {[...state.collection].reverse().slice(0,8).map((c,i)=>(
+                  <AnimeCard key={i} card={c} size="sm"/>
+                ))}
+              </div>
+            </div>
+          )}
+          {state.collection.length===0&&(
+            <div style={{textAlign:"center",padding:"40px",color:"#334155"}}>
+              <div style={{fontSize:48,marginBottom:12}}>🌸</div>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,color:"#94A3B8",marginBottom:8}}>No cards yet!</div>
+              <div style={{fontSize:11}}>Open a pack to start your collection</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── COLLECTION ── */}
+      {tab==="collection"&&(
+        <div>
+          {/* Filters */}
+          <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+            <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="Search characters…" style={{flex:1,minWidth:140,padding:"7px 12px",borderRadius:10,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#E2E8F0",fontSize:12}}/>
+            <select value={filterRarity} onChange={e=>setFilterRarity(e.target.value)} style={{padding:"6px 10px",borderRadius:9,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#E2E8F0",fontSize:11}}>
+              <option value="All">All Rarities</option>
+              {RARITY_ORDER.map(r=><option key={r} value={r}>{r}</option>)}
+            </select>
+            <select value={filterSeries} onChange={e=>setFilterSeries(e.target.value)} style={{padding:"6px 10px",borderRadius:9,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#E2E8F0",fontSize:11}}>
+              <option value="All">All Series</option>
+              {allSeries.map(s=><option key={s} value={s}>{s}</option>)}
+            </select>
+            <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{padding:"6px 10px",borderRadius:9,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#E2E8F0",fontSize:11}}>
+              <option value="rarity">Sort: Rarity</option>
+              <option value="atk">Sort: ATK</option>
+              <option value="name">Sort: Name</option>
+            </select>
+          </div>
+          <div style={{fontSize:10,color:"#334155",marginBottom:10}}>{filteredCol.length} cards</div>
+          {filteredCol.length===0&&<div style={{textAlign:"center",padding:"40px",color:"#334155",fontSize:12}}>{state.collection.length===0?"No cards yet — open some packs!":"No cards match your filters"}</div>}
+          <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
+            {filteredCol.map((c,i)=>{
+              const inDeck=!!state.deck.find(d=>d.instanceId===c.instanceId);
+              return<AnimeCard key={i} card={c} onClick={()=>addToDeck(c)} inDeck={inDeck}/>;
+            })}
+          </div>
+          {filteredCol.length>0&&<div style={{fontSize:10,color:"#334155",marginTop:12,textAlign:"center"}}>Click any card to add to deck</div>}
+        </div>
+      )}
+
+      {/* ── PACKS ── */}
+      {tab==="packs"&&(
+        <div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".12em",marginBottom:14}}>CHOOSE A PACK</div>
+          <div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(4,1fr)",gap:12,marginBottom:20}}>
+            {PACK_TYPES.map(pack=>(
+              <div key={pack.id} style={{borderRadius:14,border:`2px solid ${pack.color}44`,background:`${pack.color}10`,padding:"16px",cursor:"pointer",transition:"all .2s"}}
+                onClick={()=>openPack(pack)}
+                onMouseEnter={e=>e.currentTarget.style.background=`${pack.color}20`}
+                onMouseLeave={e=>e.currentTarget.style.background=`${pack.color}10`}>
+                <div style={{fontSize:32,textAlign:"center",marginBottom:8}}>🎁</div>
+                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:pack.color,marginBottom:4,textAlign:"center"}}>{pack.name}</div>
+                <div style={{fontSize:10,color:"#64748B",textAlign:"center",marginBottom:8}}>{pack.desc}</div>
+                <div style={{textAlign:"center",padding:"6px",borderRadius:10,background:`${pack.color}22`,border:`1px solid ${pack.color}44`,fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:pack.color}}>🪙 {pack.cost}</div>
+              </div>
+            ))}
+          </div>
+          {/* Drop rates table */}
+          <div style={{padding:"14px",borderRadius:14,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)"}}>
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",marginBottom:10}}>DROP RATES — STANDARD PACK</div>
+            {RARITY_ORDER.map(r=>(
+              <div key={r} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+                <span style={{fontSize:11,color:RARITY_COLORS[r],fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{r}</span>
+                <span style={{fontSize:11,color:"#94A3B8"}}>{(RARITY_RATES[r]*100).toFixed(0)}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── DECK BUILDER ── */}
+      {tab==="deck"&&(
+        <div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:8}}>
+            <div>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,color:"#94A3B8"}}>YOUR BATTLE DECK ({state.deck.length}/5)</div>
+              <div style={{fontSize:10,color:"#334155"}}>Select 3-5 cards. Click cards in collection to add.</div>
+            </div>
+            <button onClick={()=>persist({deck:[]})} style={{padding:"6px 14px",borderRadius:10,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.25)",color:"#EF4444",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700}}>Clear Deck</button>
+          </div>
+          {state.deck.length===0&&(
+            <div style={{textAlign:"center",padding:"40px",color:"#334155"}}>
+              <div style={{fontSize:36,marginBottom:8}}>⚔️</div>
+              <div style={{fontSize:12}}>Deck is empty — go to Collection and click cards to add them</div>
+            </div>
+          )}
+          <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:20}}>
+            {state.deck.map((c,i)=>(
+              <AnimeCard key={i} card={c} onRemove={removeFromDeck}/>
+            ))}
+          </div>
+          {state.deck.length>=3&&(
+            <button onClick={startBattle} style={{width:"100%",padding:"14px",borderRadius:14,background:`linear-gradient(135deg,#EF4444,#EF4444cc)`,border:"none",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:13,fontWeight:900,color:"#fff"}}>
+              ⚔️ BATTLE WITH THIS DECK →
+            </button>
+          )}
+          {state.deck.length>0&&state.deck.length<3&&(
+            <div style={{textAlign:"center",padding:"10px",color:"#F59E0B",fontSize:11,fontFamily:"'Orbitron',sans-serif"}}>Add {3-state.deck.length} more card{3-state.deck.length!==1?"s":""} to battle</div>
+          )}
+        </div>
+      )}
+
+      {/* ── BATTLE HOME ── */}
+      {tab==="battle"&&!battleState&&(
+        <div>
+          <div style={{textAlign:"center",marginBottom:20}}>
+            <div style={{fontSize:48,marginBottom:8}}>⚔️</div>
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:18,fontWeight:900,color:"#EF4444",marginBottom:8}}>BATTLE ARENA</div>
+            <div style={{fontSize:12,color:"#64748B"}}>Your deck vs a random AI opponent</div>
+          </div>
+          {state.deck.length>=3?(
+            <>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",marginBottom:10}}>YOUR BATTLE DECK</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:20}}>
+                {state.deck.map((c,i)=><AnimeCard key={i} card={c} size="sm"/>)}
+              </div>
+              <button onClick={startBattle} style={{width:"100%",padding:"16px",borderRadius:14,background:"linear-gradient(135deg,#EF4444,#7C3AED)",border:"none",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:14,fontWeight:900,color:"#fff",letterSpacing:".06em"}}>
+                ⚔️ START BATTLE →
+              </button>
+            </>
+          ):(
+            <div style={{textAlign:"center",padding:"30px",color:"#334155"}}>
+              <div style={{fontSize:12,marginBottom:12}}>You need at least 3 cards in your deck</div>
+              <button onClick={()=>setTab("deck")} style={{padding:"10px 24px",borderRadius:12,background:"rgba(239,68,68,.12)",border:"1px solid rgba(239,68,68,.3)",color:"#EF4444",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700}}>Build Deck →</button>
+            </div>
+          )}
+          {/* Battle history */}
+          {state.battleHistory.length>0&&(
+            <div style={{marginTop:20}}>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",marginBottom:10}}>RECENT BATTLES</div>
+              {state.battleHistory.slice(0,5).map((b,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",borderRadius:10,background:"rgba(255,255,255,.03)",border:`1px solid ${b.won?"rgba(34,197,94,.2)":"rgba(239,68,68,.15)"}`,marginBottom:5}}>
+                  <span style={{fontSize:11,color:b.won?"#22C55E":"#EF4444",fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{b.won?"WIN":"LOSS"}</span>
+                  <span style={{fontSize:10,color:"#64748B"}}>vs {b.opponent.split(",")[0]}…</span>
+                  <span style={{fontSize:9,color:"#334155"}}>{new Date(b.date).toLocaleDateString()}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  ANIME CARD GAME
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const CARD_RARITIES = [
+  {id:"common",   label:"Common",    color:"#94A3B8", bg:"#1E293B", stars:1, weight:45},
+  {id:"uncommon", label:"Uncommon",  color:"#22C55E", bg:"#14532D", stars:2, weight:25},
+  {id:"rare",     label:"Rare",      color:"#3B82F6", bg:"#1E3A8A", stars:3, weight:15},
+  {id:"epic",     label:"Epic",      color:"#A855F7", bg:"#4C1D95", stars:4, weight:9},
+  {id:"legendary",label:"Legendary", color:"#F59E0B", bg:"#78350F", stars:5, weight:5},
+  {id:"mythic",   label:"Mythic",    color:"#EC4899", bg:"#831843", stars:6, weight:1},
+];
+
+const PACK_TYPES = [
+  {id:"starter",   label:"Starter Pack",   cost:0,    cards:5,  guaranteed:"uncommon",  icon:"🎁"},
+  {id:"basic",     label:"Basic Pack",     cost:100,  cards:5,  guaranteed:"rare",      icon:"📦"},
+  {id:"premium",   label:"Premium Pack",   cost:250,  cards:7,  guaranteed:"epic",      icon:"💎"},
+  {id:"legendary", label:"Legendary Pack", cost:500,  cards:8,  guaranteed:"legendary", icon:"⭐"},
+  {id:"mythic",    label:"Mythic Pack",    cost:1000, cards:10, guaranteed:"mythic",    icon:"🌟"},
+];
+
+const ANIME_CHARACTERS = [
+  {name:"Goku",         anime:"Dragon Ball Z",              type:"Divine",   baseAtk:98,baseDef:85,baseSpd:95,baseHP:200},
+  {name:"Naruto",       anime:"Naruto",                     type:"Wind",     baseAtk:88,baseDef:80,baseSpd:90,baseHP:180},
+  {name:"Ichigo",       anime:"Bleach",                     type:"Shadow",   baseAtk:90,baseDef:82,baseSpd:88,baseHP:175},
+  {name:"Luffy",        anime:"One Piece",                  type:"Lightning",baseAtk:87,baseDef:78,baseSpd:85,baseHP:185},
+  {name:"Levi",         anime:"Attack on Titan",            type:"Wind",     baseAtk:92,baseDef:75,baseSpd:97,baseHP:160},
+  {name:"Gojo Satoru",  anime:"Jujutsu Kaisen",             type:"Light",    baseAtk:99,baseDef:95,baseSpd:98,baseHP:190},
+  {name:"Vegeta",       anime:"Dragon Ball Z",              type:"Divine",   baseAtk:96,baseDef:88,baseSpd:92,baseHP:195},
+  {name:"Sasuke",       anime:"Naruto",                     type:"Dark",     baseAtk:91,baseDef:83,baseSpd:93,baseHP:170},
+  {name:"Saitama",      anime:"One Punch Man",              type:"Light",    baseAtk:100,baseDef:100,baseSpd:99,baseHP:250},
+  {name:"Kakashi",      anime:"Naruto",                     type:"Lightning",baseAtk:89,baseDef:86,baseSpd:91,baseHP:168},
+  {name:"Mikasa",       anime:"Attack on Titan",            type:"Wind",     baseAtk:88,baseDef:80,baseSpd:94,baseHP:162},
+  {name:"Eren Yeager",  anime:"Attack on Titan",            type:"Earth",    baseAtk:85,baseDef:90,baseSpd:78,baseHP:200},
+  {name:"Itachi",       anime:"Naruto",                     type:"Shadow",   baseAtk:95,baseDef:87,baseSpd:96,baseHP:172},
+  {name:"Zoro",         anime:"One Piece",                  type:"Earth",    baseAtk:93,baseDef:85,baseSpd:84,baseHP:180},
+  {name:"Edward Elric", anime:"Fullmetal Alchemist",        type:"Fire",     baseAtk:85,baseDef:78,baseSpd:88,baseHP:160},
+  {name:"Roy Mustang",  anime:"Fullmetal Alchemist",        type:"Fire",     baseAtk:87,baseDef:76,baseSpd:86,baseHP:155},
+  {name:"Meliodas",     anime:"Seven Deadly Sins",          type:"Fire",     baseAtk:97,baseDef:90,baseSpd:95,baseHP:210},
+  {name:"Ban",          anime:"Seven Deadly Sins",          type:"Shadow",   baseAtk:89,baseDef:80,baseSpd:90,baseHP:180},
+  {name:"Killua",       anime:"HunterxHunter",              type:"Lightning",baseAtk:90,baseDef:82,baseSpd:98,baseHP:165},
+  {name:"Gon Freecss",  anime:"HunterxHunter",              type:"Divine",   baseAtk:88,baseDef:80,baseSpd:90,baseHP:172},
+  {name:"Hisoka",       anime:"HunterxHunter",              type:"Shadow",   baseAtk:93,baseDef:85,baseSpd:92,baseHP:175},
+  {name:"Alucard",      anime:"Hellsing",                   type:"Dark",     baseAtk:99,baseDef:99,baseSpd:95,baseHP:300},
+  {name:"Kirito",       anime:"Sword Art Online",           type:"Wind",     baseAtk:86,baseDef:80,baseSpd:89,baseHP:162},
+  {name:"All Might",    anime:"My Hero Academia",           type:"Light",    baseAtk:97,baseDef:95,baseSpd:90,baseHP:220},
+  {name:"Deku",         anime:"My Hero Academia",           type:"Light",    baseAtk:88,baseDef:82,baseSpd:87,baseHP:172},
+  {name:"Bakugo",       anime:"My Hero Academia",           type:"Fire",     baseAtk:92,baseDef:80,baseSpd:88,baseHP:168},
+  {name:"Todoroki",     anime:"My Hero Academia",           type:"Ice",      baseAtk:91,baseDef:84,baseSpd:86,baseHP:170},
+  {name:"Ryomen Sukuna",anime:"Jujutsu Kaisen",             type:"Dark",     baseAtk:100,baseDef:95,baseSpd:97,baseHP:240},
+  {name:"Yuji Itadori", anime:"Jujutsu Kaisen",             type:"Earth",    baseAtk:89,baseDef:84,baseSpd:90,baseHP:180},
+  {name:"Tanjiro",      anime:"Demon Slayer",               type:"Water",    baseAtk:85,baseDef:80,baseSpd:88,baseHP:165},
+  {name:"Rengoku",      anime:"Demon Slayer",               type:"Fire",     baseAtk:94,baseDef:88,baseSpd:92,baseHP:175},
+  {name:"Muzan",        anime:"Demon Slayer",               type:"Dark",     baseAtk:98,baseDef:96,baseSpd:98,baseHP:230},
+  {name:"Yami Sukehiro",anime:"Black Clover",               type:"Shadow",   baseAtk:93,baseDef:87,baseSpd:90,baseHP:178},
+  {name:"Asta",         anime:"Black Clover",               type:"Wind",     baseAtk:82,baseDef:85,baseSpd:90,baseHP:175},
+  {name:"Sung Jin-Woo", anime:"Solo Leveling",              type:"Shadow",   baseAtk:99,baseDef:97,baseSpd:99,baseHP:250},
+  {name:"Rimuru Tempest",anime:"That Time I Got Reincarnated",type:"Water",  baseAtk:97,baseDef:95,baseSpd:94,baseHP:220},
+  {name:"Ainz Ooal Gown",anime:"Overlord",                  type:"Dark",     baseAtk:98,baseDef:99,baseSpd:88,baseHP:280},
+  {name:"Natsu Dragneel",anime:"Fairy Tail",                type:"Fire",     baseAtk:91,baseDef:82,baseSpd:88,baseHP:178},
+  {name:"Erza Scarlet", anime:"Fairy Tail",                 type:"Earth",    baseAtk:93,baseDef:92,baseSpd:85,baseHP:180},
+  {name:"Accelerator",  anime:"A Certain Magical Index",    type:"Lightning",baseAtk:97,baseDef:98,baseSpd:85,baseHP:185},
+  {name:"Light Yagami", anime:"Death Note",                 type:"Shadow",   baseAtk:40,baseDef:50,baseSpd:70,baseHP:120},
+  {name:"Spike Spiegel",anime:"Cowboy Bebop",               type:"Wind",     baseAtk:82,baseDef:75,baseSpd:88,baseHP:155},
+  {name:"Yusuke",       anime:"Yu Yu Hakusho",              type:"Lightning",baseAtk:88,baseDef:82,baseSpd:87,baseHP:170},
+  {name:"Toguro",       anime:"Yu Yu Hakusho",              type:"Dark",     baseAtk:94,baseDef:92,baseSpd:85,baseHP:195},
+  {name:"Kenshin",      anime:"Rurouni Kenshin",            type:"Wind",     baseAtk:90,baseDef:78,baseSpd:97,baseHP:162},
+  {name:"Inuyasha",     anime:"Inuyasha",                   type:"Earth",    baseAtk:87,baseDef:82,baseSpd:89,baseHP:178},
+  {name:"Sesshomaru",   anime:"Inuyasha",                   type:"Ice",      baseAtk:95,baseDef:90,baseSpd:93,baseHP:185},
+  {name:"Madara Uchiha",anime:"Naruto Shippuden",           type:"Fire",     baseAtk:98,baseDef:95,baseSpd:90,baseHP:210},
+  {name:"Whitebeard",   anime:"One Piece",                  type:"Earth",    baseAtk:97,baseDef:94,baseSpd:82,baseHP:260},
+  {name:"Shanks",       anime:"One Piece",                  type:"Lightning",baseAtk:96,baseDef:90,baseSpd:91,baseHP:195},
+];
+
+const TYPE_COLORS = {"Fire":"#EF4444","Water":"#3B82F6","Lightning":"#F59E0B","Dark":"#6366F1","Light":"#FDE68A","Wind":"#34D399","Earth":"#A16207","Ice":"#67E8F9","Shadow":"#7C3AED","Divine":"#FCD34D"};
+const TYPE_ADV = {"Fire":["Ice","Wind"],"Water":["Fire","Earth"],"Lightning":["Water","Wind"],"Dark":["Light","Divine"],"Light":["Dark","Shadow"],"Wind":["Earth","Shadow"],"Earth":["Lightning","Ice"],"Ice":["Fire","Water"],"Shadow":["Light","Wind"],"Divine":["Dark","Shadow"]};
+const ANIME_CARD_KEY = "nova_anime_cards_v2";
+
+function loadACData(){try{return JSON.parse(localStorage.getItem(ANIME_CARD_KEY)||"null");}catch{return null;}}
+function saveACData(d){try{localStorage.setItem(ANIME_CARD_KEY,JSON.stringify(d));}catch(e){}}
+function initACData(){return{coins:500,collection:[],deck:[],wins:0,losses:0,packs:0,starter:false};}
+
+function getCharRarity(c){
+  const p=(c.baseAtk+c.baseDef+c.baseSpd)/3;
+  if(p>=97)return"mythic";if(p>=93)return"legendary";if(p>=87)return"epic";if(p>=80)return"rare";if(p>=72)return"uncommon";return"common";
+}
+
+function makeCard(char,uid){
+  const rid=getCharRarity(char);
+  const mult={common:1,uncommon:1.1,rare:1.2,epic:1.35,legendary:1.5,mythic:1.7}[rid]||1;
+  return{id:uid,charName:char.name,anime:char.anime,type:char.type,rarity:rid,
+    atk:Math.round(char.baseAtk*mult),def:Math.round(char.baseDef*mult),
+    spd:Math.round(char.baseSpd*mult),hp:Math.round(char.baseHP*mult),
+    foil:Math.random()<0.05,ts:Date.now()};
+}
+
+function openPack(packId){
+  const pack=PACK_TYPES.find(p=>p.id===packId)||PACK_TYPES[1];
+  const gIdx=CARD_RARITIES.findIndex(r=>r.id===pack.guaranteed);
+  const highIds=CARD_RARITIES.slice(gIdx).map(r=>r.id);
+  const uid=(i)=>`c_${Date.now()}_${i}_${Math.random().toString(36).slice(2,6)}`;
+  return Array.from({length:pack.cards},(_, i)=>{
+    let pool=ANIME_CHARACTERS;
+    if(i===0){const hi=ANIME_CHARACTERS.filter(c=>highIds.includes(getCharRarity(c)));if(hi.length)pool=hi;}
+    else{
+      const w=ANIME_CHARACTERS.map(c=>CARD_RARITIES.find(r=>r.id===getCharRarity(c))?.weight||1);
+      const t=w.reduce((a,b)=>a+b,0);let r=Math.random()*t;
+      let chosen=pool[0];
+      for(let j=0;j<ANIME_CHARACTERS.length;j++){r-=w[j];if(r<=0){chosen=ANIME_CHARACTERS[j];break;}}
+      return makeCard(chosen,uid(i));
+    }
+    return makeCard(pool[Math.floor(Math.random()*pool.length)],uid(i));
+  });
+}
+
+function simulateBattle(myDeck,aiDeck){
+  const log=[];
+  const mHP=myDeck.map(c=>c.hp),aHP=aiDeck.map(c=>c.hp);
+  let mi=0,ai=0,turn=0;
+  while(mHP.some(h=>h>0)&&aHP.some(h=>h>0)&&turn<60){
+    turn++;
+    const me=myDeck[mi],en=aiDeck[ai];if(!me||!en)break;
+    const mAdv=(TYPE_ADV[me.type]||[]).includes(en.type)?1.25:1;
+    const eAdv=(TYPE_ADV[en.type]||[]).includes(me.type)?1.25:1;
+    const mDmg=Math.max(1,Math.round((me.atk*mAdv-en.def*0.35)*(0.8+Math.random()*0.4)));
+    const eDmg=Math.max(1,Math.round((en.atk*eAdv-me.def*0.35)*(0.8+Math.random()*0.4)));
+    if(me.spd>=en.spd){
+      aHP[ai]-=mDmg;log.push(`T${turn}: ${me.charName} ⚔️ ${en.charName} for ${mDmg}${mAdv>1?" ⚡":""}dmg`);
+      if(aHP[ai]<=0){log.push(`💀 ${en.charName} KO!`);ai++;if(ai>=aiDeck.length)break;}
+      else{mHP[mi]-=eDmg;if(mHP[mi]<=0){log.push(`💀 ${me.charName} KO!`);mi++;if(mi>=myDeck.length)break;}}
+    }else{
+      mHP[mi]-=eDmg;log.push(`T${turn}: ${en.charName} ⚔️ ${me.charName} for ${eDmg}${eAdv>1?" ⚡":""}dmg`);
+      if(mHP[mi]<=0){log.push(`💀 ${me.charName} KO!`);mi++;if(mi>=myDeck.length)break;}
+      else{aHP[ai]-=mDmg;if(aHP[ai]<=0){log.push(`💀 ${en.charName} KO!`);ai++;if(ai>=aiDeck.length)break;}}
+    }
+  }
+  const mA=mHP.filter(h=>h>0).length,aA=aHP.filter(h=>h>0).length;
+  const win=mA>aA||(mA===aA&&mHP.reduce((a,b)=>a+b,0)>aHP.reduce((a,b)=>a+b,0));
+  log.push(win?"🏆 VICTORY!":"💔 Defeated...");
+  return{win,log,mA,aA};
+}
+
+function makeAIDeck(difficulty){
+  const m={easy:0.8,normal:1.0,hard:1.2}[difficulty]||1;
+  return [...ANIME_CHARACTERS].sort(()=>Math.random()-0.5).slice(0,5).map((c,i)=>{
+    const card=makeCard(c,`ai_${i}`);
+    return{...card,atk:Math.round(card.atk*m),def:Math.round(card.def*m),hp:Math.round(card.hp*m)};
+  });
+}
+
+function AnimeCard({card,size="md",selected,onClick,compact}){
+  const r=CARD_RARITIES.find(x=>x.id===card.rarity)||CARD_RARITIES[0];
+  const W={sm:82,md:118,lg:158}[size]||118;
+  const H={sm:115,md:165,lg:220}[size]||165;
+  const FS={sm:7,md:9,lg:11}[size]||9;
+  const tc=TYPE_COLORS[card.type]||"#94A3B8";
+  const emoji={"Fire":"🔥","Water":"💧","Lightning":"⚡","Dark":"🌑","Light":"✨","Wind":"💨","Earth":"🪨","Ice":"❄️","Shadow":"🌫","Divine":"👑"}[card.type]||"⚔️";
+  return(
+    <div onClick={onClick} style={{width:W,height:compact?undefined:H,borderRadius:10,cursor:onClick?"pointer":"default",flexShrink:0,position:"relative",
+      background:`linear-gradient(160deg,${r.bg},#050A14)`,border:`2px solid ${selected?r.color:r.color+"55"}`,
+      boxShadow:selected?`0 0 16px ${r.color}55`:`0 4px 10px rgba(0,0,0,.45)${card.foil?`,0 0 6px ${r.color}33`:""}`,
+      display:"flex",flexDirection:"column",overflow:"hidden",transition:"all .16s",transform:selected?"translateY(-5px)":"none"}}>
+      {card.foil&&<div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,transparent 25%,rgba(255,255,255,.07) 50%,transparent 75%)",zIndex:4,pointerEvents:"none"}}/>}
+      <div style={{position:"absolute",top:3,right:3,padding:"1px 4px",borderRadius:4,background:tc+"22",border:`1px solid ${tc}44`,fontSize:FS-1,color:tc,fontFamily:"'Orbitron',sans-serif",zIndex:2}}>{card.type}</div>
+      {!compact&&<div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",fontSize:W*0.32,background:`radial-gradient(circle,${r.color}14,transparent 70%)`,minHeight:0}}>{emoji}</div>}
+      <div style={{padding:"3px 5px",background:"rgba(0,0,0,.45)",zIndex:1}}>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:FS,fontWeight:700,color:"#E2E8F0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{card.charName}</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontSize:FS-1,color:"#475569",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"65%"}}>{card.anime}</div>
+          <div style={{fontSize:FS-1,color:r.color}}>{"★".repeat(r.stars)}</div>
+        </div>
+      </div>
+      {!compact&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",background:"rgba(0,0,0,.5)",padding:"2px 3px",zIndex:1}}>
+        {[["ATK",card.atk,"#EF4444"],["DEF",card.def,"#3B82F6"],["SPD",card.spd,"#22C55E"],["HP",card.hp,"#A855F7"]].map(([l,v,c])=>(
+          <div key={l} style={{textAlign:"center"}}>
+            <div style={{fontSize:FS-2,color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>{l}</div>
+            <div style={{fontSize:FS,fontWeight:700,color:c,fontFamily:"'Orbitron',sans-serif"}}>{v}</div>
+          </div>
+        ))}
+      </div>}
+    </div>
+  );
+}
+
+function AnimeCardGame(){
+  const mob=useIsMobile();
+  const[data,setData]=useState(()=>loadACData()||initACData());
+  const[screen,setScreen]=useState("home");
+  const[openedCards,setOpenedCards]=useState([]);
+  const[revealIdx,setRevealIdx]=useState(-1);
+  const[deckSel,setDeckSel]=useState(new Set());
+  const[battleResult,setBattleResult]=useState(null);
+  const[battleLog,setBattleLog]=useState([]);
+  const[difficulty,setDifficulty]=useState("normal");
+  const[filterR,setFilterR]=useState("all");
+  const[filterA,setFilterA]=useState("all");
+  const[sortBy,setSortBy]=useState("ts");
+  const[cardDetail,setCardDetail]=useState(null);
+  const[toast,setToast]=useState(null);
+  const AC="#EC4899";
+
+  const upd=(patch)=>setData(prev=>{const next={...prev,...(typeof patch==="function"?patch(prev):patch)};saveACData(next);return next;});
+  const showT=(msg,col="#22C55E")=>{setToast({msg,col});setTimeout(()=>setToast(null),2800);};
+
+  const claimStarter=()=>{
+    if(data.starter){showT("Already claimed!","#F59E0B");return;}
+    const cards=openPack("starter");
+    upd(p=>({collection:[...p.collection,...cards],starter:true,packs:p.packs+1}));
+    setOpenedCards(cards);setRevealIdx(0);setScreen("reveal");
+    showT("Free starter pack opened! 🎉");
+  };
+
+  const buyPack=(packId)=>{
+    if(packId==="starter"){claimStarter();return;}
+    const pack=PACK_TYPES.find(p=>p.id===packId);if(!pack)return;
+    if(data.coins<pack.cost){showT(`Need ${pack.cost} coins!`,"#EF4444");return;}
+    const cards=openPack(packId);
+    upd(p=>({coins:p.coins-pack.cost,collection:[...p.collection,...cards],packs:p.packs+1}));
+    setOpenedCards(cards);setRevealIdx(0);setScreen("reveal");
+  };
+
+  const toggleDeck=(id)=>setDeckSel(prev=>{
+    const n=new Set(prev);
+    if(n.has(id))n.delete(id);
+    else if(n.size<5)n.add(id);
+    else{showT("Deck full (max 5)","#F59E0B");return prev;}
+    return n;
+  });
+
+  const saveDeck=()=>{
+    const deck=data.collection.filter(c=>deckSel.has(c.id));
+    upd({deck});showT(`Deck saved (${deck.length} cards) ✅`);
+  };
+
+  const startBattle=()=>{
+    if(!data.deck?.length){showT("Build your deck first!","#EF4444");return;}
+    const ai=makeAIDeck(difficulty);
+    const res=simulateBattle(data.deck,ai);
+    setBattleLog(res.log);setBattleResult({...res,aiDeck:ai});
+    const reward=res.win?{coins:data.coins+(difficulty==="hard"?150:difficulty==="normal"?80:40),wins:(data.wins||0)+1}:{coins:data.coins+20,losses:(data.losses||0)+1};
+    upd(reward);setScreen("battle_result");
+  };
+
+  const animeList=["all",...new Set(data.collection.map(c=>c.anime))];
+  const coll=[...data.collection]
+    .filter(c=>filterR==="all"||c.rarity===filterR)
+    .filter(c=>filterA==="all"||c.anime===filterA)
+    .sort((a,b)=>sortBy==="rarity"?CARD_RARITIES.findIndex(r=>r.id===b.rarity)-CARD_RARITIES.findIndex(r=>r.id===a.rarity):sortBy==="atk"?b.atk-a.atk:sortBy==="name"?a.charName.localeCompare(b.charName):b.ts-a.ts);
+
+  const navs=[["home","🏠","Home"],["packs","📦","Packs"],["collection","🃏","Cards"],["deck","⚔️","Deck"],["battle","💥","Battle"]];
+
+  return(
+    <div style={{maxWidth:960,margin:"0 auto",padding:mob?"6px 6px 110px":"20px 20px 80px"}}>
+      {toast&&<div style={{position:"fixed",top:74,left:"50%",transform:"translateX(-50%)",background:toast.col,color:"#fff",padding:"8px 18px",borderRadius:16,fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,zIndex:9998,boxShadow:"0 5px 18px rgba(0,0,0,.5)"}}>{toast.msg}</div>}
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?15:20,fontWeight:900,color:AC,letterSpacing:".04em"}}>⚡ ANIME CARDS</div>
+        <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
+          <div style={{padding:"4px 11px",borderRadius:9,background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.25)",fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#F59E0B"}}>🪙 {data.coins.toLocaleString()}</div>
+          <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif"}}>{data.collection.length} CARDS</div>
+        </div>
+      </div>
+      {/* Nav */}
+      {!["reveal","battle_result"].includes(screen)&&(
+        <div style={{display:"flex",gap:5,marginBottom:14,overflowX:"auto",paddingBottom:3}}>
+          {navs.map(([id,ic,lb])=>(
+            <button key={id} onClick={()=>setScreen(id)} style={{padding:mob?"6px 9px":"7px 15px",borderRadius:10,cursor:"pointer",flexShrink:0,fontFamily:"'Orbitron',sans-serif",fontSize:mob?9:10,fontWeight:700,border:`1px solid ${screen===id?AC+"66":"rgba(255,255,255,.07)"}`,background:screen===id?AC+"18":"rgba(255,255,255,.02)",color:screen===id?AC:"#475569"}}>
+              {ic}{!mob&&" "+lb}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* HOME */}
+      {screen==="home"&&(
+        <div>
+          <div style={{textAlign:"center",padding:"22px 16px",borderRadius:20,background:"linear-gradient(135deg,rgba(236,72,153,.1),rgba(99,102,241,.07))",border:"1px solid rgba(236,72,153,.18)",marginBottom:18}}>
+            <div style={{fontSize:48,marginBottom:8}}>⚡</div>
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?14:20,fontWeight:900,color:"#E2E8F0",marginBottom:6}}>ANIME CARD BATTLE</div>
+            <div style={{fontSize:11,color:"#475569",marginBottom:14}}>Collect cards · Build decks · Battle AI · {ANIME_CHARACTERS.length} unique characters</div>
+            <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+              {[["Cards",data.collection.length,AC],["Wins",data.wins||0,"#22C55E"],["Packs",data.packs||0,"#F59E0B"]].map(([l,v,c])=>(
+                <div key={l} style={{padding:"10px 18px",borderRadius:12,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)"}}>
+                  <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:20,fontWeight:900,color:c}}>{v}</div>
+                  <div style={{fontSize:9,color:"#475569",fontFamily:"'Orbitron',sans-serif"}}>{l.toUpperCase()}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {!data.starter&&(
+            <div onClick={claimStarter} style={{padding:"16px",borderRadius:16,background:"linear-gradient(135deg,rgba(34,197,94,.1),rgba(16,185,129,.06))",border:"2px solid rgba(34,197,94,.28)",cursor:"pointer",textAlign:"center",marginBottom:14}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor="rgba(34,197,94,.55)"}
+              onMouseLeave={e=>e.currentTarget.style.borderColor="rgba(34,197,94,.28)"}>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,fontWeight:900,color:"#22C55E",marginBottom:3}}>🎁 CLAIM FREE STARTER PACK</div>
+              <div style={{fontSize:10,color:"#475569"}}>5 free cards to start your collection</div>
+            </div>
+          )}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            {[["📦 Open Packs","Collect new characters",AC,()=>setScreen("packs")],["💥 Battle","Challenge AI opponents","#EF4444",()=>setScreen("battle")]].map(([t,d,c,fn])=>(
+              <div key={t} onClick={fn} style={{padding:"14px",borderRadius:14,background:c+"0e",border:`1px solid ${c}28`,cursor:"pointer"}}
+                onMouseEnter={e=>e.currentTarget.style.background=c+"18"}
+                onMouseLeave={e=>e.currentTarget.style.background=c+"0e"}>
+                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:c,marginBottom:3}}>{t}</div>
+                <div style={{fontSize:10,color:"#475569"}}>{d}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* PACKS */}
+      {screen==="packs"&&(
+        <div>
+          <div style={{fontSize:10,color:"#334155",marginBottom:12,fontFamily:"'Orbitron',sans-serif"}}>YOU HAVE {data.coins} 🪙 · EARN BY WINNING BATTLES</div>
+          <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:10}}>
+            {PACK_TYPES.map(pack=>{
+              const r=CARD_RARITIES.find(x=>x.id===pack.guaranteed)||CARD_RARITIES[0];
+              const can=pack.cost===0||data.coins>=pack.cost;
+              const claimed=pack.id==="starter"&&data.starter;
+              return(
+                <div key={pack.id} style={{padding:"16px",borderRadius:16,background:`linear-gradient(145deg,${r.bg},#070E1A)`,border:`1px solid ${r.color}44`,opacity:claimed?0.55:1}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                    <div>
+                      <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:14,fontWeight:900,color:r.color}}>{pack.icon} {pack.label}</div>
+                      <div style={{fontSize:10,color:"#475569",marginTop:2}}>{pack.cards} cards · {r.label}+ guaranteed</div>
+                    </div>
+                    <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,fontWeight:900,color:pack.cost===0?"#22C55E":"#F59E0B"}}>{pack.cost===0?"FREE":"🪙"+pack.cost}</div>
+                  </div>
+                  <button onClick={()=>buyPack(pack.id)} disabled={!can||claimed}
+                    style={{width:"100%",padding:"9px",borderRadius:10,border:"none",cursor:!can||claimed?"not-allowed":"pointer",
+                      fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:900,
+                      background:claimed?"rgba(255,255,255,.04)":can?`linear-gradient(135deg,${r.color},${r.color}99)`:"rgba(255,255,255,.04)",
+                      color:claimed||!can?"#334155":"#fff",opacity:claimed||!can?0.5:1}}>
+                    {claimed?"CLAIMED":!can?"Not enough coins":"Open Pack"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* REVEAL */}
+      {screen==="reveal"&&(
+        <div style={{textAlign:"center"}}>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:14,fontWeight:900,color:AC,marginBottom:14}}>✨ PACK RESULTS</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:10,justifyContent:"center",marginBottom:18}}>
+            {openedCards.map((card,i)=>(
+              <div key={card.id} style={{opacity:i<=revealIdx?1:0.12,transform:i<=revealIdx?"scale(1)":"scale(0.82)",transition:"all .42s"}}>
+                <AnimeCard card={card} size={mob?"sm":"md"}/>
+              </div>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:8,justifyContent:"center"}}>
+            {revealIdx<openedCards.length-1&&<button onClick={()=>setRevealIdx(i=>i+1)} style={{padding:"10px 22px",borderRadius:12,background:`linear-gradient(135deg,${AC},${AC}99)`,border:"none",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:900,color:"#fff"}}>Reveal ✨</button>}
+            {revealIdx>=openedCards.length-1&&<button onClick={()=>{setScreen("collection");setOpenedCards([]);setRevealIdx(-1);}} style={{padding:"10px 22px",borderRadius:12,background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.13)",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0"}}>View Collection →</button>}
+          </div>
+        </div>
+      )}
+
+      {/* COLLECTION */}
+      {screen==="collection"&&(
+        <div>
+          <div style={{display:"flex",gap:5,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
+            <select value={filterR} onChange={e=>setFilterR(e.target.value)} style={{padding:"5px 8px",borderRadius:7,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#E2E8F0",fontSize:11}}>
+              <option value="all">All Rarities</option>
+              {CARD_RARITIES.map(r=><option key={r.id} value={r.id}>{r.label}</option>)}
+            </select>
+            <select value={filterA} onChange={e=>setFilterA(e.target.value)} style={{padding:"5px 8px",borderRadius:7,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#E2E8F0",fontSize:11}}>
+              {animeList.map(a=><option key={a} value={a}>{a==="all"?"All Anime":a}</option>)}
+            </select>
+            <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{padding:"5px 8px",borderRadius:7,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#E2E8F0",fontSize:11}}>
+              <option value="ts">Recent</option><option value="rarity">Rarity</option><option value="atk">Attack</option><option value="name">Name</option>
+            </select>
+            <div style={{marginLeft:"auto",fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>{coll.length} CARDS</div>
+          </div>
+          {coll.length===0&&<div style={{textAlign:"center",padding:"60px",color:"#334155",fontSize:12}}>No cards yet — open packs! 📦</div>}
+          <div style={{display:"flex",flexWrap:"wrap",gap:8,justifyContent:mob?"center":"flex-start"}}>
+            {coll.map(card=><div key={card.id} onClick={()=>setCardDetail(card)} style={{cursor:"pointer"}}><AnimeCard card={card} size={mob?"sm":"md"}/></div>)}
+          </div>
+        </div>
+      )}
+
+      {/* Card detail modal */}
+      {cardDetail&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.82)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setCardDetail(null)}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#0D1423",border:`1px solid ${CARD_RARITIES.find(r=>r.id===cardDetail.rarity)?.color||"#475569"}55`,borderRadius:20,padding:22,maxWidth:280,width:"100%",textAlign:"center"}}>
+            <AnimeCard card={cardDetail} size="lg"/>
+            <div style={{marginTop:12,display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              {[["⚔️ ATK",cardDetail.atk,"#EF4444"],["🛡 DEF",cardDetail.def,"#3B82F6"],["💨 SPD",cardDetail.spd,"#22C55E"],["❤️ HP",cardDetail.hp,"#A855F7"]].map(([l,v,c])=>(
+                <div key={l} style={{padding:"7px",borderRadius:8,background:"rgba(255,255,255,.04)"}}>
+                  <div style={{fontSize:9,color:"#475569"}}>{l}</div>
+                  <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:16,fontWeight:900,color:c}}>{v}</div>
+                </div>
+              ))}
+            </div>
+            {cardDetail.foil&&<div style={{marginTop:6,fontSize:10,color:"#F59E0B",fontFamily:"'Orbitron',sans-serif"}}>✨ FOIL</div>}
+            <button onClick={()=>setCardDetail(null)} style={{marginTop:10,padding:"7px 16px",borderRadius:9,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#94A3B8",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9}}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* DECK */}
+      {screen==="deck"&&(
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:"#94A3B8",marginBottom:2}}>PICK UP TO 5 CARDS FOR YOUR DECK</div>
+              <div style={{fontSize:9,color:"#334155"}}>{deckSel.size}/5 selected</div>
+            </div>
+            <button onClick={saveDeck} disabled={deckSel.size===0}
+              style={{padding:"7px 14px",borderRadius:10,background:deckSel.size?`linear-gradient(135deg,${AC},${AC}99)`:"rgba(255,255,255,.04)",border:"none",cursor:deckSel.size?"pointer":"not-allowed",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#fff",opacity:deckSel.size?1:0.4}}>
+              💾 Save
+            </button>
+          </div>
+          {data.deck?.length>0&&(
+            <div style={{marginBottom:12,padding:"8px 10px",borderRadius:11,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)"}}>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:8,color:"#334155",marginBottom:6}}>CURRENT DECK</div>
+              <div style={{display:"flex",gap:6,overflowX:"auto"}}>
+                {data.deck.map(c=><AnimeCard key={c.id} card={c} size="sm" compact={true}/>)}
+              </div>
+            </div>
+          )}
+          {data.collection.length===0&&<div style={{textAlign:"center",padding:"50px",color:"#334155",fontSize:12}}>No cards! Open packs first.</div>}
+          <div style={{display:"flex",flexWrap:"wrap",gap:7,justifyContent:mob?"center":"flex-start"}}>
+            {data.collection.map(c=><AnimeCard key={c.id} card={c} size={mob?"sm":"md"} selected={deckSel.has(c.id)} onClick={()=>toggleDeck(c.id)}/>)}
+          </div>
+        </div>
+      )}
+
+      {/* BATTLE */}
+      {screen==="battle"&&(
+        <div>
+          <div style={{marginBottom:14,padding:"14px",borderRadius:14,background:"rgba(239,68,68,.07)",border:"1px solid rgba(239,68,68,.18)"}}>
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:"#EF4444",marginBottom:8}}>⚔️ BATTLE ARENA</div>
+            <div style={{fontSize:11,color:"#94A3B8",marginBottom:12}}>Type advantages deal 25% more DMG. Speed determines who strikes first each turn.</div>
+            <div style={{display:"flex",gap:7,marginBottom:12}}>
+              {[["easy","🟢 Easy","+40🪙"],["normal","🟡 Normal","+80🪙"],["hard","🔴 Hard","+150🪙"]].map(([d,l,r])=>(
+                <button key={d} onClick={()=>setDifficulty(d)} style={{flex:1,padding:"7px 4px",borderRadius:9,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:700,border:`1px solid ${difficulty===d?"rgba(239,68,68,.45)":"rgba(255,255,255,.07)"}`,background:difficulty===d?"rgba(239,68,68,.1)":"rgba(255,255,255,.02)",color:difficulty===d?"#EF4444":"#475569"}}>
+                  {l}<br/><span style={{fontSize:8,color:"#334155"}}>{r}</span>
+                </button>
+              ))}
+            </div>
+            {data.deck?.length>0&&<div style={{marginBottom:12}}>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:8,color:"#334155",marginBottom:5}}>YOUR DECK</div>
+              <div style={{display:"flex",gap:6,overflowX:"auto"}}>
+                {data.deck.map(c=><AnimeCard key={c.id} card={c} size="sm"/>)}
+              </div>
+            </div>}
+            <button onClick={startBattle} disabled={!data.deck?.length}
+              style={{width:"100%",padding:"12px",borderRadius:12,border:"none",cursor:!data.deck?.length?"not-allowed":"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:900,color:"#fff",background:!data.deck?.length?"rgba(255,255,255,.04)":`linear-gradient(135deg,#EF4444,#EC4899)`,opacity:!data.deck?.length?0.4:1}}>
+              {!data.deck?.length?"Build your deck first":"⚔️ BATTLE NOW"}
+            </button>
+          </div>
+          <div style={{padding:"10px 12px",borderRadius:11,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)"}}>
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:8,color:"#334155",marginBottom:7}}>TYPE CHART</div>
+            {[["🔥 Fire","Ice, Wind"],["💧 Water","Fire, Earth"],["⚡ Lightning","Water, Wind"],["🌑 Dark","Light, Divine"],["✨ Light","Dark, Shadow"],["💨 Wind","Earth, Shadow"]].map(([t,b])=>(
+              <div key={t} style={{display:"flex",justifyContent:"space-between",fontSize:10,padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+                <span style={{color:"#E2E8F0"}}>{t} beats</span><span style={{color:"#475569"}}>{b}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* BATTLE RESULT */}
+      {screen==="battle_result"&&battleResult&&(
+        <div>
+          <div style={{textAlign:"center",padding:"20px",borderRadius:18,background:battleResult.win?"rgba(34,197,94,.08)":"rgba(239,68,68,.08)",border:`1px solid ${battleResult.win?"rgba(34,197,94,.3)":"rgba(239,68,68,.3)"}`,marginBottom:14}}>
+            <div style={{fontSize:44,marginBottom:6}}>{battleResult.win?"🏆":"💔"}</div>
+            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?18:22,fontWeight:900,color:battleResult.win?"#22C55E":"#EF4444",marginBottom:4}}>{battleResult.win?"VICTORY!":"DEFEATED"}</div>
+            <div style={{fontSize:10,color:"#64748B"}}>Cards surviving — You: {battleResult.mA} · AI: {battleResult.aA}</div>
+            <div style={{fontSize:10,color:battleResult.win?"#22C55E":"#F59E0B",marginTop:5,fontFamily:"'Orbitron',sans-serif"}}>+{battleResult.win?(difficulty==="hard"?150:difficulty==="normal"?80:40):20} 🪙</div>
+          </div>
+          <div style={{maxHeight:260,overflowY:"auto",padding:"8px 10px",borderRadius:11,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",marginBottom:12,fontSize:11}}>
+            {battleLog.map((line,i)=>(
+              <div key={i} style={{padding:"2px 0",borderBottom:"1px solid rgba(255,255,255,.03)",color:line.includes("VICTORY")||line.includes("🏆")?"#22C55E":line.includes("Defeated")||line.includes("💔")?"#EF4444":line.includes("KO")?"#F59E0B":line.includes("advantage")?"#A855F7":"#64748B"}}>{line}</div>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>{setScreen("battle");setBattleResult(null);setBattleLog([]);}} style={{flex:1,padding:"10px",borderRadius:11,background:"linear-gradient(135deg,#EF4444,#EC4899)",border:"none",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:900,color:"#fff"}}>⚔️ Battle Again</button>
+            <button onClick={()=>setScreen("home")} style={{padding:"10px 14px",borderRadius:11,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.09)",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:10,color:"#94A3B8"}}>Home</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App(){
   const DISCORD_URL="https://discord.gg/your-invite-here";
   const[cu,setCu]=useState(()=>getSess());
@@ -10548,6 +12074,8 @@ export default function App(){
     if(page==="feed")return <FeedPage users={users} cu={cu} likes={likes} onLike={handleLike} navigate={nav}/>;
     if(page==="game"&&gameRef)return <GameDetailPage gameId={gameRef.id} sport={gameRef.sport} navigate={nav}/>;
     if(page==="predict")return <PredictPage cu={cu} users={users} setUsers={setUsers} navigate={nav}/>;
+    if(page==="matchup")return<MatchupPage/>;
+    if(page==="animecards")return<AnimeCardGame cu={cu} navigate={nav}/>;
     if(page==="hub")return <HubPage cu={cu} users={users} setUsers={setUsers} navigate={nav}/>;
     if(page==="stats")return <StatsPage navigate={nav} initPlayer={statsPlayerRef?.id||null} initSport={statsPlayerRef?.sport||null}/>;
     if(page==="nffl")return <NFFLPage cu={cu} users={users} navigate={nav}/>;
