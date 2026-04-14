@@ -11651,3 +11651,6 @@ export default function App(){
     </>
   );
 }
+export default function App(){
+  // ... everything inside ...
+}
