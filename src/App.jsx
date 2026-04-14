@@ -6898,8 +6898,7 @@ function ProfilePage({userId,cu,users,setUsers,navigate,addNotif,navOpts={}}){
                         <CardDisplay
                           type={card.card_type}
                           name={card.card_name}
-                          headshot={card.custom_headshot||card.headshot_url}
-                          totalRating={card.total_play_rating||0}
+                         totalRating={card.total_play_rating||0}
                           customName={card.custom_name||undefined}
                           customBorder={card.custom_border||undefined}
                           customBg={card.custom_bg||undefined}

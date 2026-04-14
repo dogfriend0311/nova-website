@@ -1,0 +1,479 @@
+// src/components/RTTSMode.jsx
+import React, { useState, useEffect, useCallback } from 'react';
+
+// MLB Teams for draft and gameplay
+const MLB_TEAMS_RTTS = [
+  { id: 108, name: "Los Angeles Angels", abbr: "LAA", logo: "https://www.mlbstatic.com/team-logos/108.svg", city: "Anaheim", league: "AL", division: "West" },
+  { id: 109, name: "Arizona Diamondbacks", abbr: "ARI", logo: "https://www.mlbstatic.com/team-logos/109.svg", city: "Phoenix", league: "NL", division: "West" },
+  { id: 110, name: "Baltimore Orioles", abbr: "BAL", logo: "https://www.mlbstatic.com/team-logos/110.svg", city: "Baltimore", league: "AL", division: "East" },
+  { id: 111, name: "Boston Red Sox", abbr: "BOS", logo: "https://www.mlbstatic.com/team-logos/111.svg", city: "Boston", league: "AL", division: "East" },
+  { id: 112, name: "Chicago Cubs", abbr: "CHC", logo: "https://www.mlbstatic.com/team-logos/112.svg", city: "Chicago", league: "NL", division: "Central" },
+  { id: 113, name: "Cincinnati Reds", abbr: "CIN", logo: "https://www.mlbstatic.com/team-logos/113.svg", city: "Cincinnati", league: "NL", division: "Central" },
+  { id: 114, name: "Cleveland Guardians", abbr: "CLE", logo: "https://www.mlbstatic.com/team-logos/114.svg", city: "Cleveland", league: "AL", division: "Central" },
+  { id: 115, name: "Colorado Rockies", abbr: "COL", logo: "https://www.mlbstatic.com/team-logos/115.svg", city: "Denver", league: "NL", division: "West" },
+  { id: 116, name: "Detroit Tigers", abbr: "DET", logo: "https://www.mlbstatic.com/team-logos/116.svg", city: "Detroit", league: "AL", division: "Central" },
+  { id: 117, name: "Houston Astros", abbr: "HOU", logo: "https://www.mlbstatic.com/team-logos/117.svg", city: "Houston", league: "AL", division: "West" },
+  { id: 118, name: "Kansas City Royals", abbr: "KC", logo: "https://www.mlbstatic.com/team-logos/118.svg", city: "Kansas City", league: "AL", division: "Central" },
+  { id: 119, name: "Los Angeles Dodgers", abbr: "LAD", logo: "https://www.mlbstatic.com/team-logos/119.svg", city: "Los Angeles", league: "NL", division: "West" },
+  { id: 120, name: "Washington Nationals", abbr: "WSH", logo: "https://www.mlbstatic.com/team-logos/120.svg", city: "Washington", league: "NL", division: "East" },
+  { id: 121, name: "New York Mets", abbr: "NYM", logo: "https://www.mlbstatic.com/team-logos/121.svg", city: "New York", league: "NL", division: "East" },
+  { id: 133, name: "Oakland Athletics", abbr: "OAK", logo: "https://www.mlbstatic.com/team-logos/133.svg", city: "Oakland", league: "AL", division: "West" },
+  { id: 134, name: "Pittsburgh Pirates", abbr: "PIT", logo: "https://www.mlbstatic.com/team-logos/134.svg", city: "Pittsburgh", league: "NL", division: "Central" },
+  { id: 135, name: "San Diego Padres", abbr: "SD", logo: "https://www.mlbstatic.com/team-logos/135.svg", city: "San Diego", league: "NL", division: "West" },
+  { id: 136, name: "Seattle Mariners", abbr: "SEA", logo: "https://www.mlbstatic.com/team-logos/136.svg", city: "Seattle", league: "AL", division: "West" },
+  { id: 137, name: "San Francisco Giants", abbr: "SF", logo: "https://www.mlbstatic.com/team-logos/137.svg", city: "San Francisco", league: "NL", division: "West" },
+  { id: 138, name: "St. Louis Cardinals", abbr: "STL", logo: "https://www.mlbstatic.com/team-logos/138.svg", city: "St. Louis", league: "NL", division: "Central" },
+  { id: 139, name: "Tampa Bay Rays", abbr: "TB", logo: "https://www.mlbstatic.com/team-logos/139.svg", city: "St. Petersburg", league: "AL", division: "East" },
+  { id: 140, name: "Texas Rangers", abbr: "TEX", logo: "https://www.mlbstatic.com/team-logos/140.svg", city: "Arlington", league: "AL", division: "West" },
+  { id: 141, name: "Toronto Blue Jays", abbr: "TOR", logo: "https://www.mlbstatic.com/team-logos/141.svg", city: "Toronto", league: "AL", division: "East" },
+  { id: 142, name: "Minnesota Twins", abbr: "MIN", logo: "https://www.mlbstatic.com/team-logos/142.svg", city: "Minneapolis", league: "AL", division: "Central" },
+  { id: 143, name: "Philadelphia Phillies", abbr: "PHI", logo: "https://www.mlbstatic.com/team-logos/143.svg", city: "Philadelphia", league: "NL", division: "East" },
+  { id: 144, name: "Atlanta Braves", abbr: "ATL", logo: "https://www.mlbstatic.com/team-logos/144.svg", city: "Atlanta", league: "NL", division: "East" },
+  { id: 145, name: "Chicago White Sox", abbr: "CWS", logo: "https://www.mlbstatic.com/team-logos/145.svg", city: "Chicago", league: "AL", division: "Central" },
+  { id: 146, name: "Miami Marlins", abbr: "MIA", logo: "https://www.mlbstatic.com/team-logos/146.svg", city: "Miami", league: "NL", division: "East" },
+  { id: 147, name: "New York Yankees", abbr: "NYY", logo: "https://www.mlbstatic.com/team-logos/147.svg", city: "New York", league: "AL", division: "East" },
+  { id: 158, name: "Milwaukee Brewers", abbr: "MIL", logo: "https://www.mlbstatic.com/team-logos/158.svg", city: "Milwaukee", league: "NL", division: "Central" },
+];
+
+// Positions
+const POSITIONS = [
+  { value: "C", label: "Catcher", icon: "🧤" },
+  { value: "1B", label: "First Base", icon: "1️⃣" },
+  { value: "2B", label: "Second Base", icon: "2️⃣" },
+  { value: "3B", label: "Third Base", icon: "3️⃣" },
+  { value: "SS", label: "Shortstop", icon: "6️⃣" },
+  { value: "LF", label: "Left Field", icon: "7️⃣" },
+  { value: "CF", label: "Center Field", icon: "8️⃣" },
+  { value: "RF", label: "Right Field", icon: "9️⃣" },
+  { value: "SP", label: "Starting Pitcher", icon: "🎯" },
+  { value: "RP", label: "Relief Pitcher", icon: "🔥" },
+  { value: "CP", label: "Closer", icon: "💪" },
+];
+
+// Player types/styles
+const PLAYER_STYLES = [
+  { value: "power", label: "Power Hitter", icon: "💪", desc: "Hit bombs, lower average" },
+  { value: "contact", label: "Contact Hitter", icon: "🎯", desc: "High average, gap power" },
+  { value: "speed", label: "Speedster", icon: "⚡", desc: "Steal bases, play elite defense" },
+  { value: "balanced", label: "Balanced", icon: "⚖️", desc: "Well-rounded skills" },
+  { value: "ace", label: "Ace Pitcher", icon: "👑", desc: "Dominant starter" },
+  { value: "flamethrower", label: "Flamethrower", icon: "🔥", desc: "100+ MPH fastball" },
+  { value: "crafty", label: "Crafty", icon: "🧠", desc: "Movement and control" },
+];
+
+// Batting stances (placeholder)
+const BATTING_STANCES = ["Standard", "Open", "Closed", "Crouched", "Upright", "Leg Kick", "No Strider"];
+
+// Throw styles
+const THROW_STYLES = ["Overhand", "3/4", "Sidearm", "Submarine"];
+
+// Combine games
+const COMBINE_GAMES = [
+  { id: "speed", name: "60-Yard Dash", icon: "⚡", description: "Test your raw speed" },
+  { id: "arm", name: "Arm Strength", icon: "💪", description: "Show off your throwing power" },
+  { id: "fielding", name: "Fielding Drill", icon: "🧤", description: "Range and glove work" },
+  { id: "iq", name: "Baseball IQ", icon: "🧠", description: "Situational knowledge" },
+];
+
+// Interview questions
+const INTERVIEW_QUESTIONS = [
+  { q: "What's your biggest strength as a player?", 
+    answers: [
+      { text: "My power at the plate", type: "power", draftBoost: 5 },
+      { text: "My speed and defense", type: "speed", draftBoost: 5 },
+      { text: "My hitting ability", type: "contact", draftBoost: 5 },
+      { text: "My leadership", type: "balanced", draftBoost: 3 },
+    ]
+  },
+  { q: "How do you handle pressure situations?", 
+    answers: [
+      { text: "I thrive under pressure", type: "clutch", draftBoost: 8 },
+      { text: "I stay calm and focused", type: "balanced", draftBoost: 5 },
+      { text: "I get nervous but perform", type: "normal", draftBoost: 2 },
+      { text: "I struggle sometimes", type: "choker", draftBoost: -5 },
+    ]
+  },
+  { q: "What's your preferred role on a team?", 
+    answers: [
+      { text: "Cleanup hitter, drive in runs", type: "power", draftBoost: 5 },
+      { text: "Leadoff, set the table", type: "speed", draftBoost: 5 },
+      { text: "Ace of the rotation", type: "ace", draftBoost: 5 },
+      { text: "Whatever helps the team win", type: "balanced", draftBoost: 8 },
+    ]
+  },
+  { q: "What's your work ethic like?", 
+    answers: [
+      { text: "First in, last out", type: "hardworking", draftBoost: 10 },
+      { text: "I put in the work", type: "normal", draftBoost: 5 },
+      { text: "I do what's required", type: "lazy", draftBoost: -3 },
+    ]
+  },
+];
+
+// Minor league levels
+const MINOR_LEVELS = [
+  { name: "Rookie Ball", abbr: "RK", minOVR: 0, maxOVR: 55, gamesToNext: 30, promotionOVR: 55 },
+  { name: "Single-A", abbr: "A", minOVR: 45, maxOVR: 65, gamesToNext: 40, promotionOVR: 65 },
+  { name: "High-A", abbr: "A+", minOVR: 55, maxOVR: 70, gamesToNext: 40, promotionOVR: 70 },
+  { name: "Double-A", abbr: "AA", minOVR: 65, maxOVR: 80, gamesToNext: 50, promotionOVR: 80 },
+  { name: "Triple-A", abbr: "AAA", minOVR: 75, maxOVR: 90, gamesToNext: 50, promotionOVR: 85 },
+  { name: "MLB", abbr: "MLB", minOVR: 80, maxOVR: 99, gamesToNext: 0, promotionOVR: 99 },
+];
+
+// Helper to generate random number
+const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+// Save/load RTTS player to localStorage
+const RTTS_SAVE_KEY = "nova_rtts_player";
+
+function saveRTTSPlayer(player) {
+  try { localStorage.setItem(RTTS_SAVE_KEY, JSON.stringify(player)); } catch(e) {}
+}
+
+function loadRTTSPlayer() {
+  try { 
+    const saved = localStorage.getItem(RTTS_SAVE_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch(e) { return null; }
+}
+
+// Helper for mobile detection
+function useIsMobile(bp = 768) {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < bp);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < bp);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [bp]);
+  return isMobile;
+}
+
+// ============================================
+// MAIN RTTS MODE COMPONENT
+// ============================================
+
+export default function RTTSMode({ cu, users, setUsers, navigate }) {
+  const mob = useIsMobile();
+  
+  // Game phases
+  const [phase, setPhase] = useState("creator"); // creator, combine, interviews, draft, minors, mlb, multiplayer
+  
+  // Player data
+  const [player, setPlayer] = useState(() => {
+    const saved = loadRTTSPlayer();
+    if (saved && saved.id === cu?.id) return saved;
+    return {
+      id: cu?.id || null,
+      name: "",
+      number: 1,
+      position: "SS",
+      playerType: "balanced",
+      battingStance: "Standard",
+      throwStyle: "Overhand",
+      height: "6'0\"",
+      weight: 190,
+      ovr: 50,
+      xp: 0,
+      level: 0,
+      
+      // Attributes (0-99)
+      contact: 50,
+      power: 50,
+      speed: 50,
+      arm: 50,
+      fielding: 50,
+      control: 50,
+      movement: 50,
+      stamina: 50,
+      
+      // Combine results
+      combineSpeed: 0,
+      combineArm: 0,
+      combineFielding: 0,
+      combineIQ: 0,
+      combineScore: 0,
+      
+      // Interview results
+      interviewScore: 0,
+      teamPreferences: [],
+      
+      // Draft
+      draftedBy: null,
+      draftRound: null,
+      draftPick: null,
+      
+      // Career
+      currentLevel: "Rookie Ball",
+      currentTeam: null,
+      gamesPlayed: 0,
+      seasonStats: { avg: 0, hr: 0, rbi: 0, sb: 0, era: 0, wins: 0 },
+      careerStats: { avg: 0, hr: 0, rbi: 0, sb: 0, era: 0, wins: 0 },
+      
+      // Multiplayer
+      wins: 0,
+      losses: 0,
+      rank: 1000,
+    };
+  });
+  
+  const [combineIndex, setCombineIndex] = useState(0);
+  const [combineResults, setCombineResults] = useState({});
+  const [interviewIndex, setInterviewIndex] = useState(0);
+  const [interviewResults, setInterviewResults] = useState({});
+  const [draftResults, setDraftResults] = useState(null);
+  const [simulating, setSimulating] = useState(false);
+  const [simResult, setSimResult] = useState(null);
+  const [matchmaking, setMatchmaking] = useState(false);
+  const [matchFound, setMatchFound] = useState(null);
+  const [multiplayerResult, setMultiplayerResult] = useState(null);
+  
+  const isPitcher = player.position === "SP" || player.position === "RP" || player.position === "CP";
+  
+  // Save player on change
+  useEffect(() => {
+    if (player.name && cu?.id) {
+      saveRTTSPlayer(player);
+    }
+  }, [player, cu?.id]);
+  
+  // ============================================
+  // PHASE 1: PLAYER CREATOR
+  // ============================================
+  const createPlayer = () => {
+    if (!player.name.trim()) return;
+    setPhase("combine");
+  };
+  
+  // Render Player Creator
+  if (phase === "creator") {
+    return (
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: mob ? "10px 10px 100px" : "20px 20px 80px" }}>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <div style={{ fontSize: 48, marginBottom: 8 }}>⚾</div>
+          <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: mob ? 18 : 24, fontWeight: 900, color: "#F59E0B", marginBottom: 4 }}>ROAD TO THE SHOW</div>
+          <div style={{ fontSize: 12, color: "#64748B" }}>Create Your MLB Superstar</div>
+        </div>
+        
+        <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 16 }}>
+          {/* Left column - Basic Info */}
+          <div style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 16, padding: 18 }}>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 10, color: "#F59E0B", marginBottom: 12, letterSpacing: ".12em" }}>BASIC INFO</div>
+            
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>PLAYER NAME</div>
+              <input value={player.name} onChange={e => setPlayer(p => ({ ...p, name: e.target.value }))} placeholder="Enter your name..." style={{ fontSize: 14 }} />
+            </div>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>JERSEY #</div>
+                <input type="number" min="0" max="99" value={player.number} onChange={e => setPlayer(p => ({ ...p, number: parseInt(e.target.value) || 1 }))} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>HEIGHT</div>
+                <select value={player.height} onChange={e => setPlayer(p => ({ ...p, height: e.target.value }))}>
+                  {["5'6\"","5'7\"","5'8\"","5'9\"","5'10\"","5'11\"","6'0\"","6'1\"","6'2\"","6'3\"","6'4\"","6'5\"","6'6\"","6'7\""].map(h => <option key={h}>{h}</option>)}
+                </select>
+              </div>
+            </div>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>WEIGHT (lbs)</div>
+                <input type="number" min="140" max="280" step="5" value={player.weight} onChange={e => setPlayer(p => ({ ...p, weight: parseInt(e.target.value) || 190 }))} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>POSITION</div>
+                <select value={player.position} onChange={e => setPlayer(p => ({ ...p, position: e.target.value }))}>
+                  {POSITIONS.map(pos => <option key={pos.value} value={pos.value}>{pos.icon} {pos.label}</option>)}
+                </select>
+              </div>
+            </div>
+            
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>PLAYER TYPE</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {PLAYER_STYLES.map(style => (
+                  <button key={style.value} onClick={() => {
+                    setPlayer(p => ({ ...p, playerType: style.value }));
+                    if (style.value === "power") {
+                      setPlayer(p => ({ ...p, contact: 55, power: 70, speed: 40, arm: 50, fielding: 45, control: 45, movement: 50, stamina: 50 }));
+                    } else if (style.value === "contact") {
+                      setPlayer(p => ({ ...p, contact: 70, power: 45, speed: 55, arm: 50, fielding: 55, control: 45, movement: 50, stamina: 50 }));
+                    } else if (style.value === "speed") {
+                      setPlayer(p => ({ ...p, contact: 55, power: 40, speed: 80, arm: 50, fielding: 60, control: 45, movement: 50, stamina: 50 }));
+                    } else if (style.value === "balanced") {
+                      setPlayer(p => ({ ...p, contact: 60, power: 55, speed: 60, arm: 55, fielding: 55, control: 50, movement: 50, stamina: 55 }));
+                    } else if (style.value === "ace") {
+                      setPlayer(p => ({ ...p, contact: 30, power: 30, speed: 40, arm: 75, fielding: 50, control: 70, movement: 70, stamina: 75 }));
+                    } else if (style.value === "flamethrower") {
+                      setPlayer(p => ({ ...p, contact: 30, power: 30, speed: 40, arm: 80, fielding: 50, control: 55, movement: 65, stamina: 65 }));
+                    } else if (style.value === "crafty") {
+                      setPlayer(p => ({ ...p, contact: 30, power: 30, speed: 40, arm: 65, fielding: 50, control: 75, movement: 60, stamina: 70 }));
+                    }
+                  }} style={{
+                    padding: "6px 12px", borderRadius: 10, cursor: "pointer", fontSize: 10, fontFamily: "'Orbitron',sans-serif", fontWeight: 700,
+                    border: `1px solid ${player.playerType === style.value ? "#F59E0B" : "rgba(255,255,255,.1)"}`,
+                    background: player.playerType === style.value ? "rgba(245,158,11,.12)" : "rgba(255,255,255,.03)",
+                    color: player.playerType === style.value ? "#F59E0B" : "#64748B",
+                  }}>
+                    {style.icon} {style.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {!isPitcher && (
+              <>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>BATTING STANCE</div>
+                  <select value={player.battingStance} onChange={e => setPlayer(p => ({ ...p, battingStance: e.target.value }))}>
+                    {BATTING_STANCES.map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>THROW STYLE</div>
+                  <select value={player.throwStyle} onChange={e => setPlayer(p => ({ ...p, throwStyle: e.target.value }))}>
+                    {THROW_STYLES.map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              </>
+            )}
+          </div>
+          
+          {/* Right column - Attributes */}
+          <div style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 16, padding: 18 }}>
+            <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 10, color: "#F59E0B", marginBottom: 12, letterSpacing: ".12em" }}>ATTRIBUTES</div>
+            <div style={{ marginBottom: 8, textAlign: "center", padding: "8px", borderRadius: 10, background: "rgba(245,158,11,.1)", border: "1px solid rgba(245,158,11,.2)" }}>
+              <div style={{ fontSize: 11, color: "#64748B" }}>OVERALL RATING</div>
+              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 28, fontWeight: 900, color: "#F59E0B" }}>{player.ovr}</div>
+            </div>
+            
+            {isPitcher ? (
+              <>
+                {[
+                  { key: "control", label: "Control", icon: "🎯", color: "#3B82F6" },
+                  { key: "movement", label: "Movement", icon: "🌀", color: "#8B5CF6" },
+                  { key: "stamina", label: "Stamina", icon: "💪", color: "#22C55E" },
+                  { key: "arm", label: "Arm Strength", icon: "🔥", color: "#EF4444" },
+                  { key: "speed", label: "Running", icon: "⚡", color: "#F59E0B" },
+                ].map(attr => (
+                  <div key={attr.key} style={{ marginBottom: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                      <span style={{ fontSize: 10, color: "#64748B" }}>{attr.icon} {attr.label}</span>
+                      <span style={{ fontSize: 11, fontFamily: "'Orbitron',sans-serif", fontWeight: 700, color: attr.color }}>{player[attr.key]}</span>
+                    </div>
+                    <input type="range" min="0" max="99" value={player[attr.key]} onChange={e => setPlayer(p => ({ ...p, [attr.key]: parseInt(e.target.value) }))} style={{ width: "100%", accentColor: attr.color }} />
+                  </div>
+                ))}
+                <div style={{ marginTop: 8, fontSize: 10, color: "#334155", textAlign: "center" }}>Allocate 200 total points across attributes</div>
+              </>
+            ) : (
+              <>
+                {[
+                  { key: "contact", label: "Contact", icon: "🎯", color: "#22C55E" },
+                  { key: "power", label: "Power", icon: "💪", color: "#EF4444" },
+                  { key: "speed", label: "Speed", icon: "⚡", color: "#F59E0B" },
+                  { key: "arm", label: "Arm Strength", icon: "🔥", color: "#8B5CF6" },
+                  { key: "fielding", label: "Fielding", icon: "🧤", color: "#3B82F6" },
+                ].map(attr => (
+                  <div key={attr.key} style={{ marginBottom: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                      <span style={{ fontSize: 10, color: "#64748B" }}>{attr.icon} {attr.label}</span>
+                      <span style={{ fontSize: 11, fontFamily: "'Orbitron',sans-serif", fontWeight: 700, color: attr.color }}>{player[attr.key]}</span>
+                    </div>
+                    <input type="range" min="0" max="99" value={player[attr.key]} onChange={e => setPlayer(p => ({ ...p, [attr.key]: parseInt(e.target.value) }))} style={{ width: "100%", accentColor: attr.color }} />
+                  </div>
+                ))}
+                <div style={{ marginTop: 8, fontSize: 10, color: "#334155", textAlign: "center" }}>Allocate 250 total points across attributes</div>
+              </>
+            )}
+          </div>
+        </div>
+        
+        <button onClick={createPlayer} disabled={!player.name.trim()} style={{
+          width: "100%", marginTop: 20, padding: "14px", borderRadius: 12, border: "none", cursor: player.name.trim() ? "pointer" : "not-allowed",
+          fontFamily: "'Orbitron',sans-serif", fontSize: 14, fontWeight: 900, color: "#fff",
+          background: player.name.trim() ? "linear-gradient(135deg,#F59E0B,#EF4444)" : "rgba(255,255,255,.06)",
+          opacity: player.name.trim() ? 1 : 0.5,
+        }}>NEXT: MLB COMBINE →</button>
+      </div>
+    );
+  }
+  
+  // ============================================
+  // PHASE 2: MLB COMBINE
+  // ============================================
+  
+  // Simple combine mini-game logic
+  const runCombineTest = (gameId) => {
+    let score = 0;
+    if (gameId === "speed") {
+      // Speed test: random 60-yard dash time (6.0 to 7.5 seconds)
+      const time = 6.0 + Math.random() * 1.5;
+      score = Math.max(0, Math.min(100, Math.round((7.5 - time) * 66.7)));
+      setCombineResults(prev => ({ ...prev, speed: { score, time: time.toFixed(2) } }));
+    } else if (gameId === "arm") {
+      // Arm strength: random velocity (85 to 105 MPH)
+      const velo = 85 + Math.random() * 20;
+      score = Math.max(0, Math.min(100, Math.round((velo - 85) * 5)));
+      setCombineResults(prev => ({ ...prev, arm: { score, velo: Math.round(velo) } }));
+    } else if (gameId === "fielding") {
+      // Fielding: random number of successful plays (5 to 10 out of 10)
+      const plays = 5 + Math.floor(Math.random() * 6);
+      score = plays * 10;
+      setCombineResults(prev => ({ ...prev, fielding: { score, plays } }));
+    } else if (gameId === "iq") {
+      // Baseball IQ: random score 50-100
+      score = 50 + Math.floor(Math.random() * 51);
+      setCombineResults(prev => ({ ...prev, iq: { score } }));
+    }
+    
+    // Move to next combine test
+    if (combineIndex < COMBINE_GAMES.length - 1) {
+      setCombineIndex(combineIndex + 1);
+    } else {
+      // Calculate total combine score
+      const speedScore = combineResults.speed?.score || 0;
+      const armScore = combineResults.arm?.score || 0;
+      const fieldingScore = combineResults.fielding?.score || 0;
+      const iqScore = combineResults.iq?.score || 0;
+      const totalScore = (speedScore + armScore + fieldingScore + iqScore) / 4;
+      
+      setPlayer(p => ({ 
+        ...p, 
+        combineSpeed: combineResults.speed?.score || 0,
+        combineArm: combineResults.arm?.score || 0,
+        combineFielding: combineResults.fielding?.score || 0,
+        combineIQ: combineResults.iq?.score || 0,
+        combineScore: totalScore,
+      }));
+      
+      setPhase("interviews");
+      setInterviewIndex(0);
+    }
+  };
+  
+  // Render Combine
+  if (phase === "combine") {
+    const currentGame = COMBINE_GAMES[combineIndex];
+    const currentResult = combineResults[currentGame?.id];
+    
+    return (
+      <div style={{ maxWidth: 600, margin: "0 auto", padding: mob ? "10px 10px 100px" : "20px 20px 80px", textAlign: "center" }}>
+        <div style={{ fontSize: 48, marginBottom: 8 }}>{currentGame.icon}</div>
+        <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 22, fontWeight: 900, color: "#F59E0B", marginBottom: 4 }}>{currentGame.name}</div>
+        <div style={{ fontSize: 13, color: "#64748B", marginBottom: 20 }}>{currentGame.description}</div>
+        
+        {!currentResult ? (
+          <button onClick={() => runCombineTest(currentGame.id)} style={{
+            padding: "14px 32px", borderRadius: 12, border: "none", cursor: "pointer",
+            fontFamily: "'Orbitron',sans-serif", fontSize: 14, fontWeight: 900, color: "#fff",
+            background: "linear-gradient(135deg,#F59E0B,#EF4444)",
+          }}>START TEST</button>
+        ) : (
+          <div>
+            <div style={{ background: "rgba(34,197,94,.1)", border: "1px solid rgba(34,197,94,.3)", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: "#22C55E", marginBottom: 4 }}>YOUR RESULT</div>
+              <div style={{ fontSize: 32, fontWeight: 900, color: "#F59E0B" }}>{currentResult.score}</div>
+              {currentResult.time && <div style={{ fontSize: 11, color: "#647
