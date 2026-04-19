@@ -9568,7 +9568,7 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
                       {selPlayer.jersey&&<span style={{padding:"4px 10px",borderRadius:999,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.08)",color:"#94A3B8",fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>#{selPlayer.jersey}</span>}
                       {selPlayer.ovr&&<OVRBig ovr={selPlayer.ovr} size={30}/>}
                     </div>
-                    {member&&<div style={{marginTop:8,fontSize:11,color:"#64748B"}}>@{member.username}{member.staff_role&&<span style={{marginLeft:8,color:ROLE_COLOR[member.staff_role]||"#00D4FF"}}>{member.staff_role}</span>}</div>}
+                    {linkedMember&&<div style={{marginTop:8,fontSize:11,color:"#64748B"}}>@{linkedMember.username}{linkedMember.staff_role&&<span style={{marginLeft:8,color:ROLE_COLOR[linkedMember.staff_role]||"#00D4FF"}}>{linkedMember.staff_role}</span>}</div>}
                   </div>
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8,marginTop:16}}>
@@ -9580,7 +9580,7 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
                   ))}
                 </div>
                 <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:14}}>
-                  {member&&<Btn variant="ghost" size="sm" onClick={()=>navigate("profile",member.id)}>👤 View Nova Profile</Btn>}
+                  {linkedMember&&<Btn variant="ghost" size="sm" onClick={()=>navigate("profile",linkedMember.id)}>👤 View Nova Profile</Btn>}
                   {selPlayer.roblox_id&&<a href={`https://www.roblox.com/users/${selPlayer.roblox_id}/profile`} target="_blank" rel="noopener noreferrer"><Btn variant="ghost" size="sm">🎮 Roblox Profile</Btn></a>}
                 </div>
               </div>
