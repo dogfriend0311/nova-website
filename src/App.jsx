@@ -9540,158 +9540,83 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
   if(sel&&selPlayer){
     const cols=FIELDS.find(([k])=>k===statField)?.[2]||[];
     const embedUrl=spotifyEmbed(selPlayer.spotify_url||"");
+    const statRows=[
+      {label:"Season Stats",value:statType==="season"?"Live":"Career"},
+      {label:"Team",value:selPlayer.team||"Free Agent"},
+      {label:"Position",value:selPlayer.position||"—"},
+      {label:"Jersey",value:selPlayer.jersey?`#${selPlayer.jersey}`:"—"},
+    ];
     return(
       <div>
         <button onClick={()=>setSel(null)} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:12,marginBottom:16,fontFamily:"'Orbitron',sans-serif",display:"flex",alignItems:"center",gap:5}}>← ALL PLAYERS</button>
-        <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:14}}>
-
-          {/* Left card — profile + linking */}
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            <Card style={{padding:"16px"}} hover={false}>
-              {/* Avatar + name header */}
-              <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:14}}>
-                <div style={{position:"relative",width:64,height:64,borderRadius:10,overflow:"hidden",background:`${accentColor}18`,border:`2px solid ${accentColor}44`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  {rId
-                    ?<img key={rId} src={`/api/roblox-avatar?userId=${rId}&t=${Date.now()}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="flex";}}/>
-                    :null}
-                  <div style={{display:rId?"none":"flex",width:"100%",height:"100%",alignItems:"center",justifyContent:"center",fontSize:26}}>{sport==="basketball"?"🏀":isBaseball?"⚾":"🏈"}</div>
-                </div>
-                <div>
-                  <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:15,fontWeight:900,color:"#E2E8F0"}}>{selPlayer.name}</div>
-                  <div style={{fontSize:11,color:accentColor,marginTop:2}}>{selPlayer.position}{selPlayer.jersey?` · #${selPlayer.jersey}`:""}</div>
-                  <div style={{fontSize:10,color:"#475569"}}>{selPlayer.team}</div>
-                </div>
-              </div>
-
-              {/* Basic info editing */}
-              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:8}}>PLAYER INFO</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
-                <div><Lbl>Name</Lbl><input defaultValue={selPlayer.name} onBlur={e=>patchPlayer({name:e.target.value})}/></div>
-                <div style={{gridColumn:"1/-1"}}>
-                  <Lbl>Position(s)</Lbl>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:4}}>
-                    {positions.map(pos=>{
-                      const curPositions=(selPlayer.position||"").split("/").map(x=>x.trim()).filter(Boolean);
-                      const sel=curPositions.includes(pos);
-                      return(
-                        <button key={pos} type="button" onClick={()=>{
-                          const cur=(selPlayer.position||"").split("/").map(x=>x.trim()).filter(Boolean);
-                          const next=sel?cur.filter(x=>x!==pos):[...cur,pos];
-                          patchPlayer({position:next.join("/")});
-                        }}
-                          style={{padding:"4px 10px",borderRadius:8,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,
-                            border:`1px solid ${sel?accentColor+"88":"rgba(255,255,255,.1)"}`,
-                            background:sel?accentColor+"22":"rgba(255,255,255,.03)",
-                            color:sel?accentColor:"#64748B",transition:"all .15s"}}>
-                          {pos}
-                        </button>
-                      );
-                    })}
+        <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"minmax(0,1.08fr) minmax(0,.92fr)",gap:14}}>
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <Card style={{padding:0,overflow:"hidden",position:"relative",border:"1px solid rgba(255,255,255,.08)"}} hover={false}>
+              <div style={{height:120,background:`radial-gradient(circle at top left,${accentColor}55,transparent 45%),linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.01))`}}/>
+              <div style={{padding:"0 18px 18px"}}>
+                <div style={{display:"flex",alignItems:"flex-end",gap:14,marginTop:-38,flexWrap:"wrap"}}>
+                  <div style={{position:"relative",width:92,height:92,borderRadius:22,overflow:"hidden",background:"#0F172A",border:`3px solid ${accentColor}`,boxShadow:`0 14px 40px ${accentColor}33`,flexShrink:0}}>
+                    {rId
+                      ?<img key={rId} src={`/api/roblox-avatar?userId=${rId}&t=${Date.now()}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/>
+                      :<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:38}}>{sport==="basketball"?"🏀":isBaseball?"⚾":"🏈"}</div>}
                   </div>
-                  {selPlayer.position&&<div style={{fontSize:9,color:accentColor,marginTop:5,fontFamily:"'Orbitron',sans-serif"}}>{selPlayer.position}</div>}
-                </div>
-                <div>
-                  <Lbl>Team</Lbl>
-                  {leagueTeams.length>0
-                    ?<select defaultValue={selPlayer.team} onBlur={e=>patchPlayer({team:e.target.value})} onChange={e=>patchPlayer({team:e.target.value})} style={{width:"100%"}}>
-                        <option value="">— Free Agent —</option>
-                        {leagueTeams.map(t=>(
-                          <option key={t.id} value={t.name} selected={selPlayer.team===t.name}>{t.name}</option>
-                        ))}
-                      </select>
-                    :<input defaultValue={selPlayer.team} onBlur={e=>patchPlayer({team:e.target.value})}/>}
-                </div>
-                <div><Lbl>Jersey #</Lbl><input defaultValue={selPlayer.jersey} onBlur={e=>patchPlayer({jersey:e.target.value})}/></div>
-              </div>
-
-              {/* ── Link Nova Account ── */}
-              <div style={{borderTop:"1px solid rgba(255,255,255,.07)",paddingTop:12,marginBottom:14}}>
-                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:8}}>🔗 LINK NOVA ACCOUNT</div>
-                {linkedMember&&(
-                  <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"rgba(0,212,255,.06)",border:"1px solid rgba(0,212,255,.2)",borderRadius:8,marginBottom:8}}>
-                    <Av user={linkedMember} size={28}/>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{linkedMember.display_name}</div>
-                      <div style={{fontSize:10,color:"#475569"}}>@{linkedMember.username}</div>
+                  <div style={{flex:1,minWidth:0,paddingBottom:4}}>
+                    <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?18:24,fontWeight:900,color:"#E2E8F0",lineHeight:1.05,overflow:"hidden",textOverflow:"ellipsis"}}>{selPlayer.name}</div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:8,alignItems:"center"}}>
+                      {selPlayer.position&&<span style={{padding:"4px 10px",borderRadius:999,background:`${accentColor}18`,border:`1px solid ${accentColor}33`,color:accentColor,fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:800}}>{selPlayer.position}</span>}
+                      {selPlayer.team&&<span style={{padding:"4px 10px",borderRadius:999,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.08)",color:"#CBD5E1",fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>{selPlayer.team}</span>}
+                      {selPlayer.jersey&&<span style={{padding:"4px 10px",borderRadius:999,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.08)",color:"#94A3B8",fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700}}>#{selPlayer.jersey}</span>}
+                      {selPlayer.ovr&&<OVRBig ovr={selPlayer.ovr} size={30}/>}
                     </div>
-                    <button onClick={()=>patchPlayer({nova_user_id:null})} style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif"}}>Unlink</button>
+                    {member&&<div style={{marginTop:8,fontSize:11,color:"#64748B"}}>@{member.username}{member.staff_role&&<span style={{marginLeft:8,color:ROLE_COLOR[member.staff_role]||"#00D4FF"}}>{member.staff_role}</span>}</div>}
                   </div>
-                )}
-                <select
-                  value={selPlayer.nova_user_id||""}
-                  onChange={e=>patchPlayer({nova_user_id:e.target.value||null})}
-                  style={{width:"100%"}}>
-                  <option value="">{linkedMember?"Change linked account…":"Search Nova member…"}</option>
-                  {[...users].sort((a,b)=>(a.display_name||"").localeCompare(b.display_name||"")).map(u=>(
-                    <option key={u.id} value={u.id}>{u.display_name} (@{u.username})</option>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8,marginTop:16}}>
+                  {statRows.map((row,i)=>(
+                    <div key={i} style={{padding:"10px 12px",borderRadius:14,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)"}}>
+                      <div style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",letterSpacing:".08em",color:"#64748B"}}>{row.label.toUpperCase()}</div>
+                      <div style={{marginTop:4,fontSize:13,fontWeight:800,color:"#E2E8F0"}}>{row.value}</div>
+                    </div>
                   ))}
-                </select>
-              </div>
-
-              {/* ── Roblox ID ── */}
-              <div style={{borderTop:"1px solid rgba(255,255,255,.07)",paddingTop:12,marginBottom:14}}>
-                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:8}}>🎮 ROBLOX ID</div>
-                <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                  <input
-                    defaultValue={selPlayer.roblox_id||""}
-                    placeholder="Enter Roblox user ID…"
-                    style={{flex:1}}
-                    onBlur={e=>{
-                      const val=e.target.value.trim();
-                      patchPlayer({roblox_id:val||null});
-                    }}
-                  />
-                  {rId&&(
-                    <div style={{width:36,height:36,borderRadius:8,overflow:"hidden",flexShrink:0,border:`1px solid ${accentColor}44`}}>
-                      <img key={rId} src={`/api/roblox-avatar?userId=${rId}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>e.target.style.display="none"}/>
-                    </div>
-                  )}
                 </div>
-                <div style={{fontSize:9,color:"#334155",marginTop:4}}>Find your ID at roblox.com/users — the number in the URL. Avatar auto-updates.</div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:14}}>
+                  {member&&<Btn variant="ghost" size="sm" onClick={()=>navigate("profile",member.id)}>👤 View Nova Profile</Btn>}
+                  {selPlayer.roblox_id&&<a href={`https://www.roblox.com/users/${selPlayer.roblox_id}/profile`} target="_blank" rel="noopener noreferrer"><Btn variant="ghost" size="sm">🎮 Roblox Profile</Btn></a>}
+                </div>
               </div>
+            </Card>
 
-              {/* ── Spotify Song ── */}
-              <div style={{borderTop:"1px solid rgba(255,255,255,.07)",paddingTop:12}}>
-                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:8}}>🎵 ANTHEM / WALK-UP SONG</div>
-                <input
-                  defaultValue={selPlayer.spotify_url||""}
-                  placeholder="Paste Spotify track or playlist URL…"
-                  onBlur={e=>{
-                    const val=e.target.value.trim();
-                    patchPlayer({spotify_url:val||null});
-                  }}
-                  style={{marginBottom:8}}
-                />
-                {embedUrl&&(
-                  <iframe
-                    src={embedUrl}
-                    width="100%"
-                    height="80"
-                    frameBorder="0"
-                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                    loading="lazy"
-                    style={{borderRadius:10,border:"none"}}
-                  />
-                )}
-                <div style={{fontSize:9,color:"#334155",marginTop:4}}>Works with Spotify track, album, or playlist links.</div>
+            <Card style={{padding:"16px"}} hover={false}>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:10}}>LINKS</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr",gap:10}}>
+                <div><Lbl>Roblox ID</Lbl><input defaultValue={selPlayer.roblox_id||""} placeholder="Enter Roblox user ID…" onBlur={e=>{const val=e.target.value.trim();patchPlayer({roblox_id:val||null});}}/></div>
+                <div><Lbl>Nova Account</Lbl>
+                  <select value={selPlayer.nova_user_id||""} onChange={e=>patchPlayer({nova_user_id:e.target.value||null})} style={{width:"100%"}}>
+                    <option value="">{linkedMember?"Change linked account…":"Search Nova member…"}</option>
+                    {[...users].sort((a,b)=>(a.display_name||"").localeCompare(b.display_name||"")).map(u=><option key={u.id} value={u.id}>{u.display_name} (@{u.username})</option>)}
+                  </select>
+                </div>
+                <div><Lbl>Walk-up Song</Lbl><input defaultValue={selPlayer.spotify_url||""} placeholder="Paste Spotify track or playlist URL…" onBlur={e=>{const val=e.target.value.trim();patchPlayer({spotify_url:val||null});}}/></div>
+                {embedUrl&&<iframe src={embedUrl} width="100%" height="96" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" style={{borderRadius:10,border:"none"}}/>}
               </div>
             </Card>
           </div>
 
-          {/* Right card — stats */}
-          <Card style={{padding:"16px"}} hover={false}>
-            <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em",marginBottom:10}}>EDIT STATS</div>
-            {/* Season/Career toggle in member detail */}
-            <div style={{display:"flex",gap:5,marginBottom:10}}>
-              {[["season","📅 Season"],["career","🏆 Career"]].map(([t,l])=>(
-                <button key={t} onClick={()=>{setStatType(t);const ff=t==="season"?statField+"_season":statField;setStatData(selPlayer?.[ff]||{});}}
-                  style={{padding:"5px 12px",borderRadius:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:700,
-                    border:`1px solid ${statType===t?accentColor+"66":"rgba(255,255,255,.08)"}`,
-                    background:statType===t?accentColor+"18":"rgba(255,255,255,.03)",
-                    color:statType===t?accentColor:"#475569"}}>
-                  {l}
-                </button>
-              ))}
+          <Card style={{padding:"16px",border:"1px solid rgba(255,255,255,.08)"}} hover={false}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+              <div>
+                <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".1em"}}>PLAYER STATS</div>
+                <div style={{fontSize:12,color:"#94A3B8",marginTop:4}}>Modern stat editor + quick profile view</div>
+              </div>
+              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                {[["season","📅 Season"],["career","🏆 Career"]].map(([t,l])=>(
+                  <button key={t} onClick={()=>{setStatType(t);const ff=t==="season"?statField+"_season":statField;setStatData(selPlayer?.[ff]||{});}}
+                    style={{padding:"5px 12px",borderRadius:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:700,
+                      border:`1px solid ${statType===t?accentColor+"66":"rgba(255,255,255,.08)"}`,
+                      background:statType===t?accentColor+"18":"rgba(255,255,255,.03)",
+                      color:statType===t?accentColor:"#475569"}}>{l}</button>
+                ))}
+              </div>
             </div>
             <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
               {FIELDS.map(([k,l])=>(
@@ -9702,9 +9627,12 @@ function DashLeagueMembers({league,accentColor,users,isBaseball,sport=""}){
                     color:statField===k?accentColor:"#64748B"}}>{l}</button>
               ))}
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(72px,1fr))",gap:8,marginBottom:12}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(92px,1fr))",gap:8,marginBottom:12}}>
               {cols.map(c=>(
-                <div key={c}><Lbl>{c}</Lbl><input value={statData[c]||""} onChange={e=>setStatData(p=>({...p,[c]:e.target.value}))} placeholder="—" style={{textAlign:"center"}}/></div>
+                <div key={c} style={{padding:"10px",borderRadius:12,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)"}}>
+                  <Lbl>{c}</Lbl>
+                  <input value={statData[c]||""} onChange={e=>setStatData(p=>({...p,[c]:e.target.value}))} placeholder="—" style={{textAlign:"center"}}/>
+                </div>
               ))}
             </div>
             <Btn onClick={saveStats} disabled={saving}>{saving?"Saving…":"💾 Save Stats"}</Btn>
