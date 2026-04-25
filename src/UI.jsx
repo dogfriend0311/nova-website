@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { useIsMobile, ROLE_COLOR, STATUS_META, SOCIAL_ICONS, SOCIAL_COLORS, SOCIAL_LABELS } from "./shared";
+import { useIsMobile, ROLE_COLOR, STATUS_META, SOCIAL_ICONS, SOCIAL_COLORS, SOCIAL_LABELS, MLB_TEAMS, NFL_TEAMS, NBA_TEAMS, NHL_TEAMS } from "./shared";
 
+// ----------------------------------------------------------------------
+// Buttons
+// ----------------------------------------------------------------------
 export function Btn({children,onClick,variant="primary",size="md",style:ext={},disabled}){
   const [h,setH]=useState(false);
   const fs=size==="sm"?10:size==="lg"?14:11;
@@ -16,11 +19,25 @@ export function Btn({children,onClick,variant="primary",size="md",style:ext={},d
   };
   return <button style={{...base,...v[variant],...ext}} onClick={onClick} disabled={disabled} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)}>{children}</button>;
 }
-export function RoleBadge({children,color="#00D4FF"}){return <span style={{display:"inline-block",fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",padding:"2px 8px",borderRadius:20,background:color+"22",border:`1px solid ${color}55`,color}}>{children}</span>;}
+
+// ----------------------------------------------------------------------
+// RoleBadge
+// ----------------------------------------------------------------------
+export function RoleBadge({children,color="#00D4FF"}){
+  return <span style={{display:"inline-block",fontSize:10,fontFamily:"'Orbitron',sans-serif",fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",padding:"2px 8px",borderRadius:20,background:color+"22",border:`1px solid ${color}55`,color}}>{children}</span>;
+}
+
+// ----------------------------------------------------------------------
+// Card (container)
+// ----------------------------------------------------------------------
 export const Card=React.forwardRef(function Card({children,style:ext={},hover=true,onClick},ref){
   const [h,setH]=useState(false);
   return <div ref={ref} onClick={onClick} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} style={{background:"rgba(255,255,255,.03)",backdropFilter:"blur(14px)",border:`1px solid ${h&&hover?"rgba(0,212,255,.28)":"rgba(255,255,255,.07)"}`,borderRadius:14,transition:"all .28s",transform:h&&hover?"translateY(-2px)":"",boxShadow:h&&hover?"0 12px 40px rgba(0,0,0,.3)":"none",cursor:onClick?"pointer":"default",...ext}}>{children}</div>;
 });
+
+// ----------------------------------------------------------------------
+// Modal
+// ----------------------------------------------------------------------
 export function Modal({children,onClose,title,width=480}){
   const mob=useIsMobile();
   return (
@@ -35,35 +52,93 @@ export function Modal({children,onClose,title,width=480}){
     </div>
   );
 }
+
+// ----------------------------------------------------------------------
+// Label
+// ----------------------------------------------------------------------
 export function Lbl({children}){return <div style={{fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,letterSpacing:".1em",color:"#475569",textTransform:"uppercase",marginBottom:7}}>{children}</div>;}
+
+// ----------------------------------------------------------------------
+// Section
+// ----------------------------------------------------------------------
 export function Sec({title,children,onAdd}){return <div style={{marginBottom:34}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}><h2 style={{fontFamily:"'Orbitron',sans-serif",fontSize:15,fontWeight:700,color:"#E2E8F0",letterSpacing:".05em"}}>{title}</h2>{onAdd&&<Btn variant="ghost" size="sm" onClick={onAdd}>＋ Add</Btn>}</div>{children}</div>;}
+
+// ----------------------------------------------------------------------
+// Empty state
+// ----------------------------------------------------------------------
 export function Empty({icon,msg}){return <div style={{textAlign:"center",padding:"36px 20px",color:"#334155",border:"1px dashed rgba(255,255,255,.07)",borderRadius:12}}><div style={{fontSize:30,marginBottom:8,opacity:.3}}>{icon}</div><div style={{fontSize:13}}>{msg}</div></div>;}
+
+// ----------------------------------------------------------------------
+// Close button
+// ----------------------------------------------------------------------
 export function XBtn({onClick,style:ext={}}){const [h,setH]=useState(false);return <button onClick={onClick} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} style={{background:h?"#ef4444":"rgba(239,68,68,.8)",border:"none",borderRadius:6,width:26,height:26,color:"white",cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .15s",zIndex:10,...ext}}>✕</button>;}
+
+// ----------------------------------------------------------------------
+// Status Dot
+// ----------------------------------------------------------------------
 export function StatusDot({type,size=12,style:ext={}}){const s=STATUS_META[type]||STATUS_META.offline;return <div style={{width:size,height:size,borderRadius:"50%",background:s.color,flexShrink:0,boxShadow:type!=="offline"?`0 0 ${size/2}px ${s.color}88`:"none",border:"2px solid rgba(3,7,18,.9)",...ext}} title={s.label}/>;}
-export function AvatarCircle({user,size=36,onClick}){return <div onClick={onClick} style={{width:size,height:size,borderRadius:"50%",flexShrink:0,background:`radial-gradient(circle,${user?.page_accent||"#00D4FF"}44,rgba(0,0,0,.7))`,border:`2px solid ${user?.page_accent||"#00D4FF"}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*.45,overflow:"hidden",cursor:onClick?"pointer":"default"}}>{user?.avatar_url?<img src={user.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:user?.avatar||"👤"}</div>;}
-const Av=AvatarCircle;
-export function BannerUploadBtn({label,onUpload}){const [up,setUp]=useState(false);const ref=useRef(null);const h=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>10*1024*1024){alert("Max 10MB");return;}setUp(true);await onUpload(f);setUp(false);e.target.value="";};return <><input type="file" ref={ref} accept="image/*" onChange={h} style={{display:"none"}}/><Btn variant="ghost" size="sm" onClick={()=>ref.current.click()} disabled={up}>{up?"⏳":label}</Btn></>;
+
+// ----------------------------------------------------------------------
+// Avatar Circle (uses page_accent)
+// ----------------------------------------------------------------------
+export function AvatarCircle({user,size=36,onClick}){
+  return <div onClick={onClick} style={{width:size,height:size,borderRadius:"50%",flexShrink:0,background:`radial-gradient(circle,${user?.page_accent||"#00D4FF"}44,rgba(0,0,0,.7))`,border:`2px solid ${user?.page_accent||"#00D4FF"}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*.45,overflow:"hidden",cursor:onClick?"pointer":"default"}}>
+    {user?.avatar_url?<img src={user.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:user?.avatar||"👤"}
+  </div>;
 }
-const BannerBtn=BannerUploadBtn;
+export const Av = AvatarCircle;
+
+// ----------------------------------------------------------------------
+// Banner upload button
+// ----------------------------------------------------------------------
+export function BannerUploadBtn({label,onUpload}){
+  const [up,setUp]=useState(false);
+  const ref=useRef(null);
+  const h=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>10*1024*1024){alert("Max 10MB");return;}setUp(true);await onUpload(f);setUp(false);e.target.value="";};
+  return <><input type="file" ref={ref} accept="image/*" onChange={h} style={{display:"none"}}/><Btn variant="ghost" size="sm" onClick={()=>ref.current.click()} disabled={up}>{up?"⏳":label}</Btn></>;
+}
+export const BannerBtn = BannerUploadBtn;
+
+// ----------------------------------------------------------------------
+// Comment image upload
+// ----------------------------------------------------------------------
 export function CommentImgUpload({onUpload}){
   const[up,setUp]=useState(false);const ref=useRef(null);
   const h=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>8*1024*1024){alert("Max 8MB");return;}setUp(true);await onUpload(f);setUp(false);e.target.value="";};
   return <><input type="file" ref={ref} accept="image/*" onChange={h} style={{display:"none"}}/><button onClick={()=>ref.current.click()} disabled={up} title="Attach photo" style={{background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.09)",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:12,color:"#64748B",display:"flex",alignItems:"center",gap:5,width:"fit-content"}}>{up?"⏳ Uploading...":"📷 Add Photo"}</button></>;
 }
+
+// ----------------------------------------------------------------------
+// Player headshot URL
+// ----------------------------------------------------------------------
 export function playerHeadshotUrl(playerId,sport){
   if(!playerId)return"";
   if(sport==="mlb")return`https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/${playerId}/headshot/67/current`;
-  // ESPN uses different CDN paths — try multiple via component onError fallback chain
-  // Primary: new ESPN CDN format
   return`https://a.espncdn.com/combiner/i?img=/i/headshots/${sport}/players/full/${playerId}.png&w=350&h=254&cb=1`;
 }
-export function TeamLogo({espn,sport,size=22}){const [err,setErr]=useState(false);if(err)return <span style={{fontSize:size*.65}}>{sport==="mlb"?"⚾":sport==="nfl"?"🏈":sport==="nba"?"🏀":"🏒"}</span>;return <img src={`https://a.espncdn.com/i/teamlogos/${sport}/500/${espn}.png`} width={size} height={size} style={{objectFit:"contain",flexShrink:0}} onError={()=>setErr(true)}/>;}
+
+// ----------------------------------------------------------------------
+// Team Logo
+// ----------------------------------------------------------------------
+export function TeamLogo({espn,sport,size=22}){
+  const [err,setErr]=useState(false);
+  if(err) return <span style={{fontSize:size*.65}}>{sport==="mlb"?"⚾":sport==="nfl"?"🏈":sport==="nba"?"🏀":"🏒"}</span>;
+  return <img src={`https://a.espncdn.com/i/teamlogos/${sport}/500/${espn}.png`} width={size} height={size} style={{objectFit:"contain",flexShrink:0}} onError={()=>setErr(true)}/>;
+}
+
+// ----------------------------------------------------------------------
+// Team badge (compact)
+// ----------------------------------------------------------------------
 export function TeamBadge({teamId}){
   const allTeams=[...MLB_TEAMS,...NFL_TEAMS,...NBA_TEAMS,...NHL_TEAMS];
   const team=allTeams.find(t=>t.id===teamId);if(!team)return null;
   const sport=teamId.startsWith("nfl_")?"nfl":teamId.startsWith("nba_")?"nba":teamId.startsWith("nhl_")?"nhl":"mlb";
   return <div style={{display:"inline-flex",alignItems:"center",gap:5,background:team.color+"22",border:`1.5px solid ${team.color}66`,borderRadius:20,padding:"3px 10px"}}><TeamLogo espn={team.espn} sport={sport} size={18}/><span style={{fontSize:9,fontFamily:"'Orbitron',sans-serif",fontWeight:700,color:team.color,letterSpacing:".06em"}}>{team.abbr}</span><span style={{fontSize:9,color:team.color+"cc",fontWeight:600}}>{team.name}</span></div>;
 }
+
+// ----------------------------------------------------------------------
+// Team Picker (modal)
+// ----------------------------------------------------------------------
 export function TeamPicker({sport,teams,value,onChange}){
   const byDiv={};
   teams.forEach(t=>{if(!byDiv[t.div])byDiv[t.div]=[];byDiv[t.div].push(t);});
@@ -86,6 +161,9 @@ export function TeamPicker({sport,teams,value,onChange}){
   );
 }
 
+// ----------------------------------------------------------------------
+// Social Links
+// ----------------------------------------------------------------------
 export function SocialLinks({user}){
   const platforms=Object.keys(SOCIAL_ICONS).filter(k=>user[`social_${k}`]);
   if(!platforms.length)return null;
@@ -102,6 +180,9 @@ export function SocialLinks({user}){
   );
 }
 
+// ----------------------------------------------------------------------
+// Like Button
+// ----------------------------------------------------------------------
 export function LikeBtn({clipId,cu,likes,onLike}){
   const liked=cu&&(likes[clipId]||[]).includes(cu.id);
   const count=(likes[clipId]||[]).length;
@@ -113,6 +194,9 @@ export function LikeBtn({clipId,cu,likes,onLike}){
   </button>;
 }
 
+// ----------------------------------------------------------------------
+// Clip Carousel
+// ----------------------------------------------------------------------
 export function ClipCarousel({clips,canEdit,onDelete,emptyIcon,emptyMsg,cu,likes,onLike}){
   const [idx,setIdx]=useState(0);const [key,setKey]=useState(0);
   const touchRef=useRef(null);const timerRef=useRef(null);
@@ -149,25 +233,20 @@ export function ClipCarousel({clips,canEdit,onDelete,emptyIcon,emptyMsg,cu,likes
   );
 }
 
+// ----------------------------------------------------------------------
+// Starfield (background)
+// ----------------------------------------------------------------------
 export function Starfield(){
   const canvasRef=useRef(null);
   const rafRef=useRef(null);
-
   useEffect(()=>{
     const canvas=canvasRef.current;
     if(!canvas)return;
     const ctx=canvas.getContext("2d");
     let W=window.innerWidth, H=window.innerHeight;
-
-    // ── resize ──
-    const resize=()=>{
-      W=window.innerWidth; H=window.innerHeight;
-      canvas.width=W; canvas.height=H;
-    };
+    const resize=()=>{W=window.innerWidth; H=window.innerHeight; canvas.width=W; canvas.height=H;};
     resize();
     window.addEventListener("resize",resize);
-
-    // ── stars ──
     const NUM=280;
     const stars=Array.from({length:NUM},()=>({
       x:Math.random()*W, y:Math.random()*H,
@@ -176,19 +255,13 @@ export function Starfield(){
       alpha:0,
       twinkleSpeed:Math.random()*0.008+0.003,
       twinkleDir:Math.random()>0.5?1:-1,
-      color:Math.random()>0.88
-        ?(Math.random()>0.5?"#b3d9ff":"#d4b3ff")
-        :"#ffffff",
+      color:Math.random()>0.88?(Math.random()>0.5?"#b3d9ff":"#d4b3ff"):"#ffffff",
       glow:Math.random()>0.92,
     }));
-    // Stagger initial alpha
     stars.forEach(s=>{ s.alpha=Math.random()*s.baseAlpha; });
-
-    // ── shooting stars ──
     const shoots=[];
     const spawnShoot=()=>{
-      // Start from top-right area, angle downward-left
-      const angle=Math.PI*0.8+Math.random()*Math.PI*0.3; // ~145–199 deg
+      const angle=Math.PI*0.8+Math.random()*Math.PI*0.3;
       const speed=Math.random()*6+8;
       shoots.push({
         x:Math.random()*W*0.8+W*0.2,
@@ -201,16 +274,11 @@ export function Starfield(){
         trail:[],
       });
     };
-
-    // Shoot every 3–8 seconds
     let nextShoot=Date.now()+3000+Math.random()*5000;
-
-    // ── Rocket ──
     let rocket=null;
     let nextRocket=Date.now()+8000+Math.random()*12000;
     const spawnRocket=()=>{
-      // Pick a random edge to enter from
-      const side=Math.floor(Math.random()*4); // 0=top,1=right,2=bottom,3=left
+      const side=Math.floor(Math.random()*4);
       let x,y,angle;
       if(side===0){x=Math.random()*W;y=-60;angle=Math.PI/2+((Math.random()-.5)*0.6);}
       else if(side===1){x=W+60;y=Math.random()*H;angle=Math.PI+((Math.random()-.5)*0.6);}
@@ -219,9 +287,7 @@ export function Starfield(){
       const speed=2.2+Math.random()*1.4;
       rocket={x,y,angle,speed,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,trail:[],size:1+Math.random()*0.5};
     };
-
     const drawRocket=(r)=>{
-      // Trail
       for(let t=1;t<r.trail.length;t++){
         const prog=t/r.trail.length;
         ctx.save();
@@ -239,9 +305,7 @@ export function Starfield(){
       ctx.translate(r.x,r.y);
       ctx.rotate(r.angle+Math.PI/2);
       const sc=r.size*14;
-      // Flame flicker
       const flicker=0.7+Math.random()*0.6;
-      // Flame
       ctx.beginPath();
       ctx.moveTo(0,sc*0.6);
       ctx.lineTo(-sc*0.22*flicker,sc*1.2*flicker);
@@ -254,7 +318,6 @@ export function Starfield(){
       flameGrad.addColorStop(1,"rgba(255,40,0,0)");
       ctx.fillStyle=flameGrad;
       ctx.fill();
-      // Body
       ctx.beginPath();
       ctx.moveTo(0,-sc);
       ctx.bezierCurveTo(sc*0.45,-sc*0.5,sc*0.45,sc*0.3,sc*0.28,sc*0.6);
@@ -267,7 +330,6 @@ export function Starfield(){
       bodyGrad.addColorStop(1,"#7090a8");
       ctx.fillStyle=bodyGrad;
       ctx.fill();
-      // Window
       ctx.beginPath();
       ctx.arc(0,-sc*0.28,sc*0.18,0,Math.PI*2);
       ctx.fillStyle="rgba(120,200,255,0.85)";
@@ -275,7 +337,6 @@ export function Starfield(){
       ctx.strokeStyle="rgba(255,255,255,0.5)";
       ctx.lineWidth=1;
       ctx.stroke();
-      // Left fin
       ctx.beginPath();
       ctx.moveTo(-sc*0.28,sc*0.4);
       ctx.lineTo(-sc*0.7,sc*0.9);
@@ -283,7 +344,6 @@ export function Starfield(){
       ctx.closePath();
       ctx.fillStyle="#8aaabb";
       ctx.fill();
-      // Right fin
       ctx.beginPath();
       ctx.moveTo(sc*0.28,sc*0.4);
       ctx.lineTo(sc*0.7,sc*0.9);
@@ -293,40 +353,28 @@ export function Starfield(){
       ctx.fill();
       ctx.restore();
     };
-
-    // ── draw loop ──
     const draw=()=>{
       ctx.clearRect(0,0,W,H);
-
-      // Deep space bg
       const bg=ctx.createRadialGradient(W*0.18,H*0.38,0,W*0.5,H*0.5,W*0.9);
       bg.addColorStop(0,"#0e0228");
       bg.addColorStop(0.55,"#030712");
       bg.addColorStop(1,"#030712");
       ctx.fillStyle=bg;
       ctx.fillRect(0,0,W,H);
-
-      // Soft nebula glow top-right
       const neb=ctx.createRadialGradient(W*0.78,H*0.15,0,W*0.78,H*0.15,W*0.35);
       neb.addColorStop(0,"rgba(139,92,246,0.07)");
       neb.addColorStop(1,"transparent");
       ctx.fillStyle=neb;
       ctx.fillRect(0,0,W,H);
-
-      // Second nebula bottom-left
       const neb2=ctx.createRadialGradient(W*0.12,H*0.82,0,W*0.12,H*0.82,W*0.28);
       neb2.addColorStop(0,"rgba(0,180,255,0.05)");
       neb2.addColorStop(1,"transparent");
       ctx.fillStyle=neb2;
       ctx.fillRect(0,0,W,H);
-
-      // Draw stars
       stars.forEach(s=>{
-        // Twinkle
         s.alpha+=s.twinkleSpeed*s.twinkleDir;
         if(s.alpha>=s.baseAlpha){s.alpha=s.baseAlpha;s.twinkleDir=-1;}
         else if(s.alpha<=0.05){s.alpha=0.05;s.twinkleDir=1;}
-
         ctx.save();
         ctx.globalAlpha=s.alpha;
         if(s.glow){
@@ -342,25 +390,15 @@ export function Starfield(){
         ctx.fill();
         ctx.restore();
       });
-
-      // Shoot new star?
       const now=Date.now();
-      if(now>=nextShoot){
-        spawnShoot();
-        nextShoot=now+3000+Math.random()*5000;
-      }
-
-      // Draw shooting stars
+      if(now>=nextShoot){spawnShoot();nextShoot=now+3000+Math.random()*5000;}
       for(let i=shoots.length-1;i>=0;i--){
         const sh=shoots[i];
         sh.x+=sh.vx; sh.y+=sh.vy;
         sh.alpha-=0.018;
         sh.trail.push({x:sh.x,y:sh.y});
         if(sh.trail.length>30)sh.trail.shift();
-
         if(sh.alpha<=0||sh.x<-200||sh.y>H+200){shoots.splice(i,1);continue;}
-
-        // Draw trail
         ctx.save();
         ctx.lineCap="round";
         for(let t=1;t<sh.trail.length;t++){
@@ -373,7 +411,6 @@ export function Starfield(){
           ctx.lineTo(sh.trail[t].x,sh.trail[t].y);
           ctx.stroke();
         }
-        // Bright head
         ctx.globalAlpha=sh.alpha;
         const headGlow=ctx.createRadialGradient(sh.x,sh.y,0,sh.x,sh.y,sh.width*4);
         headGlow.addColorStop(0,"rgba(255,255,255,1)");
@@ -383,40 +420,27 @@ export function Starfield(){
         ctx.fillRect(sh.x-sh.width*4,sh.y-sh.width*4,sh.width*8,sh.width*8);
         ctx.restore();
       }
-
-      // Update and draw rocket
       const nowR=Date.now();
-      if(!rocket&&nowR>=nextRocket){
-        spawnRocket();
-        nextRocket=nowR+10000+Math.random()*15000;
-      }
+      if(!rocket&&nowR>=nextRocket){spawnRocket();nextRocket=nowR+10000+Math.random()*15000;}
       if(rocket){
         rocket.trail.push({x:rocket.x,y:rocket.y});
         if(rocket.trail.length>50)rocket.trail.shift();
         rocket.x+=rocket.vx;
         rocket.y+=rocket.vy;
         drawRocket(rocket);
-        // Despawn if off screen (with margin)
-        if(rocket.x<-200||rocket.x>W+200||rocket.y<-200||rocket.y>H+200){
-          rocket=null;
-        }
+        if(rocket.x<-200||rocket.x>W+200||rocket.y<-200||rocket.y>H+200)rocket=null;
       }
-
       rafRef.current=requestAnimationFrame(draw);
     };
-
     draw();
-    return()=>{
-      cancelAnimationFrame(rafRef.current);
-      window.removeEventListener("resize",resize);
-    };
+    return()=>{cancelAnimationFrame(rafRef.current);window.removeEventListener("resize",resize);};
   },[]);
-
-  return(
-    <canvas ref={canvasRef} style={{position:"fixed",inset:0,zIndex:0,display:"block",pointerEvents:"none"}}/>
-  );
+  return <canvas ref={canvasRef} style={{position:"fixed",inset:0,zIndex:0,display:"block",pointerEvents:"none"}}/>;
 }
 
+// ----------------------------------------------------------------------
+// Notification Bell
+// ----------------------------------------------------------------------
 export function NotifBell({notifs,onRead,onClear,onMarkOne,navigate,users}){
   const [open,setOpen]=useState(false);const ref=useRef(null);
   const unread=notifs.filter(n=>!n.read).length;
@@ -475,12 +499,14 @@ export function NotifBell({notifs,onRead,onClear,onMarkOne,navigate,users}){
             }
           </div>
         </div>
-
       )}
     </div>
   );
 }
 
+// ----------------------------------------------------------------------
+// Followers/Following modal
+// ----------------------------------------------------------------------
 export function FLModal({type,user,users,navigate,onClose}){
   const ids=type==="followers"?user.followers||[]:user.following||[];
   const members=ids.map(id=>users.find(u=>u.id===id)).filter(Boolean);
@@ -502,19 +528,22 @@ export function FLModal({type,user,users,navigate,onClose}){
   );
 }
 
-// ── Navbar ────────────────────────────────────────────────────────────────────
-
-
-// ─── OVR helpers ─────────────────────────────
+// ----------------------------------------------------------------------
+// OVR color helper
+// ----------------------------------------------------------------------
 export function ovrColor(ovr){
-  if(!ovr)return"#64748B";
-  if(ovr>=93)return"#A855F7"; // purple - elite
-  if(ovr>=87)return"#22C55E"; // green - great
-  if(ovr>=80)return"#3B82F6"; // blue - good
-  if(ovr>=73)return"#F59E0B"; // gold - above avg
-  if(ovr>=65)return"#FB923C"; // orange - average
-  return"#64748B";             // grey - below avg
+  if(!ovr) return "#64748B";
+  if(ovr>=93) return "#A855F7";
+  if(ovr>=87) return "#22C55E";
+  if(ovr>=80) return "#3B82F6";
+  if(ovr>=73) return "#F59E0B";
+  if(ovr>=65) return "#FB923C";
+  return "#64748B";
 }
+
+// ----------------------------------------------------------------------
+// Roblox Avatar
+// ----------------------------------------------------------------------
 export function RobloxAvatar({userId,size=44,radius=12,fallback=null,sport="football"}){
   const[url,setUrl]=useState(null);
   const[err,setErr]=useState(false);
@@ -527,13 +556,15 @@ export function RobloxAvatar({userId,size=44,radius=12,fallback=null,sport="foot
       .then(d=>{if(d.imageUrl)setUrl(d.imageUrl);else setErr(true);})
       .catch(()=>setErr(true));
   },[userId]);
-  const boxStyle={width:size,height:size,borderRadius:radius,overflow:"hidden",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"};
-  if(err||!userId)return<div style={boxStyle}><span style={{fontSize:size*.42}}>{fb}</span></div>;
-  if(!url)return<div style={{...boxStyle,background:"rgba(255,255,255,.04)"}}><span style={{fontSize:size*.22,color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>…</span></div>;
-  return<div style={boxStyle}><img src={url} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setErr(true)}/></div>;
+  const boxStyle={{width:size,height:size,borderRadius:radius,overflow:"hidden",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}};
+  if(err||!userId) return <div style={boxStyle}><span style={{fontSize:size*.42}}>{fb}</span></div>;
+  if(!url) return <div style={{...boxStyle,background:"rgba(255,255,255,.04)"}}><span style={{fontSize:size*.22,color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>…</span></div>;
+  return <div style={boxStyle}><img src={url} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setErr(true)}/></div>;
 }
 
-
+// ----------------------------------------------------------------------
+// OVR Big (large badge)
+// ----------------------------------------------------------------------
 export function OVRBig({ovr,size=44}){
   const col=ovrColor(ovr);
   return(
@@ -542,7 +573,3 @@ export function OVRBig({ovr,size=44}){
     </div>
   );
 }
-
-
-// RobloxAvatar already exported above
-export { Btn, Card, Modal, Lbl, Sec, Empty, XBtn, StatusDot, Av, AvatarCircle, RoleBadge, BannerUploadBtn, BannerBtn, CommentImgUpload, playerHeadshotUrl, TeamLogo, TeamBadge, TeamPicker, SocialLinks, LikeBtn, ClipCarousel, Starfield, NotifBell, FLModal, ovrColor, OVRBig };
