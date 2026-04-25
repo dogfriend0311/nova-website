@@ -1,8 +1,11 @@
 // ─── RTTSMode (Road to the Show) ───────────────────────────────────────────────
 // Full baseball career mode: create a player, progress from minors to MLB,
 // sim games, upgrade attributes with points, track career stats.
+import React, { useState, useEffect } from "react";
+import { sb, gid, useIsMobile } from "./shared";
+import { Btn, Card, Lbl } from "./UI";
 
-function RTTSMode({ cu }) {
+export default function RTTSMode({ cu }) {
   const mob = useIsMobile();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
