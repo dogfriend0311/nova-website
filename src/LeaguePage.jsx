@@ -2,14 +2,11 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { sb, gid, getSess, saveSess, clearSess, useIsMobile, SUPABASE_URL, SUPABASE_ANON_KEY, ROLE_COLOR, STATUS_META, SOCIAL_ICONS, SOCIAL_COLORS, SOCIAL_LABELS, MLB_TEAMS, NFL_TEAMS, NHL_TEAMS, ALL_BADGES, BADGES, CSS, STATCAST_PLAYERS, STATCAST_TENDENCIES, H, sbUp } from "./shared";
 import { Btn, Card, Modal, Lbl, Sec, Empty, XBtn, StatusDot, Av, AvatarCircle, RoleBadge, BannerUploadBtn, BannerBtn, CommentImgUpload, playerHeadshotUrl, TeamLogo, TeamBadge, TeamPicker, SocialLinks, LikeBtn, ClipCarousel, Starfield, NotifBell, FLModal, ovrColor, OVRBig, RobloxAvatar } from "./UI";
 
-
-// ─── NFFL Page (Football League) ─────────────────────────────────
-
 // ─── LeagueTeamsTab — public Teams page + dashboard team editing ───────────────
 export function LeagueTeamsTab({teams,players,accentColor,league,cu,onTeamsUpdated,isAdmin,navigate,users}){
   const mob=useIsMobile();
   const[selTeam,setSelTeam]=useState(null);
-  const[editing,setEditing]=useState(null); // team being edited
+  const[editing,setEditing]=useState(null);
   const[editName,setEditName]=useState("");
   const[editOwner,setEditOwner]=useState("");
   const[editLogo,setEditLogo]=useState("");
@@ -44,7 +41,6 @@ export function LeagueTeamsTab({teams,players,accentColor,league,cu,onTeamsUpdat
 
   const teamPlayers=(teamName)=>players.filter(Boolean).filter(p=>p.team===teamName);
 
-  // Detail view for a selected team
   if(selTeam){
     const t=teams.find(x=>x.id===selTeam)||teams[0];
     if(!t)return null;
@@ -52,8 +48,6 @@ export function LeagueTeamsTab({teams,players,accentColor,league,cu,onTeamsUpdat
     return(
       <div>
         <button onClick={()=>setSelTeam(null)} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:11,marginBottom:16,display:"flex",alignItems:"center",gap:5}}>← ALL TEAMS</button>
-
-        {/* Team header */}
         <Card style={{padding:mob?"16px":"20px 24px",marginBottom:16}} hover={false}>
           <div style={{display:"flex",gap:16,alignItems:"center",flexWrap:"wrap"}}>
             <div style={{width:mob?72:88,height:mob?72:88,borderRadius:14,overflow:"hidden",background:`${accentColor}18`,border:`2px solid ${accentColor}44`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -64,13 +58,9 @@ export function LeagueTeamsTab({teams,players,accentColor,league,cu,onTeamsUpdat
               {t.owner_name&&<div style={{fontSize:12,color:accentColor,marginTop:4}}>👑 GM: {t.owner_name}</div>}
               <div style={{fontSize:11,color:"#475569",marginTop:2}}>{tp.length} players</div>
             </div>
-            {isAdmin&&(
-              <button onClick={(e)=>openEdit(t,e)} style={{padding:"8px 14px",borderRadius:10,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#94A3B8",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:700}}>✏️ Edit Team</button>
-            )}
+            {isAdmin&&<button onClick={(e)=>openEdit(t,e)} style={{padding:"8px 14px",borderRadius:10,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#94A3B8",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:700}}>✏️ Edit Team</button>}
           </div>
         </Card>
-
-        {/* Team roster */}
         <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"#334155",letterSpacing:".12em",marginBottom:12}}>ROSTER</div>
         {tp.length===0&&<Empty icon="👥" msg="No players on this team yet"/>}
         <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:8,marginBottom:16}}>
@@ -102,14 +92,12 @@ export function LeagueTeamsTab({teams,players,accentColor,league,cu,onTeamsUpdat
     );
   }
 
-  // Edit modal
   if(editing)return(
     <div>
       <button onClick={()=>setEditing(null)} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:11,marginBottom:16,display:"flex",alignItems:"center",gap:5}}>← BACK</button>
       <Card style={{padding:"18px",maxWidth:480}} hover={false}>
         <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,marginBottom:14,fontWeight:700}}>✏️ EDIT TEAM</div>
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          {/* Logo preview + upload */}
           <div style={{display:"flex",gap:12,alignItems:"center"}}>
             <div style={{width:64,height:64,borderRadius:12,overflow:"hidden",background:`${accentColor}18`,border:`2px solid ${accentColor}33`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
               {editLogo?<img src={editLogo} style={{width:"100%",height:"100%",objectFit:"contain"}}/>:<span style={{fontSize:28}}>🏟</span>}
@@ -137,7 +125,6 @@ export function LeagueTeamsTab({teams,players,accentColor,league,cu,onTeamsUpdat
     </div>
   );
 
-  // Team list grid
   return(
     <div>
       {teams.length===0&&<Empty icon="🏟" msg="No teams created yet"/>}
@@ -149,7 +136,6 @@ export function LeagueTeamsTab({teams,players,accentColor,league,cu,onTeamsUpdat
               style={{borderRadius:16,background:"rgba(255,255,255,.03)",border:`1px solid ${accentColor}22`,cursor:"pointer",overflow:"hidden",transition:"all .2s"}}
               onMouseEnter={e=>{e.currentTarget.style.borderColor=accentColor+"66";e.currentTarget.style.background=accentColor+"0a";}}
               onMouseLeave={e=>{e.currentTarget.style.borderColor=accentColor+"22";e.currentTarget.style.background="rgba(255,255,255,.03)";}}>
-              {/* Team banner */}
               <div style={{padding:"16px",display:"flex",gap:14,alignItems:"center"}}>
                 <div style={{width:56,height:56,borderRadius:10,overflow:"hidden",background:`${accentColor}18`,border:`1px solid ${accentColor}44`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
                   {t.logo?<img src={t.logo} style={{width:"100%",height:"100%",objectFit:"contain"}}/>:<span style={{fontSize:28}}>🏟</span>}
@@ -161,7 +147,6 @@ export function LeagueTeamsTab({teams,players,accentColor,league,cu,onTeamsUpdat
                 </div>
                 {isAdmin&&<button onClick={(e)=>openEdit(t,e)} style={{padding:"5px 10px",borderRadius:8,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",color:"#475569",cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:9,flexShrink:0}}>✏️</button>}
               </div>
-              {/* Mini roster preview */}
               {tp.length>0&&(
                 <div style={{borderTop:`1px solid ${accentColor}18`,padding:"10px 16px",display:"flex",gap:6,flexWrap:"wrap"}}>
                   {tp.slice(0,6).map((p,j)=>(
@@ -181,6 +166,7 @@ export function LeagueTeamsTab({teams,players,accentColor,league,cu,onTeamsUpdat
 }
 
 
+// ─── NFFL Page (Football League) ─────────────────────────────────
 export function NFFLPage({cu,users,navigate}){
   const mob=useIsMobile();
   const isAdmin=cu?.is_owner||cu?.staff_role==="Co-owner"||cu?.staff_role==="Basketball League Admin"||cu?.staff_role==="2v2FF Admin";
@@ -249,7 +235,7 @@ export function NFFLPage({cu,users,navigate}){
   );
 }
 
-// ─── NBBL Page (Baseball League) ─────────────────────────────────────────
+// ─── NBBL Page (Baseball League) ─────────────────────────────────
 export function NBBLPage({cu,users,navigate}){
   const mob=useIsMobile();
   const isAdmin=cu?.is_owner||cu?.staff_role==="Co-owner"||cu?.staff_role==="Basketball League Admin";
@@ -274,7 +260,6 @@ export function NBBLPage({cu,users,navigate}){
 
   const TABS=[{id:"feed",label:"📢 Game Feed"},{id:"teams",label:"🏟 Teams"},{id:"stats",label:"📊 Stats"},{id:"players",label:"👤 Players"}];
 
-  // Stat categories with their relevant columns
   const STAT_CATS={
     hitting:{label:"⚾ Hitting",color:"#22C55E",cols:["G","AB","R","H","2B","3B","HR","RBI","BB","SO","SB","AVG","OBP","SLG","OPS"]},
     pitching:{label:"⚾ Pitching",color:"#3B82F6",cols:["G","GS","W","L","SV","IP","H","R","ER","BB","SO","ERA","WHIP","K9","BB9"]},
@@ -311,7 +296,6 @@ export function NBBLPage({cu,users,navigate}){
       )}
       {!loading&&tab==="stats"&&(
         <div>
-          {/* Stat category picker */}
           <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
             {Object.entries(STAT_CATS).map(([k,v])=>(
               <button key={k} onClick={()=>setStatCat(k)}
@@ -323,7 +307,6 @@ export function NBBLPage({cu,users,navigate}){
               </button>
             ))}
           </div>
-          {/* Stats table */}
           {(()=>{
             const cat=STAT_CATS[statCat];
             const statPlayers=players.filter(p=>p[`${statCat}_stats`]||p.stats);
@@ -366,88 +349,6 @@ export function NBBLPage({cu,users,navigate}){
   );
 }
 
-// Shared: post to league game feed
-export function PostFeedForm({league,onPost,cu}){
-  const[title,setTitle]=useState("");
-  const[content,setContent]=useState("");
-  const[saving,setSaving]=useState(false);
-  const submit=async()=>{
-    if(!content.trim())return;
-    setSaving(true);
-    const post={id:gid(),title:title.trim(),content:content.trim(),author_id:cu?.id,author_name:cu?.display_name,ts:Date.now()};
-    await sb.post(`nova_${league}_feed`,post);
-    onPost(post);setTitle("");setContent("");setSaving(false);
-  };
-  return(
-    <div style={{display:"flex",flexDirection:"column",gap:10}}>
-      <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Post title (optional)…"/>
-      <textarea value={content} onChange={e=>setContent(e.target.value)} placeholder="Game update, score, highlights…" rows={3} style={{resize:"vertical"}}/>
-      <Btn onClick={submit} disabled={saving||!content.trim()}>{saving?"Posting…":"📢 Post Update"}</Btn>
-    </div>
-  );
-}
-
-// Shared: add player to league roster
-export function AddLeaguePlayer({league,onAdd,cu,sport="",leagueTeams=[]}){
-  const[name,setName]=useState("");
-  const[positions_sel,setPositionsSel]=useState([]);
-  const[team,setTeam]=useState("");
-  const[jersey,setJersey]=useState("");
-  const[saving,setSaving]=useState(false);
-  const isBaseball=league==="nbbl";
-  const isBasketball=league==="ringrush";
-  const baseballPos=["P","C","1B","2B","3B","SS","LF","CF","RF","DH","SP","RP"];
-  const footballPos=["QB","RB","WR","TE","K","DEF","OL","DL","LB","CB","S"];
-  const basketballPos=["Top","Corner"];
-  const positions=isBasketball||sport==="basketball"?basketballPos:isBaseball?baseballPos:footballPos;
-  const ac=isBasketball||sport==="basketball"?"#EC4899":isBaseball?"#22C55E":"#F59E0B";
-  const togglePos=(pos)=>setPositionsSel(prev=>prev.includes(pos)?prev.filter(x=>x!==pos):[...prev,pos]);
-  const submit=async()=>{
-    if(!name.trim()||!positions_sel.length)return;
-    setSaving(true);
-    const player={id:gid(),name:name.trim(),position:positions_sel.join("/"),team:team.trim(),jersey:jersey.trim(),added_by:cu?.id,ts:Date.now()};
-    await sb.post(`nova_${league}_players`,player);
-    onAdd(player);setName("");setPositionsSel([]);setTeam("");setJersey("");setSaving(false);
-  };
-  return(
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-      <div style={{gridColumn:"1/-1"}}><Lbl>Player Name</Lbl><input value={name} onChange={e=>setName(e.target.value)} placeholder="Full name…"/></div>
-      <div style={{gridColumn:"1/-1"}}>
-        <Lbl>Position(s) — select all that apply</Lbl>
-        <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:4}}>
-          {positions.map(pos=>{
-            const sel=positions_sel.includes(pos);
-            return(
-              <button key={pos} type="button" onClick={()=>togglePos(pos)}
-                style={{padding:"4px 10px",borderRadius:8,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,
-                  border:`1px solid ${sel?ac+"88":"rgba(255,255,255,.1)"}`,
-                  background:sel?ac+"22":"rgba(255,255,255,.03)",
-                  color:sel?ac:"#64748B",transition:"all .15s"}}>
-                {pos}
-              </button>
-            );
-          })}
-        </div>
-        {positions_sel.length>0&&<div style={{fontSize:9,color:ac,marginTop:5,fontFamily:"'Orbitron',sans-serif"}}>Selected: {positions_sel.join(" / ")}</div>}
-      </div>
-      <div>
-        <Lbl>Team</Lbl>
-        {leagueTeams.length>0
-          ?<select value={team} onChange={e=>setTeam(e.target.value)} style={{width:"100%"}}>
-              <option value="">— Free Agent —</option>
-              {leagueTeams.map(t=><option key={t.id} value={t.name}>{t.name}</option>)}
-            </select>
-          :<input value={team} onChange={e=>setTeam(e.target.value)} placeholder="Team name…"/>}
-      </div>
-      <div><Lbl>Jersey #</Lbl><input value={jersey} onChange={e=>setJersey(e.target.value)} placeholder="#"/></div>
-      <div style={{gridColumn:"1/-1"}}><Btn onClick={submit} disabled={saving||!name.trim()||!positions_sel.length}>{saving?"Adding…":"➕ Add Player"}</Btn></div>
-    </div>
-  );
-}
-
-
-// ─── Dashboard ─────────────────────────────────────────────────────────────────
-
 // ─── Ring Rush Page (Basketball League) ───────────────────────────────
 export function RingRushPage({cu,users,navigate}){
   const mob=useIsMobile();
@@ -481,11 +382,8 @@ export function RingRushPage({cu,users,navigate}){
     defense:{label:"🛡 Defense",color:"#3B82F6",cols:["G","MIN","STL","BLK","PF","STL/G","BLK/G"]},
   };
 
-  const posEmoji=(pos)=>({Top:"👑",Corner:"🔥"}[pos]||"🏀");
-
   return(
     <div style={{maxWidth:1080,margin:"0 auto",padding:mob?"12px 10px 100px":"20px 20px 80px"}}>
-      {/* Header */}
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
         <span style={{fontSize:32}}>🏀</span>
         <div>
@@ -493,8 +391,6 @@ export function RingRushPage({cu,users,navigate}){
           <div style={{fontSize:11,color:"#475569"}}>Basketball League</div>
         </div>
       </div>
-
-      {/* Tab nav */}
       <div style={{display:"flex",gap:5,marginBottom:18,borderBottom:"1px solid rgba(255,255,255,.07)",paddingBottom:10}}>
         {TABS.map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id)}
@@ -505,10 +401,7 @@ export function RingRushPage({cu,users,navigate}){
           </button>
         ))}
       </div>
-
       {loading&&<div style={{textAlign:"center",padding:60,color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:11}}>Loading Basketball League data...</div>}
-
-      {/* Game Feed */}
       {!loading&&tab==="feed"&&(
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           {feed.length===0&&<Empty icon="🏀" msg="No game feed posts yet — check back soon!"/>}
@@ -521,13 +414,9 @@ export function RingRushPage({cu,users,navigate}){
           ))}
         </div>
       )}
-
-      {/* Roster */}
       {!loading&&tab==="teams"&&(
         <LeagueTeamsTab teams={teams} players={players} accentColor={ac} league="ringrush" cu={cu} onTeamsUpdated={setTeams} isAdmin={isAdmin} navigate={navigate} users={users}/>
       )}
-
-      {/* Stats */}
       {!loading&&tab==="stats"&&(
         <div>
           <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
@@ -574,8 +463,6 @@ export function RingRushPage({cu,users,navigate}){
           })()}
         </div>
       )}
-
-      {/* Players */}
       {!loading&&tab==="players"&&(
         <LeaguePlayersPage players={players} league="ringrush" accentColor={ac} users={users} navigate={navigate}/>
       )}
@@ -583,8 +470,7 @@ export function RingRushPage({cu,users,navigate}){
   );
 }
 
-
-
+// ─── LeaguePlayersPage ─────────────────────────────────────────────
 export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
   const mob=useIsMobile();
   const[sel,setSel]=useState(null);
@@ -616,7 +502,6 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
     return users.find(u=>(u.display_name||"").toLowerCase().includes(n)||n.includes((u.display_name||"").toLowerCase())||(u.username||"").toLowerCase()===n)||null;
   };
 
-  // ── stat highlight colors ──────────────────────────────────────────────────
   const statGlow=(key,val)=>{
     const v=parseFloat(val);if(isNaN(v))return null;
     const map={AVG:[[.300,"#22C55E"],[.260,"#F59E0B"]],OPS:[[.900,"#A855F7"],[.800,"#22C55E"]],ERA:[[2.5,"#A855F7"],[3.5,"#22C55E"],[4.5,"#F59E0B"]],HR:[[25,"#A855F7"],[15,"#22C55E"]],RBI:[[70,"#A855F7"],[50,"#22C55E"]],TD:[[15,"#A855F7"],[8,"#22C55E"]],YDS:[[1200,"#A855F7"],[600,"#22C55E"]],RTG:[[100,"#22C55E"],[90,"#F59E0B"]],PTS:[[25,"#A855F7"],[18,"#22C55E"]],REB:[[10,"#A855F7"],[7,"#22C55E"]],AST:[[8,"#A855F7"],[5,"#22C55E"]],SACK:[[8,"#A855F7"],[4,"#22C55E"]],INT:[[6,"#A855F7"],[3,"#22C55E"]]};
@@ -627,7 +512,6 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
     return null;
   };
 
-  // ── Leaderboard config ────────────────────────────────────────────────────
   const LB_CATS=isBasketball?[
     {key:"scoring_stats_season",label:"🏀 Scoring",cols:["G","PTS","FG%","3P%","FT%","MIN"]},
     {key:"rebounds_stats_season",label:"💪 Rebounds",cols:["G","REB","OREB","DREB","REB/G"]},
@@ -657,7 +541,6 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
 
   const handleSort=(col)=>{if(sortCol===col)setSortDir(d=>d==="desc"?"asc":"desc");else{setSortCol(col);setSortDir("desc");}};
 
-  // ── PLAYER DETAIL PAGE ─────────────────────────────────────────────────────
   if(sel&&selectedPlayer){
     const member=matchMember(selectedPlayer);
     const robloxId=selectedPlayer.roblox_id||member?.social_roblox||"";
@@ -686,7 +569,6 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
     const CATS=isBasketball?NBA_CATS:isBaseball?MLB_CATS:NFL_CATS;
     const hasAnyStats=(type)=>CATS.some(cat=>{const d=getStats(cat.key,type);return cat.cols.some(c=>d[c]!==undefined&&d[c]!=="");});
 
-    // Key snapshot stats for the hero
     const snap=(()=>{
       if(isBaseball){
         const h=getStats("hitting_stats","season");const p=getStats("pitching_stats","season");
@@ -738,21 +620,12 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
         <button onClick={()=>setSel(null)} style={{background:"none",border:"none",color:"#334155",cursor:"pointer",fontSize:11,marginBottom:20,display:"flex",alignItems:"center",gap:6,fontFamily:"'Orbitron',sans-serif",letterSpacing:".08em"}}>
           <span style={{fontSize:16,lineHeight:1}}>←</span> ROSTER
         </button>
-
-        {/* ── HERO BANNER ──────────────────────────────────────────── */}
         <div style={{borderRadius:20,overflow:"hidden",marginBottom:16,position:"relative",background:"#030712",border:`1px solid ${accentColor}30`}}>
-          {/* Background gradient layer */}
           <div style={{position:"absolute",inset:0,background:`radial-gradient(ellipse at top left,${accentColor}40 0%,transparent 60%),radial-gradient(ellipse at bottom right,${accentColor}18 0%,transparent 60%)`,pointerEvents:"none"}}/>
-          {/* Noise texture overlay */}
           <div style={{position:"absolute",inset:0,backgroundImage:"url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E\")",opacity:.4,pointerEvents:"none"}}/>
-
-          {/* Jersey number watermark */}
           {selectedPlayer.jersey&&<div style={{position:"absolute",right:mob?-10:0,top:"-10px",fontFamily:"'Orbitron',sans-serif",fontSize:mob?110:160,fontWeight:900,color:accentColor,opacity:.06,lineHeight:1,userSelect:"none",pointerEvents:"none",overflow:"hidden"}}>#{selectedPlayer.jersey}</div>}
-
           <div style={{position:"relative",padding:mob?"20px":"28px 32px"}}>
             <div style={{display:"flex",gap:mob?16:24,alignItems:"flex-start",flexWrap:"wrap"}}>
-
-              {/* Avatar with glow ring */}
               <div style={{position:"relative",flexShrink:0}}>
                 <div style={{position:"absolute",inset:-4,borderRadius:20,background:`conic-gradient(${accentColor},${accentColor}88,transparent,${accentColor}88,${accentColor})`,animation:"spin 4s linear infinite",opacity:.6}}/>
                 <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
@@ -761,8 +634,6 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
                 </div>
                 {selectedPlayer.ovr&&<div style={{position:"absolute",bottom:-8,left:"50%",transform:"translateX(-50%)",padding:"3px 10px",borderRadius:8,background:ovrColor(selectedPlayer.ovr),fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:900,color:"#030712",whiteSpace:"nowrap",boxShadow:`0 4px 12px ${ovrColor(selectedPlayer.ovr)}99`}}>{selectedPlayer.ovr} OVR</div>}
               </div>
-
-              {/* Player info */}
               <div style={{flex:1,minWidth:0,paddingTop:4}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:6}}>
                   <span style={{padding:"3px 10px",borderRadius:8,background:`${accentColor}25`,border:`1px solid ${accentColor}50`,fontSize:10,color:accentColor,fontWeight:900,fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em"}}>{selectedPlayer.position}</span>
@@ -770,8 +641,6 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
                   {selectedPlayer.team&&<span style={{fontSize:10,color:"#334155",fontFamily:"'Rajdhani',sans-serif",fontWeight:600}}>{selectedPlayer.team}</span>}
                 </div>
                 <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:mob?22:32,fontWeight:900,color:"#F1F5F9",lineHeight:1.05,marginBottom:14,letterSpacing:"-.01em"}}>{selectedPlayer.name}</div>
-
-                {/* Snapshot stat pills */}
                 {snap.length>0&&<div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
                   {snap.map(([k,v])=>{
                     const sc=statGlow(k,v);
@@ -783,8 +652,6 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
                     );
                   })}
                 </div>}
-
-                {/* Walk-up song */}
                 {(spotifyEmbed||songTrack?.url)&&(
                   <div style={{marginBottom:10,maxWidth:340}}>
                     <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginBottom:5}}>🎵 WALK-UP SONG</div>
@@ -798,14 +665,11 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
                       </div>}
                   </div>
                 )}
-
                 {member&&<button onClick={()=>navigate("profile",member.id)} style={{padding:"6px 16px",borderRadius:10,background:`${accentColor}18`,border:`1px solid ${accentColor}40`,color:accentColor,fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontWeight:700,letterSpacing:".06em"}}>VIEW NOVA PROFILE →</button>}
               </div>
             </div>
           </div>
         </div>
-
-        {/* ── CLIPS ───────────────────────────────────────────────── */}
         {playerClips.length>0&&(
           <div style={{marginBottom:20}}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
@@ -823,8 +687,6 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
             </div>
           </div>
         )}
-
-        {/* ── STATS ───────────────────────────────────────────────── */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:8}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <div style={{width:3,height:14,borderRadius:2,background:accentColor}}/>
@@ -853,12 +715,10 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
     );
   }
 
-  // ── ROSTER / LIST VIEW ─────────────────────────────────────────────────────
   const filtered=players.filter(Boolean).filter(p=>!searchQ||p.name?.toLowerCase().includes(searchQ.toLowerCase()));
 
   return(
     <div>
-      {/* Toolbar */}
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,flexWrap:"wrap"}}>
         <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍 Search…"
           style={{flex:1,minWidth:120,padding:"8px 12px",borderRadius:10,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.09)",color:"#E2E8F0",fontSize:12,outline:"none"}}/>
@@ -876,7 +736,6 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
 
       {!players.length&&<Empty icon={isBasketball?"🏀":isBaseball?"⚾":"🏈"} msg="No players yet"/>}
 
-      {/* CARDS VIEW */}
       {listMode==="cards"&&(
         <div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
           {filtered.map((p,i)=>{
@@ -889,7 +748,6 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
             const hasStats=cardStats.some(([,v])=>v!==undefined&&v!=="");
             const rushSData=(p["rushing_stats_season"]||{});
             const recSData=(p["receiving_stats_season"]||{});
-            // For non-QB show rushing or receiving
             const altStats=p.position==="RB"?[["YDS",rushSData.YDS],["TD",rushSData.TD],["AVG",rushSData.AVG]]:["WR","TE"].includes(p.position)?[["REC",recSData.REC],["YDS",recSData.YDS],["TD",recSData.TD]]:null;
             const displayStats=(!isBaseball&&!isBasketball&&altStats&&altStats.some(([,v])=>v!==undefined&&v!==""))?altStats:cardStats;
 
@@ -898,18 +756,11 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
                 style={{borderRadius:18,overflow:"hidden",background:"#050B1A",border:`1px solid ${accentColor}22`,cursor:"pointer",transition:"all .22s",position:"relative"}}
                 onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.boxShadow=`0 12px 40px ${accentColor}28`;e.currentTarget.style.borderColor=`${accentColor}60`;}}
                 onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="";e.currentTarget.style.borderColor=`${accentColor}22`;}}>
-
-                {/* Gradient top */}
                 <div style={{height:mob?70:80,background:`linear-gradient(135deg,${accentColor}40,${accentColor}10,transparent)`,position:"relative"}}>
-                  {/* Jersey watermark */}
                   {p.jersey&&<div style={{position:"absolute",right:8,top:-4,fontFamily:"'Orbitron',sans-serif",fontSize:60,fontWeight:900,color:accentColor,opacity:.1,lineHeight:1,userSelect:"none"}}>#{p.jersey}</div>}
-                  {/* Position badge */}
                   <div style={{position:"absolute",top:10,left:12,padding:"3px 9px",borderRadius:8,background:`${accentColor}30`,border:`1px solid ${accentColor}50`,fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:900,color:accentColor,letterSpacing:".08em"}}>{p.position}</div>
-                  {/* OVR badge */}
-                  {p.ovr&&<div style={{position:"absolute",top:10,right:12,padding:"3px 9px",borderRadius:8,background:ovrC,fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:900,color:"#030712",boxShadow:`0 2px 8px ${ovrC}66`}}>{p.ovr}</div>}
+                  {p.ovr&&<div style={{position:"absolute",top:10,right:12,padding:"3px 9px",borderRadius:8,background:ovrC,fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:900,color:"#030712",boxShadow:`0 2px 8px ${ovrC}66`}}>{p.ovr}</div>
                 </div>
-
-                {/* Avatar overlapping banner */}
                 <div style={{padding:mob?"0 12px 12px":"0 16px 16px",marginTop:-(mob?34:40)}}>
                   <div style={{display:"flex",alignItems:"flex-end",gap:10,marginBottom:10}}>
                     <div style={{width:mob?56:68,height:mob?56:68,borderRadius:14,overflow:"hidden",border:`3px solid #050B1A`,boxShadow:`0 0 0 2px ${accentColor}60`,flexShrink:0,background:"#0F172A"}}>
@@ -921,8 +772,6 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
                       {p.clips?.length>0&&<div style={{fontSize:8,color:accentColor,marginTop:2,fontFamily:"'Orbitron',sans-serif"}}>🎬 {p.clips.length}</div>}
                     </div>
                   </div>
-
-                  {/* Stat bar */}
                   {hasStats&&(
                     <div style={{display:"grid",gridTemplateColumns:`repeat(${displayStats.filter(([,v])=>v!==undefined&&v!=="").length},1fr)`,gap:4,borderTop:`1px solid ${accentColor}18`,paddingTop:10}}>
                       {displayStats.map(([label,val])=>val!==undefined&&val!==""?(
@@ -940,7 +789,6 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
         </div>
       )}
 
-      {/* LEADERBOARD VIEW */}
       {listMode==="leaderboard"&&(
         <div>
           <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
@@ -1015,3 +863,403 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
   );
 }
 
+// ─── Shared Components (AddLeaguePlayer, PostFeedForm, etc.) ─────────────────
+export function AddLeaguePlayer({league,onAdd,cu,sport="",leagueTeams=[]}){
+  const[name,setName]=useState("");
+  const[positions_sel,setPositionsSel]=useState([]);
+  const[team,setTeam]=useState("");
+  const[jersey,setJersey]=useState("");
+  const[saving,setSaving]=useState(false);
+  const isBaseball=league==="nbbl";
+  const isBasketball=league==="ringrush";
+  const baseballPos=["P","C","1B","2B","3B","SS","LF","CF","RF","DH","SP","RP"];
+  const footballPos=["QB","RB","WR","TE","K","DEF","OL","DL","LB","CB","S"];
+  const basketballPos=["Top","Corner"];
+  const positions=isBasketball||sport==="basketball"?basketballPos:isBaseball?baseballPos:footballPos;
+  const ac=isBasketball||sport==="basketball"?"#EC4899":isBaseball?"#22C55E":"#F59E0B";
+  const togglePos=(pos)=>setPositionsSel(prev=>prev.includes(pos)?prev.filter(x=>x!==pos):[...prev,pos]);
+  const submit=async()=>{
+    if(!name.trim()||!positions_sel.length)return;
+    setSaving(true);
+    const player={id:gid(),name:name.trim(),position:positions_sel.join("/"),team:team.trim(),jersey:jersey.trim(),added_by:cu?.id,ts:Date.now()};
+    await sb.post(`nova_${league}_players`,player);
+    onAdd(player);setName("");setPositionsSel([]);setTeam("");setJersey("");setSaving(false);
+  };
+  return(
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+      <div style={{gridColumn:"1/-1"}}><Lbl>Player Name</Lbl><input value={name} onChange={e=>setName(e.target.value)} placeholder="Full name…"/></div>
+      <div style={{gridColumn:"1/-1"}}>
+        <Lbl>Position(s) — select all that apply</Lbl>
+        <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:4}}>
+          {positions.map(pos=>{
+            const sel=positions_sel.includes(pos);
+            return(
+              <button key={pos} type="button" onClick={()=>togglePos(pos)}
+                style={{padding:"4px 10px",borderRadius:8,cursor:"pointer",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,
+                  border:`1px solid ${sel?ac+"88":"rgba(255,255,255,.1)"}`,
+                  background:sel?ac+"22":"rgba(255,255,255,.03)",
+                  color:sel?ac:"#64748B",transition:"all .15s"}}>
+                {pos}
+              </button>
+            );
+          })}
+        </div>
+        {positions_sel.length>0&&<div style={{fontSize:9,color:ac,marginTop:5,fontFamily:"'Orbitron',sans-serif"}}>Selected: {positions_sel.join(" / ")}</div>}
+      </div>
+      <div>
+        <Lbl>Team</Lbl>
+        {leagueTeams.length>0
+          ?<select value={team} onChange={e=>setTeam(e.target.value)} style={{width:"100%"}}>
+              <option value="">— Free Agent —</option>
+              {leagueTeams.map(t=><option key={t.id} value={t.name}>{t.name}</option>)}
+            </select>
+          :<input value={team} onChange={e=>setTeam(e.target.value)} placeholder="Team name…"/>}
+      </div>
+      <div><Lbl>Jersey #</Lbl><input value={jersey} onChange={e=>setJersey(e.target.value)} placeholder="#"/></div>
+      <div style={{gridColumn:"1/-1"}}><Btn onClick={submit} disabled={saving||!name.trim()||!positions_sel.length}>{saving?"Adding…":"➕ Add Player"}</Btn></div>
+    </div>
+  );
+}
+
+export function PostFeedForm({league,onPost,cu}){
+  const[title,setTitle]=useState("");
+  const[content,setContent]=useState("");
+  const[saving,setSaving]=useState(false);
+  const submit=async()=>{
+    if(!content.trim())return;
+    setSaving(true);
+    const post={id:gid(),title:title.trim(),content:content.trim(),author_id:cu?.id,author_name:cu?.display_name,ts:Date.now()};
+    await sb.post(`nova_${league}_feed`,post);
+    onPost(post);setTitle("");setContent("");setSaving(false);
+  };
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+      <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Post title (optional)…"/>
+      <textarea value={content} onChange={e=>setContent(e.target.value)} placeholder="Game update, score, highlights…" rows={3} style={{resize:"vertical"}}/>
+      <Btn onClick={submit} disabled={saving||!content.trim()}>{saving?"Posting…":"📢 Post Update"}</Btn>
+    </div>
+  );
+}
+
+// ─── MessagesPage ───────────────────────────────────────────────────────────
+export function MessagesPage({cu,users,conversations,setConversations,messages,setMessages}){
+  const mob=useIsMobile();
+  const [activeConv,setActiveConv]=useState(null);
+  const [newMsg,setNewMsg]=useState("");
+  const [showNew,setShowNew]=useState(false);
+  const [search,setSearch]=useState("");
+  const [groupName,setGroupName]=useState("");
+  const [selectedUsers,setSelectedUsers]=useState([]);
+  const [isGroup,setIsGroup]=useState(false);
+  const msgEndRef=useRef(null);
+  const pollRef=useRef(null);
+  const groupAvatarRef=useRef(null);
+  const dmImgRef=useRef(null);
+  const [dmUploading,setDmUploading]=useState(false);
+  const [inCall,setInCall]=useState(false);
+  const [inWatchParty,setInWatchParty]=useState(false);
+
+  const sendImage=async(file)=>{
+    if(!file||!activeConv||!cu)return;
+    setDmUploading(true);
+    const ext=file.name.split(".").pop();
+    const path=`dm-${gid()}.${ext}`;
+    const url=await sbUp("nova-banners",path,file);
+    if(url){
+      const m={id:gid(),conv_id:activeConv.id,author_id:cu.id,author_name:cu.display_name,author_avatar:cu.avatar,author_avatar_url:cu.avatar_url||"",text:`__IMG__${url}`,ts:Date.now()};
+      setMessages(prev=>[...prev,m]);
+      await sb.post("nova_messages",m);
+      await sb.patch("nova_conversations",`?id=eq.${activeConv.id}`,{last_msg:"📷 Photo",last_ts:Date.now(),last_sender:cu.display_name});
+      setConversations(prev=>prev.map(c=>c.id===activeConv.id?{...c,last_msg:"📷 Photo",last_ts:Date.now()}:c));
+    }
+    setDmUploading(false);
+  };
+
+  const uploadGroupAvatar=async(convId,file)=>{
+    if(!file)return;
+    const ext=file.name.split(".").pop();
+    const path=`group-${convId}.${ext}`;
+    const url=await sbUp("nova-banners",path,file);
+    if(url){
+      await sb.patch("nova_conversations",`?id=eq.${convId}`,{avatar_url:url});
+      setConversations(prev=>prev.map(c=>c.id===convId?{...c,avatar_url:url}:c));
+      if(activeConv?.id===convId)setActiveConv(prev=>({...prev,avatar_url:url}));
+    }
+  };
+
+  const myConvs=conversations.filter(c=>c.members.includes(cu?.id||"")).sort((a,b)=>(b.last_ts||0)-(a.last_ts||0));
+  const convMsgs=activeConv?messages.filter(m=>m.conv_id===activeConv.id).sort((a,b)=>a.ts-b.ts):[];
+  const showList=!mob||!activeConv;
+  const showChat=!mob||!!activeConv;
+
+  useEffect(()=>{ msgEndRef.current?.scrollIntoView({behavior:"smooth"}); },[convMsgs.length]);
+
+  useEffect(()=>{
+    if(!activeConv)return;
+    const poll=async()=>{
+      const data=await sb.get("nova_messages",`?conv_id=eq.${activeConv.id}&order=ts.asc`);
+      if(data)setMessages(prev=>[...prev.filter(m=>m.conv_id!==activeConv.id),...data]);
+    };
+    poll(); pollRef.current=setInterval(poll,3000); return()=>clearInterval(pollRef.current);
+  },[activeConv?.id]);
+
+  useEffect(()=>{
+    if(!cu)return;
+    const t=setInterval(async()=>{
+      const data=await sb.get("nova_conversations",`?members=cs.{${cu.id}}`);
+      if(data)setConversations(data);
+    },5000);
+    return()=>clearInterval(t);
+  },[cu?.id]);
+
+  const sendMsg=async()=>{
+    const text=newMsg.trim(); if(!text||!activeConv||!cu)return;
+    const m={id:gid(),conv_id:activeConv.id,author_id:cu.id,author_name:cu.display_name,author_avatar:cu.avatar,author_avatar_url:cu.avatar_url||"",text,ts:Date.now()};
+    setNewMsg(""); setMessages(prev=>[...prev,m]);
+    await sb.post("nova_messages",m);
+    await sb.patch("nova_conversations",`?id=eq.${activeConv.id}`,{last_msg:text,last_ts:Date.now(),last_sender:cu.display_name});
+    setConversations(prev=>prev.map(c=>c.id===activeConv.id?{...c,last_msg:text,last_ts:Date.now()}:c));
+  };
+
+  const createConv=async()=>{
+    if(!selectedUsers.length||!cu)return;
+    const members=[cu.id,...selectedUsers];
+    if(members.length>50){alert("Max 50 members");return;}
+    const isGrp=members.length>2||isGroup;
+    const conv={id:gid(),members,is_group:isGrp,name:isGrp?(groupName||"Group Chat"):null,created_by:cu.id,created_at:Date.now(),last_msg:"",last_ts:Date.now(),last_sender:""};
+    const res=await sb.post("nova_conversations",conv);
+    if(res){ const newC=Array.isArray(res)?res[0]:res; setConversations(prev=>[newC,...prev]); setActiveConv(newC); }
+    setShowNew(false); setSelectedUsers([]); setGroupName(""); setIsGroup(false);
+  };
+
+  const getConvName=conv=>{ if(conv.is_group)return conv.name||"Group Chat"; const other=users.find(u=>u.id===conv.members.find(id=>id!==cu?.id)); return other?.display_name||"Unknown"; };
+  const getConvAvatar=conv=>users.find(u=>u.id===conv.members.find(id=>id!==cu?.id));
+
+  if(!cu)return (
+    <div style={{maxWidth:600,margin:"60px auto",textAlign:"center",padding:40}}>
+      <div style={{fontSize:48,marginBottom:16}}>💬</div>
+      <div style={{fontFamily:"'Orbitron',sans-serif",color:"#475569"}}>Sign in to use messages</div>
+    </div>
+  );
+
+  return (
+    <div style={{maxWidth:1080,margin:"0 auto",padding:mob?"0":"24px 16px 60px",height:mob?"calc(100vh - 120px)":"calc(100vh - 62px)",display:"flex",gap:16,overflow:"hidden"}}>
+      {showList&&(
+        <div style={{width:mob?"100%":280,flexShrink:0,display:"flex",flexDirection:"column",gap:10,padding:mob?"12px 12px 0":0,overflowY:"auto"}}>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <div style={{flex:1,fontFamily:"'Orbitron',sans-serif",fontSize:14,fontWeight:700,color:"#E2E8F0"}}>Messages</div>
+            <Btn variant="ghost" size="sm" onClick={()=>setShowNew(true)}>＋ New</Btn>
+          </div>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Search..."/>
+          <div style={{flex:1,display:"flex",flexDirection:"column",gap:6}}>
+            {myConvs.filter(c=>getConvName(c).toLowerCase().includes(search.toLowerCase())).map(c=>{
+              const isActive=activeConv?.id===c.id;
+              return (
+                <div key={c.id} onClick={()=>setActiveConv(c)} style={{display:"flex",gap:10,alignItems:"center",padding:"10px 12px",borderRadius:12,background:isActive?"rgba(0,212,255,.1)":"rgba(255,255,255,.03)",border:`1px solid ${isActive?"rgba(0,212,255,.3)":"rgba(255,255,255,.07)"}`,cursor:"pointer",transition:"all .18s"}}>
+                  {c.is_group
+                    ? <div style={{width:40,height:40,borderRadius:"50%",flexShrink:0,background:"linear-gradient(135deg,#00D4FF22,#8B5CF622)",border:"1px solid rgba(0,212,255,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,overflow:"hidden"}}>{c.avatar_url?<img src={c.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:"👥"}</div>
+                    : <AvatarCircle user={getConvAvatar(c)} size={40}/>
+                  }
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:isActive?"#00D4FF":"#E2E8F0",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{getConvName(c)}</div>
+                    <div style={{fontSize:11,color:"#475569",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.last_msg||"No messages yet"}</div>
+                    {c.is_group&&<div style={{fontSize:10,color:"#334155"}}>{c.members.length} members</div>}
+                  </div>
+                </div>
+              );
+            })}
+            {myConvs.length===0&&(
+              <div style={{textAlign:"center",padding:"40px 20px",color:"#334155"}}>
+                <div style={{fontSize:32,marginBottom:8}}>💬</div>
+                <div style={{fontSize:13}}>No conversations yet</div>
+                <div style={{fontSize:11,marginTop:6}}>Hit + New to start one</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {showChat&&(
+        <div style={{flex:1,display:"flex",flexDirection:"column",background:"rgba(255,255,255,.02)",border:mob?"none":"1px solid rgba(255,255,255,.07)",borderRadius:mob?0:16,overflow:"hidden"}}>
+          {activeConv ? (
+            <>
+              <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,.07)",display:"flex",alignItems:"center",gap:10,background:"rgba(0,0,0,.2)",flexShrink:0}}>
+                {mob&&<button onClick={()=>setActiveConv(null)} style={{background:"none",border:"none",color:"#00D4FF",cursor:"pointer",fontSize:24,lineHeight:1,padding:"0 4px 0 0"}}>‹</button>}
+                {activeConv.is_group
+                  ? <div style={{position:"relative",flexShrink:0}}>
+                      <input type="file" ref={groupAvatarRef} accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files[0];if(f)uploadGroupAvatar(activeConv.id,f);e.target.value="";}}/>
+                      <div onClick={()=>groupAvatarRef.current.click()} style={{width:36,height:36,borderRadius:"50%",background:"linear-gradient(135deg,#00D4FF22,#8B5CF622)",border:"1px solid rgba(0,212,255,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,cursor:"pointer",overflow:"hidden",position:"relative"}} title="Change group photo">
+                        {activeConv.avatar_url?<img src={activeConv.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:"👥"}
+                        <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.4)",display:"flex",alignItems:"center",justifyContent:"center",opacity:0,transition:"opacity .2s"}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0}><span style={{fontSize:14}}>📷</span></div>
+                      </div>
+                    </div>
+                  : <AvatarCircle user={getConvAvatar(activeConv)} size={36}/>
+                }
+                <div style={{flex:1}}>
+                  <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,fontWeight:700,color:"#E2E8F0"}}>{getConvName(activeConv)}</div>
+                  {activeConv.is_group&&<div style={{fontSize:11,color:"#475569"}}>{activeConv.members.length} members · max 50</div>}
+                </div>
+                <button onClick={()=>{setInWatchParty(false);setInCall(v=>!v);}} title="Voice Call" style={{background:inCall?"rgba(34,197,94,.2)":"rgba(255,255,255,.05)",border:`1px solid ${inCall?"rgba(34,197,94,.4)":"rgba(255,255,255,.1)"}`,borderRadius:10,width:36,height:36,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:inCall?"#22C55E":"#94A3B8"}}>📞</button>
+                <button onClick={()=>{setInCall(false);setInWatchParty(v=>!v);}} title="Watch Party" style={{background:inWatchParty?"rgba(139,92,246,.2)":"rgba(255,255,255,.05)",border:`1px solid ${inWatchParty?"rgba(139,92,246,.4)":"rgba(255,255,255,.1)"}`,borderRadius:10,width:36,height:36,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:inWatchParty?"#8B5CF6":"#94A3B8"}}>🎬</button>
+              </div>
+              {inCall&&cu&&activeConv&&(
+                <div style={{borderBottom:"1px solid rgba(34,197,94,.2)",flexShrink:0}}>
+                  <VoiceCall cu={cu} conv={activeConv} users={users} onEnd={()=>setInCall(false)}/>
+                </div>
+              )}
+              <div style={{flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:8}}>
+                {convMsgs.length===0&&(
+                  <div style={{textAlign:"center",padding:"60px 20px",color:"#334155"}}>
+                    <div style={{fontSize:32,marginBottom:8}}>👋</div>
+                    <div style={{fontSize:13}}>Say something!</div>
+                  </div>
+                )}
+                {convMsgs.map((m,i)=>{
+                  const isMe=m.author_id===cu.id;
+                  const prev=convMsgs[i-1];
+                  const showAv=!isMe&&(!prev||prev.author_id!==m.author_id);
+                  const author=users.find(u=>u.id===m.author_id);
+                  return (
+                    <div key={m.id} className="msg-in" style={{display:"flex",flexDirection:isMe?"row-reverse":"row",gap:8,alignItems:"flex-end"}}>
+                      {!isMe&&<div style={{width:28,flexShrink:0}}>{showAv&&<AvatarCircle user={author} size={28}/>}</div>}
+                      <div style={{maxWidth:"75%"}}>
+                        {showAv&&!isMe&&<div style={{fontSize:10,color:"#475569",fontFamily:"'Orbitron',sans-serif",marginBottom:3,marginLeft:4}}>{m.author_name}</div>}
+                        <div style={{background:isMe?"linear-gradient(135deg,#00D4FF22,#8B5CF622)":"rgba(255,255,255,.06)",border:`1px solid ${isMe?"rgba(0,212,255,.25)":"rgba(255,255,255,.08)"}`,borderRadius:isMe?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:m.text.startsWith("__IMG__")?"4px":"9px 14px",fontSize:14,color:"#E2E8F0",lineHeight:1.5,wordBreak:"break-word",overflow:"hidden"}}>
+                          {m.text.startsWith("__IMG__")
+                            ?<img src={m.text.slice(7)} style={{maxWidth:240,maxHeight:300,borderRadius:12,display:"block",objectFit:"contain"}} onClick={()=>window.open(m.text.slice(7),"_blank")} />
+                            :m.text
+                          }
+                        </div>
+                        <div style={{fontSize:10,color:"#334155",marginTop:3,textAlign:isMe?"right":"left",paddingLeft:4,paddingRight:4}}>{fmtMsg(m.ts)}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={msgEndRef}/>
+              </div>
+              <div style={{padding:"12px 16px",borderTop:"1px solid rgba(255,255,255,.07)",display:"flex",gap:8,flexShrink:0,alignItems:"center"}}>
+                <input type="file" ref={dmImgRef} accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files[0];if(f)sendImage(f);e.target.value="";}}/>
+                <button onClick={()=>dmImgRef.current.click()} disabled={dmUploading} title="Send photo" style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,width:38,height:38,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{dmUploading?"⏳":"📷"}</button>
+                <input value={newMsg} onChange={e=>setNewMsg(e.target.value)} placeholder="Type a message..." onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMsg();}}} style={{flex:1,borderRadius:24,padding:"10px 18px"}}/>
+                <Btn onClick={sendMsg} disabled={!newMsg.trim()}>Send ➤</Btn>
+              </div>
+            </>
+          ) : (
+            <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:"#334155"}}>
+              <div style={{fontSize:48}}>💬</div>
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13}}>Select a conversation</div>
+              <Btn variant="ghost" size="sm" onClick={()=>setShowNew(true)}>＋ Start New Chat</Btn>
+            </div>
+          )}
+        </div>
+      )}
+      {inWatchParty&&cu&&activeConv&&(
+        <div style={{position:"fixed",inset:0,zIndex:400,background:"rgba(3,7,18,.97)",display:"flex",flexDirection:"column"}}>
+          <WatchParty cu={cu} conv={activeConv} users={users} onEnd={()=>setInWatchParty(false)}/>
+        </div>
+      )}
+      {showNew&&(
+        <Modal title="💬 New Conversation" onClose={()=>{setShowNew(false);setSelectedUsers([]);setGroupName("");setIsGroup(false);}}>
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setIsGroup(false)} style={{flex:1,padding:"8px 0",borderRadius:8,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${!isGroup?"#00D4FF":"rgba(255,255,255,.09)"}`,background:!isGroup?"rgba(0,212,255,.11)":"rgba(255,255,255,.04)",color:!isGroup?"#00D4FF":"#94A3B8"}}>💬 Direct Message</button>
+              <button onClick={()=>setIsGroup(true)} style={{flex:1,padding:"8px 0",borderRadius:8,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${isGroup?"#00D4FF":"rgba(255,255,255,.09)"}`,background:isGroup?"rgba(0,212,255,.11)":"rgba(255,255,255,.04)",color:isGroup?"#00D4FF":"#94A3B8"}}>👥 Group Chat</button>
+            </div>
+            {isGroup&&<div><Lbl>Group Name</Lbl><input value={groupName} onChange={e=>setGroupName(e.target.value)} placeholder="Squad name..."/></div>}
+            <div>
+              <Lbl>Select Members {selectedUsers.length>0&&`(${selectedUsers.length} selected)`}</Lbl>
+              <div style={{display:"flex",flexDirection:"column",gap:5,maxHeight:260,overflowY:"auto"}}>
+                {users.filter(u=>u.id!==cu.id).map(u=>{
+                  const sel=selectedUsers.includes(u.id);
+                  return (
+                    <div key={u.id} onClick={()=>setSelectedUsers(prev=>sel?prev.filter(x=>x!==u.id):[...prev,u.id])} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,background:sel?"rgba(0,212,255,.1)":"rgba(255,255,255,.03)",border:`1px solid ${sel?"rgba(0,212,255,.3)":"rgba(255,255,255,.07)"}`,cursor:"pointer",transition:"all .15s"}}>
+                      <AvatarCircle user={u} size={34}/>
+                      <div style={{flex:1}}><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:11,fontWeight:700,color:"#E2E8F0"}}>{u.display_name}</div><div style={{fontSize:11,color:"#475569"}}>@{u.username}</div></div>
+                      <div style={{width:20,height:20,borderRadius:"50%",border:`2px solid ${sel?"#00D4FF":"rgba(255,255,255,.2)"}`,background:sel?"#00D4FF":"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"white"}}>{sel?"✓":""}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+              <Btn variant="muted" onClick={()=>setShowNew(false)}>Cancel</Btn>
+              <Btn onClick={createConv} disabled={!selectedUsers.length}>{isGroup?"Create Group":"Start Chat"}</Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ─── Placeholder VoiceCall and WatchParty (simplified) ──────────────────────
+const VoiceCall = ({cu,conv,users,onEnd}) => {
+  return (
+    <div style={{padding:12,background:"rgba(34,197,94,.08)",borderRadius:8,margin:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div style={{fontSize:12,color:"#22C55E",fontFamily:"'Orbitron',sans-serif"}}>🔴 Voice call active</div>
+      <button onClick={onEnd} style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer"}}>End</button>
+    </div>
+  );
+};
+const WatchParty = ({cu,conv,users,onEnd}) => {
+  return (
+    <div style={{position:"absolute",inset:0,background:"#000",display:"flex",flexDirection:"column",padding:16}}>
+      <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
+        <div style={{fontSize:48}}>🎬</div>
+        <div style={{fontFamily:"'Orbitron',sans-serif",color:"#E2E8F0"}}>Watch Party – Coming Soon</div>
+        <button onClick={onEnd} style={{padding:"8px 16px",background:"rgba(239,68,68,.15)",border:"1px solid rgba(239,68,68,.3)",borderRadius:8,cursor:"pointer",color:"#EF4444"}}>Leave</button>
+      </div>
+    </div>
+  );
+};
+
+// ─── LoginModal and RegisterModal ──────────────────────────────────────────
+export function LoginModal({onLogin,onClose,users}){
+  const[un,setUn]=useState("");const[pw,setPw]=useState("");const[err,setErr]=useState("");const[loading,setLoading]=useState(false);
+  const go=async()=>{
+    setLoading(true);setErr("");
+    const u=users.find(x=>x.username.toLowerCase()===un.toLowerCase()&&x.password===pw);
+    if(u){saveSess(u);onLogin(u);}else setErr("Wrong username or password");
+    setLoading(false);
+  };
+  return(
+    <Modal title="🚀 Sign In" onClose={onClose} width={400}>
+      <div style={{display:"flex",flexDirection:"column",gap:14}}>
+        <div><Lbl>Username</Lbl><input value={un} onChange={e=>setUn(e.target.value)} placeholder="username"/></div>
+        <div><Lbl>Password</Lbl><input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&go()} placeholder="password"/></div>
+        {err&&<div style={{color:"#EF4444",fontSize:13}}>{err}</div>}
+        <Btn onClick={go} disabled={loading}>{loading?"Signing in...":"Sign In"}</Btn>
+      </div>
+    </Modal>
+  );
+}
+
+export function RegisterModal({onRegister,onClose}){
+  const[un,setUn]=useState("");const[pw,setPw]=useState("");const[dn,setDn]=useState("");const[av,setAv]=useState("🌟");const[err,setErr]=useState("");const[loading,setLoading]=useState(false);
+  const go=async()=>{
+    if(!un||!pw||!dn){setErr("All fields required");return;}
+    if(un.length<3){setErr("Username must be 3+ characters");return;}
+    if(pw.length<6){setErr("Password must be 6+ characters");return;}
+    setLoading(true);setErr("");
+    const exists=await sb.get("nova_users",`?username=eq.${un}`);
+    if(exists&&exists.length>0){setErr("Username taken");setLoading(false);return;}
+    const newUser={id:gid(),username:un,password:pw,display_name:dn,avatar:av,bio:"",is_owner:false,staff_role:null,joined:new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}),badges:[],status_type:"online",status_activity:"",followers:[],following:[],page_accent:"#00D4FF",page_music:{},page_clips:[],page_social:[],page_social_links:{},banner_top_url:"",banner_left_url:"",banner_right_url:"",social_roblox:"",social_instagram:"",social_twitter:"",social_youtube:"",social_discord:"",mlb_team:"",nfl_team:"",nba_team:"",nhl_team:"",dob:"",predictions:{},correct_predictions:0,avatar_url:""};
+    const res=await sb.post("nova_users",newUser);
+    if(res){const u=Array.isArray(res)?res[0]:res;saveSess(u);onRegister(u);}else setErr("Registration failed. Try again.");
+    setLoading(false);
+  };
+  return(
+    <Modal title="✨ Join Nova" onClose={onClose} width={400}>
+      <div style={{display:"flex",flexDirection:"column",gap:14}}>
+        <div><Lbl>Display Name</Lbl><input value={dn} onChange={e=>setDn(e.target.value)} placeholder="Your name"/></div>
+        <div><Lbl>Username</Lbl><input value={un} onChange={e=>setUn(e.target.value)} placeholder="no spaces"/></div>
+        <div><Lbl>Password</Lbl><input type="password" value={pw} onChange={e=>setPw(e.target.value)} placeholder="6+ characters"/></div>
+        <div><Lbl>Avatar Emoji</Lbl><input value={av} onChange={e=>setAv(e.target.value)} placeholder="🚀"/></div>
+        {err&&<div style={{color:"#EF4444",fontSize:13}}>{err}</div>}
+        <Btn onClick={go} disabled={loading}>{loading?"Creating account...":"Create Account"}</Btn>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── Helper functions used but not exported ─────────────────────────────────
+const fmtMsg = (ts) => new Date(ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});

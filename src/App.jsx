@@ -9,14 +9,15 @@ import GameDetailPage from "./GameDetailPage";
 import PredictPage from "./PredictPage";
 import StatsPage from "./StatsPage";
 import NewsPage from "./NewsPage";
-import { NFFLPage, NBBLPage, RingRushPage, MessagesPage, LoginModal, RegisterModal } from "./LeaguePage";
+import { NFFLPage, NBBLPage, RingRushPage, MessagesPage } from "./LeaguePage";
+import { LoginModal, RegisterModal } from "./AuthModals";
 import GMGame from "./GMModePage";
 import CardsPage from "./CardsPage";
 import TriviaPage from "./TriviaPage";
 import LeaderboardPage from "./LeaderboardPage";
 import ProfilePage from "./ProfilePage";
 import DashboardPage from "./DashboardPage";
-import AnimeCardGame from "./AnimeCardGame";   // if you have this file – otherwise remove
+import AnimeCardGame from "./AnimeCardGame"; // ensure this exists
 import RTTSMode from "./RTTS";
 
 export default function App() {
@@ -35,7 +36,9 @@ export default function App() {
   const [likes, setLikes] = useState({});
   const [msgUnread, setMsgUnread] = useState(0);
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => {
+    loadAll();
+  }, []);
 
   const loadAll = async () => {
     const [us, ls] = await Promise.all([
@@ -145,8 +148,8 @@ export default function App() {
     if (page === "hub") return <HubPage cu={cu} users={users} setUsers={setUsers} navigate={nav} />;
     if (page === "stats") return <StatsPage navigate={nav} initPlayer={statsPlayerRef?.id || null} initSport={statsPlayerRef?.sport || null} />;
     if (page === "nffl") return <NFFLPage cu={cu} users={users} navigate={nav} />;
-    if (page === "ringrush") return <RingRushPage cu={cu} users={users} navigate={nav} league="ringrush" />;
-    if (page === "nbbl") return <NBBLPage cu={cu} users={users} navigate={nav} league="nbbl" />;
+    if (page === "ringrush") return <RingRushPage cu={cu} users={users} navigate={nav} />;
+    if (page === "nbbl") return <NBBLPage cu={cu} users={users} navigate={nav} />;
     if (page === "gmmode") return <GMGame cu={cu} />;
     if (page === "cards") return <CardsPage cu={cu} />;
     if (page === "trivia") return <TriviaPage cu={cu} />;
