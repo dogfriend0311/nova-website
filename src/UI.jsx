@@ -515,6 +515,25 @@ export function ovrColor(ovr){
   if(ovr>=65)return"#FB923C"; // orange - average
   return"#64748B";             // grey - below avg
 }
+export function RobloxAvatar({userId,size=44,radius=12,fallback=null,sport="football"}){
+  const[url,setUrl]=useState(null);
+  const[err,setErr]=useState(false);
+  const fb=fallback||(sport==="basketball"?"🏀":sport==="baseball"?"⚾":"🏈");
+  useEffect(()=>{
+    if(!userId){setErr(true);return;}
+    setUrl(null);setErr(false);
+    fetch(`/api/roblox-avatar?userId=${userId}`)
+      .then(r=>r.json())
+      .then(d=>{if(d.imageUrl)setUrl(d.imageUrl);else setErr(true);})
+      .catch(()=>setErr(true));
+  },[userId]);
+  const boxStyle={width:size,height:size,borderRadius:radius,overflow:"hidden",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"};
+  if(err||!userId)return<div style={boxStyle}><span style={{fontSize:size*.42}}>{fb}</span></div>;
+  if(!url)return<div style={{...boxStyle,background:"rgba(255,255,255,.04)"}}><span style={{fontSize:size*.22,color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>…</span></div>;
+  return<div style={boxStyle}><img src={url} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setErr(true)}/></div>;
+}
+
+
 export function OVRBig({ovr,size=44}){
   const col=ovrColor(ovr);
   return(
@@ -525,4 +544,5 @@ export function OVRBig({ovr,size=44}){
 }
 
 
+// RobloxAvatar already exported above
 export { Btn, Card, Modal, Lbl, Sec, Empty, XBtn, StatusDot, Av, AvatarCircle, RoleBadge, BannerUploadBtn, BannerBtn, CommentImgUpload, playerHeadshotUrl, TeamLogo, TeamBadge, TeamPicker, SocialLinks, LikeBtn, ClipCarousel, Starfield, NotifBell, FLModal, ovrColor, OVRBig };
