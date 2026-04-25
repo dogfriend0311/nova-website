@@ -504,7 +504,7 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
 
   const statGlow=(key,val)=>{
     const v=parseFloat(val);if(isNaN(v))return null;
-    const map={AVG:[[.300,"#22C55E"],[.260,"#F59E0B"]],OPS:[[.900,"#A855F7"],[.800,"#22C55E"]],ERA:[[2.5,"#A855F7"],[3.5,"#22C55E"],[4.5,"#F59E0B"]],HR:[[25,"#A855F7"],[15,"#22C55E"]],RBI:[[70,"#A855F7"],[50,"#22C55E"]],TD:[[15,"#A855F7"],[8,"#22C55E"]],YDS:[[1200,"#A855F7"],[600,"#22C55E"]],RTG:[[100,"#22C55E"],[90,"#F59E0B"]],PTS:[[25,"#A855F7"],[18,"#22C55E"]],REB:[[10,"#A855F7"],[7,"#22C55E"]],AST:[[8,"#A855F7"],[5,"#22C55E"]],SACK:[[8,"#A855F7"],[4,"#22C55E"]],INT:[[6,"#A855F7"],[3,"#22C55E"]]};
+    const map={AVG:[[.300,"#22C55E"],[.260,"#F59E0B"]],OPS:[[.900,"#A855F7"],[.800,"#22C55E"]],ERA:[[2.5,"#A855F7"],[3.5,"#22C55E"],[4.5,"#F59E0B"]],HR:[[25,"#A855F7"],[15,"#22C55E"]],RBI:[[70,"#A855F7"],[50,"#22C55E"]],TD:[[15,"#A855F7"],[8,"#22C55E"]],YDS:[[1200,"#A855F7"],[600,"#22C55E"]],RTG:[[100,"#22C55E"],[90,"#F59E0B"]],PTS:[[25,"#A855F7"],[18,"#22C55E"]],REB:[[10,"#A855F7"],[7,"#22C55E"]],AST:[[8,"#A855F7"],[5,#22C55E]],SACK:[[8,"#A855F7"],[4,"#22C55E"]],INT:[[6,"#A855F7"],[3,"#22C55E"]]};
     const lowerBetter=["ERA","WHIP","BB9","TOV"];
     const tiers=map[key];if(!tiers)return null;
     if(lowerBetter.includes(key)){for(const[t,c]of tiers){if(v<=t)return c;}}
@@ -594,8 +594,8 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
           </div>
           <div style={{overflowX:"auto",padding:"4px 0 8px"}}>
             <table style={{width:"100%",borderCollapse:"collapse"}}>
-              <thead><tr>{cat.cols.map(c=><td key={c} style={{padding:"6px 10px",textAlign:"center",color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:8,whiteSpace:"nowrap",letterSpacing:".08em",fontWeight:700}}>{c}</td>)}</tr></thead>
-              <tbody><tr>{cat.cols.map(c=>{
+              <thead>\n                <tr>{cat.cols.map(c=><td key={c} style={{padding:"6px 10px",textAlign:"center",color:"#334155",fontFamily:"'Orbitron',sans-serif",fontSize:8,whiteSpace:"nowrap",letterSpacing:".08em",fontWeight:700}}>{c}</td>)}</tr>\n              </thead>
+              <tbody>\n                 <tr>{cat.cols.map(c=>{
                 const val=data[c];const sc=val!==undefined&&val!==""?statGlow(c,val):null;
                 return(
                   <td key={c} style={{padding:"8px 10px",textAlign:"center",fontWeight:sc?900:600,fontSize:sc?15:12,color:sc||"#CBD5E1",position:"relative",transition:"all .15s"}}>
@@ -605,7 +605,7 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
                     </>:<span style={{color:"#1E293B"}}>—</span>}
                   </td>
                 );
-              })}</tr></tbody>
+              })}</tr>\n              </tbody>
             </table>
           </div>
         </div>
@@ -617,9 +617,7 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
 
     return(
       <div>
-        <button onClick={()=>setSel(null)} style={{background:"none",border:"none",color:"#334155",cursor:"pointer",fontSize:11,marginBottom:20,display:"flex",alignItems:"center",gap:6,fontFamily:"'Orbitron',sans-serif",letterSpacing:".08em"}}>
-          <span style={{fontSize:16,lineHeight:1}}>←</span> ROSTER
-        </button>
+        <button onClick={()=>setSel(null)} style={{background:"none",border:"none",color:"#334155",cursor:"pointer",fontSize:11,marginBottom:20,display:"flex",alignItems:"center",gap:6,fontFamily:"'Orbitron',sans-serif",letterSpacing:".08em"}}>\n          <span style={{fontSize:16,lineHeight:1}}>←</span> ROSTER\n        </button>
         <div style={{borderRadius:20,overflow:"hidden",marginBottom:16,position:"relative",background:"#030712",border:`1px solid ${accentColor}30`}}>
           <div style={{position:"absolute",inset:0,background:`radial-gradient(ellipse at top left,${accentColor}40 0%,transparent 60%),radial-gradient(ellipse at bottom right,${accentColor}18 0%,transparent 60%)`,pointerEvents:"none"}}/>
           <div style={{position:"absolute",inset:0,backgroundImage:"url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E\")",opacity:.4,pointerEvents:"none"}}/>
@@ -721,7 +719,7 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
     <div>
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,flexWrap:"wrap"}}>
         <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍 Search…"
-          style={{flex:1,minWidth:120,padding:"8px 12px",borderRadius:10,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.09)",color:"#E2E8F0",fontSize:12,outline:"none"}}/>
+          style={{flex:1,minWidth:120,padding:"8px 12px",borderRadius:10,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.09)",color:"#E2E8F0",fontSize:12,outline:"none"}/>
         <div style={{display:"flex",gap:5}}>
           {[["cards","🃏"],["leaderboard","📊"]].map(([m,l])=>(
             <button key={m} onClick={()=>{setListMode(m);if(m==="leaderboard"&&!lbField)setLbField(LB_CATS[0].key);}}
@@ -759,7 +757,7 @@ export function LeaguePlayersPage({players,league,accentColor,users,navigate}){
                 <div style={{height:mob?70:80,background:`linear-gradient(135deg,${accentColor}40,${accentColor}10,transparent)`,position:"relative"}}>
                   {p.jersey&&<div style={{position:"absolute",right:8,top:-4,fontFamily:"'Orbitron',sans-serif",fontSize:60,fontWeight:900,color:accentColor,opacity:.1,lineHeight:1,userSelect:"none"}}>#{p.jersey}</div>}
                   <div style={{position:"absolute",top:10,left:12,padding:"3px 9px",borderRadius:8,background:`${accentColor}30`,border:`1px solid ${accentColor}50`,fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:900,color:accentColor,letterSpacing:".08em"}}>{p.position}</div>
-                  {p.ovr&&<div style={{position:"absolute",top:10,right:12,padding:"3px 9px",borderRadius:8,background:ovrC,fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:900,color:"#030712",boxShadow:`0 2px 8px ${ovrC}66`}}>{p.ovr}</div>
+                  {p.ovr&&<div style={{position:"absolute",top:10,right:12,padding:"3px 9px",borderRadius:8,background:ovrC,fontFamily:"'Orbitron',sans-serif",fontSize:9,fontWeight:900,color:"#030712",boxShadow: `0 2px 8px ${ovrC}66`}}>{p.ovr}</div>}
                 </div>
                 <div style={{padding:mob?"0 12px 12px":"0 16px 16px",marginTop:-(mob?34:40)}}>
                   <div style={{display:"flex",alignItems:"flex-end",gap:10,marginBottom:10}}>
