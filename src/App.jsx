@@ -1,27 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { sb, gid, getSess, saveSess, clearSess, useIsMobile, CSS } from "./shared";
-import { Starfield } from "./components/UI";
-import Navbar from "./pages/Navbar";
-import HomePage from "./pages/HomePage";
-import MembersPage from "./pages/MemberPage";
-import FeedPage from "./pages/FeedPage";
-import GameDetailPage from "./pages/GameDetailPage";
-import PredictPage from "./pages/PredictPage";
-import StatsPage from "./pages/StatsPage";
-import NewsPage from "./pages/NewsPage";
-import NFFLPage from "./pages/NFFLPage";
-import NBBLPage from "./pages/LeaguePage";     // NBBL uses LeaguePage
-import RingRushPage from "./pages/LeaguePage"; // RingRush also uses LeaguePage
-import GMGame from "./pages/GMModePage";
-import CardsPage from "./pages/CardsPage";
-import TriviaPage from "./pages/TriviaPage";
-import LeaderboardPage from "./pages/LeaderboardPage";
-import MessagesPage from "./pages/LeaguePage"; // Messages is in LeaguePage
-import ProfilePage from "./pages/ProfilePage";
-import DashboardPage from "./pages/DashboardPage";
-import AnimeCardGame from "./pages/AnimeCardGame"; // if you have it – or remove
-import RTTSMode from "./pages/RTTS";
-import { LoginModal, RegisterModal } from "./pages/LeaguePage"; // or own file
+import { Starfield } from "./UI";
+import Navbar from "./Navbar";
+import HomePage from "./HomePage";
+import MembersPage from "./MemberPage";
+import FeedPage from "./FeedPage";
+import GameDetailPage from "./GameDetailPage";
+import PredictPage from "./PredictPage";
+import StatsPage from "./StatsPage";
+import NewsPage from "./NewsPage";
+import { NFFLPage, NBBLPage, RingRushPage, MessagesPage, LoginModal, RegisterModal } from "./LeaguePage";
+import GMGame from "./GMModePage";
+import CardsPage from "./CardsPage";
+import TriviaPage from "./TriviaPage";
+import LeaderboardPage from "./LeaderboardPage";
+import ProfilePage from "./ProfilePage";
+import DashboardPage from "./DashboardPage";
+import AnimeCardGame from "./AnimeCardGame";   // if you have this file – otherwise remove
+import RTTSMode from "./RTTS";
 
 export default function App() {
   const DISCORD_URL = "https://discord.gg/your-invite-here";
@@ -39,9 +35,7 @@ export default function App() {
   const [likes, setLikes] = useState({});
   const [msgUnread, setMsgUnread] = useState(0);
 
-  useEffect(() => {
-    loadAll();
-  }, []);
+  useEffect(() => { loadAll(); }, []);
 
   const loadAll = async () => {
     const [us, ls] = await Promise.all([
@@ -51,7 +45,7 @@ export default function App() {
     if (us) setUsers(us);
     if (ls) {
       const map = {};
-      ls.forEach((l) => {
+      ls.forEach(l => {
         if (!map[l.clip_id]) map[l.clip_id] = [];
         map[l.clip_id].push(l.user_id);
       });
@@ -81,8 +75,8 @@ export default function App() {
 
   useEffect(() => {
     if (!cu || !conversations.length) return;
-    const unread = conversations.filter((c) => {
-      const msgs = messages.filter((m) => m.conv_id === c.id);
+    const unread = conversations.filter(c => {
+      const msgs = messages.filter(m => m.conv_id === c.id);
       if (!msgs.length) return c.last_msg && c.last_sender && c.last_sender !== cu.display_name;
       const last = msgs[msgs.length - 1];
       return last && last.author_id !== cu.id;
@@ -105,30 +99,19 @@ export default function App() {
     await sb.post("nova_notifications", n);
   };
 
-  const handleLogin = (u) => {
-    setCu(u);
-    setShowLogin(false);
-  };
-  const handleRegister = (u) => {
-    setCu(u);
-    setShowRegister(false);
-    setUsers((prev) => [...prev, u]);
-  };
-  const handleLogout = () => {
-    clearSess();
-    setCu(null);
-    setPage("home");
-  };
+  const handleLogin = u => { setCu(u); setShowLogin(false); };
+  const handleRegister = u => { setCu(u); setShowRegister(false); setUsers(prev => [...prev, u]); };
+  const handleLogout = () => { clearSess(); setCu(null); setPage("home"); };
 
   const readNotifs = async () => {
-    const unread = notifs.filter((n) => !n.read);
+    const unread = notifs.filter(n => !n.read);
     if (!unread.length) return;
-    await Promise.all(unread.map((n) => sb.patch("nova_notifications", `?id=eq.${n.id}`, { read: true })));
-    setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+    await Promise.all(unread.map(n => sb.patch("nova_notifications", `?id=eq.${n.id}`, { read: true })));
+    setNotifs(prev => prev.map(n => ({ ...n, read: true })));
   };
-  const markOneNotif = async (nid) => {
+  const markOneNotif = async nid => {
     await sb.patch("nova_notifications", `?id=eq.${nid}`, { read: true });
-    setNotifs((prev) => prev.map((n) => (n.id === nid ? { ...n, read: true } : n)));
+    setNotifs(prev => prev.map(n => n.id === nid ? { ...n, read: true } : n));
   };
   const clearNotifs = async () => {
     if (!cu) return;
@@ -140,40 +123,20 @@ export default function App() {
     if (!cu) return;
     if (alreadyLiked) {
       await sb.del("nova_clip_likes", `?clip_id=eq.${clipId}&user_id=eq.${cu.id}`);
-      setLikes((prev) => ({
-        ...prev,
-        [clipId]: (prev[clipId] || []).filter((id) => id !== cu.id),
-      }));
+      setLikes(prev => ({ ...prev, [clipId]: (prev[clipId] || []).filter(id => id !== cu.id) }));
     } else {
       const l = { id: gid(), clip_id: clipId, user_id: cu.id, ts: Date.now() };
       await sb.post("nova_clip_likes", l);
-      setLikes((prev) => ({ ...prev, [clipId]: [...(prev[clipId] || []), cu.id] }));
+      setLikes(prev => ({ ...prev, [clipId]: [...(prev[clipId] || []), cu.id] }));
     }
   };
 
-  const staffUsers = users.filter((u) => u.is_owner || u.staff_role);
+  const staffUsers = users.filter(u => u.is_owner || u.staff_role);
   const mob = useIsMobile();
 
   const content = () => {
     if (page === "profile" && profileId)
-      return (
-        <ProfilePage
-          userId={profileId}
-          cu={cu}
-          users={users}
-          setUsers={(updater) => {
-            const next = typeof updater === "function" ? updater(users) : updater;
-            setUsers(next);
-            if (cu) {
-              const up = next.find((x) => x.id === cu.id);
-              if (up) setCu(up);
-            }
-          }}
-          navigate={nav}
-          addNotif={addNotif}
-          navOpts={navOpts}
-        />
-      );
+      return <ProfilePage userId={profileId} cu={cu} users={users} setUsers={updater => { const next = typeof updater === "function" ? updater(users) : updater; setUsers(next); if (cu) { const up = next.find(x => x.id === cu.id); if (up) setCu(up); } }} navigate={nav} addNotif={addNotif} navOpts={navOpts} />;
     if (page === "news") return <NewsPage cu={cu} users={users} addNotif={addNotif} navOpts={navOpts} />;
     if (page === "members") return <MembersPage users={users} nav={nav} />;
     if (page === "feed") return <FeedPage users={users} cu={cu} likes={likes} onLike={handleLike} navigate={nav} />;
@@ -189,7 +152,7 @@ export default function App() {
     if (page === "trivia") return <TriviaPage cu={cu} />;
     if (page === "leaderboard") return <LeaderboardPage users={users} navigate={nav} />;
     if (page === "messages") return <MessagesPage cu={cu} users={users} conversations={conversations} setConversations={setConversations} messages={messages} setMessages={setMessages} />;
-    if (page === "dashboard") return <DashboardPage cu={cu} users={users} setUsers={(updater) => { const next = typeof updater === "function" ? updater(users) : updater; setUsers(next); if (cu) { const up = next.find((x) => x.id === cu.id); if (up) setCu(up); } }} navigate={nav} />;
+    if (page === "dashboard") return <DashboardPage cu={cu} users={users} setUsers={updater => { const next = typeof updater === "function" ? updater(users) : updater; setUsers(next); if (cu) { const up = next.find(x => x.id === cu.id); if (up) setCu(up); } }} navigate={nav} />;
     if (page === "animecards") return <AnimeCardGame cu={cu} navigate={nav} />;
     if (page === "rtts") return <RTTSMode cu={cu} />;
     return <HomePage discordUrl={DISCORD_URL} staffUsers={staffUsers} nav={nav} users={users} />;
@@ -200,20 +163,7 @@ export default function App() {
       <style>{CSS}</style>
       <Starfield />
       <div style={{ position: "relative", zIndex: 1, minHeight: "100vh", paddingTop: 62, paddingBottom: mob && page !== "feed" ? 58 : 0 }}>
-        <Navbar
-          cu={cu}
-          onLogin={() => setShowLogin(true)}
-          onRegister={() => setShowRegister(true)}
-          onLogout={handleLogout}
-          nav={nav}
-          page={page}
-          notifs={notifs}
-          onReadNotifs={readNotifs}
-          onClearNotifs={clearNotifs}
-          onMarkOneNotif={markOneNotif}
-          users={users}
-          msgUnread={msgUnread}
-        />
+        <Navbar cu={cu} onLogin={() => setShowLogin(true)} onRegister={() => setShowRegister(true)} onLogout={handleLogout} nav={nav} page={page} notifs={notifs} onReadNotifs={readNotifs} onClearNotifs={clearNotifs} onMarkOneNotif={markOneNotif} users={users} msgUnread={msgUnread} />
         {content()}
       </div>
       {showLogin && <LoginModal onLogin={handleLogin} onClose={() => setShowLogin(false)} users={users} />}
