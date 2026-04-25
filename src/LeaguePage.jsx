@@ -1,4 +1,7 @@
 import React from "react";
+import NFFLPage from "./NFFLPage";
+import MessagesPage from "./MessagesPage";
+import { LoginModal, RegisterModal } from "./AuthModals";
 
 const statGlow = (key, val) => {
   const v = parseFloat(val);
@@ -57,6 +60,24 @@ const StatCell = ({ label, value }) => {
   );
 };
 
+function NBBLPage({ cu, users, navigate }) {
+  return (
+    <div style={{ padding: "20px", background: "#0a0a0a", minHeight: "100vh" }}>
+      <h1 style={{ color: "#fff" }}>NBBL</h1>
+      <p style={{ color: "#aaa" }}>Coming soon...</p>
+    </div>
+  );
+}
+
+function RingRushPage({ cu, users, navigate }) {
+  return (
+    <div style={{ padding: "20px", background: "#0a0a0a", minHeight: "100vh" }}>
+      <h1 style={{ color: "#fff" }}>Ring Rush</h1>
+      <p style={{ color: "#aaa" }}>Coming soon...</p>
+    </div>
+  );
+}
+
 export default function LeaguePage() {
   const playerStats = {
     AVG: ".312",
@@ -81,3 +102,5 @@ export default function LeaguePage() {
     </div>
   );
 }
+
+export { NFFLPage, NBBLPage, RingRushPage, MessagesPage, LoginModal, RegisterModal };
