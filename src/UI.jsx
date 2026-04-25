@@ -545,8 +545,8 @@ export function ovrColor(ovr){
 // Roblox Avatar
 // ----------------------------------------------------------------------
 export function RobloxAvatar({userId,size=44,radius=12,fallback=null,sport="football"}){
-  const[url,setUrl]=useState(null);
-  const[err,setErr]=useState(false);
+  const [url,setUrl]=useState(null);
+  const [err,setErr]=useState(false);
   const fb=fallback||(sport==="basketball"?"🏀":sport==="baseball"?"⚾":"🏈");
   useEffect(()=>{
     if(!userId){setErr(true);return;}
@@ -556,9 +556,22 @@ export function RobloxAvatar({userId,size=44,radius=12,fallback=null,sport="foot
       .then(d=>{if(d.imageUrl)setUrl(d.imageUrl);else setErr(true);})
       .catch(()=>setErr(true));
   },[userId]);
-  const boxStyle={{width:size,height:size,borderRadius:radius,overflow:"hidden",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}};
-  if(err||!userId) return <div style={boxStyle}><span style={{fontSize:size*.42}}>{fb}</span></div>;
-  if(!url) return <div style={{...boxStyle,background:"rgba(255,255,255,.04)"}}><span style={{fontSize:size*.22,color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>…</span></div>;
+  const boxStyle = {
+    width: size,
+    height: size,
+    borderRadius: radius,
+    overflow: "hidden",
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  };
+  if(err||!userId){
+    return <div style={boxStyle}><span style={{fontSize:size*.42}}>{fb}</span></div>;
+  }
+  if(!url){
+    return <div style={{...boxStyle,background:"rgba(255,255,255,.04)"}}><span style={{fontSize:size*.22,color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>…</span></div>;
+  }
   return <div style={boxStyle}><img src={url} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setErr(true)}/></div>;
 }
 
