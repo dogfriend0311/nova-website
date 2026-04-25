@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { useIsMobile, ROLE_COLOR, STATUS_META, SOCIAL_ICONS, SOCIAL_COLORS, SOCIAL_LABELS } from "../shared";
+import { useIsMobile, ROLE_COLOR, STATUS_META, SOCIAL_ICONS, SOCIAL_COLORS, SOCIAL_LABELS } from "./shared";
 
 export function Btn({children,onClick,variant="primary",size="md",style:ext={},disabled}){
   const [h,setH]=useState(false);
