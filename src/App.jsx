@@ -9,7 +9,7 @@ import GameDetailPage from "./GameDetailPage";
 import PredictPage from "./PredictPage";
 import StatsPage from "./StatsPage";
 import NewsPage from "./NewsPage";
-import { NFFLPage, BaseballLeaguePage, RingRushPage, MessagesPage } from "./LeaguePage";
+import { BaseballLeaguePage, MessagesPage } from "./LeaguePage";
 import { LoginModal, RegisterModal } from "./AuthModals";
 import GMGame from "./GMModePage";
 import CardsPage from "./CardsPage";
@@ -147,8 +147,6 @@ export default function App() {
     if (page === "predict") return <PredictPage cu={cu} users={users} setUsers={setUsers} navigate={nav} />;
     if (page === "hub") return <HubPage cu={cu} users={users} setUsers={setUsers} navigate={nav} />;
     if (page === "stats") return <StatsPage navigate={nav} initPlayer={statsPlayerRef?.id || null} initSport={statsPlayerRef?.sport || null} />;
-    if (page === "nffl") return <NFFLPage cu={cu} users={users} navigate={nav} />;
-    if (page === "ringrush") return <RingRushPage cu={cu} users={users} navigate={nav} />;
     if (page === "nbbl") return <BaseballLeaguePage cu={cu} users={users} navigate={nav} />;
     if (page === "gmmode") return <GMGame cu={cu} />;
     if (page === "cards") return <CardsPage cu={cu} />;

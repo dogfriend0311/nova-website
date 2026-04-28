@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { sb, gid, getSess, saveSess, clearSess, useIsMobile, SUPABASE_URL, SUPABASE_ANON_KEY, ROLE_COLOR, STATUS_META, SOCIAL_ICONS, SOCIAL_COLORS, SOCIAL_LABELS, MLB_TEAMS, NFL_TEAMS, NHL_TEAMS, ALL_BADGES, BADGES, CSS, STATCAST_PLAYERS, STATCAST_TENDENCIES, H, sbUp } from "./shared";
 import { Btn, Card, Modal, Lbl, Sec, Empty, XBtn, StatusDot, Av, AvatarCircle, RoleBadge, BannerUploadBtn, BannerBtn, CommentImgUpload, playerHeadshotUrl, TeamLogo, TeamBadge, TeamPicker, SocialLinks, LikeBtn, ClipCarousel, Starfield, NotifBell, FLModal, ovrColor, OVRBig, RobloxAvatar } from "./UI";
-import { LeaguePlayersPage } from "./LeaguePage";
+
 
 // ----------------------------------------------------------------------
 // DashboardLeague Components
@@ -14,13 +14,13 @@ export function DashRatingsTab({league,accentColor,label}){
   const[saving,setSaving]=useState({});
   const[editVals,setEditVals]=useState({});
   const[availableFields,setAvailableFields]=useState([]);
-  const[newPlayer,setNewPlayer]=useState({ name:'', position:'', team:'', ovr:'70', avg:'', hr:'', rbi:'', sb:'', ops:'', war:'', woba:'', wrc_plus:'', favorite_song:'', roblox_id:'', banner_url:'' });
+  const[newPlayer,setNewPlayer]=useState({ name:'', position:'', team:'', ovr:'70', avg:'', hr:'', rbi:'', sb:'', ops:'', war:'', woba:'', wrc_plus:'', favorite_song:'', roblox_id:'' });
   const statFields = {
     nbbl: ['avg', 'hr', 'rbi', 'sb', 'ops', 'war', 'woba', 'wrc_plus', 'career_avg', 'career_hr', 'career_rbi', 'career_sb', 'favorite_song', 'roblox_id'],
     nffl: ['yds', 'td', 'int', 'sack', 'favorite_song', 'roblox_id'],
     ringrush: ['pts', 'reb', 'ast', 'stl', 'favorite_song', 'roblox_id']
   };
-  const baseFields = ['name', 'position', 'team', 'ovr', 'favorite_song', 'roblox_id', 'banner_url'];
+  const baseFields = ['name', 'position', 'team', 'ovr', 'favorite_song', 'roblox_id'];
   const visibleFields = statFields[league].filter(f => f === 'favorite_song' || f === 'roblox_id' || availableFields.includes(f));
   const statFont = league === 'nbbl' ? 11 : 10;
   const statInputWidth = league === 'nbbl' ? 80 : 70;
@@ -80,7 +80,6 @@ export function DashRatingsTab({league,accentColor,label}){
         <input value={newPlayer.wrc_plus} onChange={e=>setNewPlayer(prev=>({...prev,wrc_plus:e.target.value}))} placeholder="wRC+" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
         <input value={newPlayer.roblox_id} onChange={e=>setNewPlayer(prev=>({...prev,roblox_id:e.target.value}))} placeholder="Roblox ID" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
         <input value={newPlayer.favorite_song} onChange={e=>setNewPlayer(prev=>({...prev,favorite_song:e.target.value}))} placeholder="Spotify song URL" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
-        <input value={newPlayer.banner_url} onChange={e=>setNewPlayer(prev=>({...prev,banner_url:e.target.value}))} placeholder="Banner URL" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
       </div>
       <div style={{marginBottom:18}}>
         <button onClick={async () => {
@@ -88,7 +87,6 @@ export function DashRatingsTab({league,accentColor,label}){
           const payload = { id: gid(), name: newPlayer.name.trim(), position: newPlayer.position.trim(), team: newPlayer.team.trim(), ovr: Math.max(40, Math.min(99, parseInt(newPlayer.ovr)||70)) };
           if (availableFields.includes('favorite_song')) payload.favorite_song = newPlayer.favorite_song.trim();
           if (availableFields.includes('roblox_id')) payload.roblox_id = newPlayer.roblox_id.trim();
-          if (availableFields.includes('banner_url')) payload.banner_url = newPlayer.banner_url.trim();
           ['avg','hr','rbi','sb','ops','war','woba','wrc_plus','career_avg','career_hr','career_rbi','career_sb'].forEach(field => {
             if (availableFields.includes(field) && newPlayer[field] !== '') payload[field] = parseFloat(newPlayer[field]) || 0;
           });
@@ -340,7 +338,22 @@ function BaseballLeagueDashboard({ cu }) {
       {subTab==="roster"&&<DashRatingsTab league="nbbl" accentColor="#22C55E" label="Baseball League Roster"/>}
       {subTab==="stats"&&<div style={{textAlign:"center",padding:"40px 20px"}}><div style={{fontSize:36,marginBottom:8}}>📊</div><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,color:"#94A3B8",marginBottom:6}}>Stats Editor</div><div style={{fontSize:11,color:"#334155"}}>Coming soon — advanced stats management.</div></div>}
       {subTab==="transactions"&&<div style={{textAlign:"center",padding:"40px 20px"}}><div style={{fontSize:36,marginBottom:8}}>🔄</div><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,color:"#94A3B8",marginBottom:6}}>Transactions</div><div style={{fontSize:11,color:"#334155"}}>Coming soon — trade and signing management.</div></div>}
-      {subTab==="teams"&&<div style={{textAlign:"center",padding:"40px 20px"}}><div style={{fontSize:36,marginBottom:8}}>🏆</div><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,color:"#94A3B8",marginBottom:6}}>Team Rosters</div><div style={{fontSize:11,color:"#334155"}}>Coming soon — organize team lineups.</div></div>}
+      {subTab==="teams"&&(
+        <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"repeat(3,minmax(180px,1fr))",gap:12}}>
+          {MLB_TEAMS.map(team => (
+            <Card key={team.abbr} style={{padding:16,display:"flex",flexDirection:"column",gap:8,border:"1px solid rgba(255,255,255,.08)",background:"rgba(255,255,255,.03)"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:36,height:36,borderRadius:12,background:team.color+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{team.emoji || "⚾"}</div>
+                <div>
+                  <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,fontWeight:700,color:"#E2E8F0"}}>{team.name}</div>
+                  <div style={{fontSize:11,color:"#94A3B8"}}>{team.abbr}</div>
+                </div>
+              </div>
+              <div style={{fontSize:11,color:"#64748B"}}>Use the roster tab to assign players to teams and keep lineups organized.</div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -351,7 +364,7 @@ function BaseballLeagueDashboard({ cu }) {
 export default function DashboardPage({cu,users,setUsers,navigate}){
   const mob=useIsMobile();
   const[sel,setSel]=useState(null);
-  const[tab,setTab]=useState(cu?.staff_role==="2v2FF Admin"?"football_ratings":"members");
+  const[tab,setTab]=useState("members");
   const[announce,setAnnounce]=useState("");
   const[announcements,setAnnouncements]=useState([]);
   const[announceSent,setAnnounceSent]=useState(false);
@@ -363,11 +376,8 @@ export default function DashboardPage({cu,users,setUsers,navigate}){
   const[starBalances,setStarBalances]=useState({});
   const[starLoading,setStarLoading]=useState(false);
   const isCoOwner=cu?.staff_role==="Co-owner";
-  const isRRAdmin=cu?.staff_role==="Basketball League Admin";
-  const is2v2FF=cu?.staff_role==="2v2FF Admin";
-  const is3v3FF=cu?.staff_role==="3v3FF";
   const isBaseballHelper=cu?.staff_role==="Baseball Stat Helper";
-  if(!cu?.is_owner&&!isCoOwner&&!isRRAdmin&&!is2v2FF&&!is3v3FF&&!isBaseballHelper)return<div style={{padding:"100px 20px",textAlign:"center",color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>⛔ Access Denied</div>;
+  if(!cu?.is_owner&&!isCoOwner&&!isBaseballHelper)return<div style={{padding:"100px 20px",textAlign:"center",color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>⛔ Access Denied</div>;
 
   const loadStarBalance=async(uid)=>{
     if(starBalances[uid]!==undefined)return;
@@ -458,7 +468,7 @@ export default function DashboardPage({cu,users,setUsers,navigate}){
       <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
         <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
           <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginRight:4,flexShrink:0}}>NOVA</div>
-          {[["members","👥 Members"],["badges","🏅 Badges"],["roles","⭐ Roles"],["stars","⭐ Stars"],["announce","📢 Announce"],["football_ratings","🏈 Football League Ratings"],["nbbl_ratings","⚾ Baseball Ratings"],["ringrush_ratings","🏀 Basketball Ratings"],["baseball_league","⚾ Baseball League Dashboard"],["gm_ovr","🎮 GM OVRs"]].map(([t,l])=>(
+          {[["members","👥 Members"],["badges","🏅 Badges"],["roles","⭐ Roles"],["stars","⭐ Stars"],["announce","📢 Announce"],["nbbl_ratings","⚾ Baseball League Ratings"],["baseball_league","⚾ Baseball League Dashboard"],["gm_ovr","🎮 GM OVRs"]].map(([t,l])=>(
             <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 14px",borderRadius:18,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"rgba(245,158,11,.5)":"rgba(255,255,255,.08)"}`,background:tab===t?"rgba(245,158,11,.12)":"rgba(255,255,255,.03)",color:tab===t?"#F59E0B":"#64748B",transition:"all .2s"}}>{l}</button>
           ))}
         </div>
@@ -593,9 +603,7 @@ export default function DashboardPage({cu,users,setUsers,navigate}){
       {tab==="stars"&&(<div style={{maxWidth:600}}>...</div>)}
       {tab==="announce"&&(<div style={{maxWidth:600}}>...</div>)}
       {tab==="gm_ovr"&&<DashGMOvrTab cu={cu}/>}
-      {tab==="football_ratings"&&<DashRatingsTab league="nffl" accentColor="#F59E0B" label="Football League"/>}
       {tab==="nbbl_ratings"&&<DashRatingsTab league="nbbl" accentColor="#22C55E" label="Baseball League"/>}
-      {tab==="ringrush_ratings"&&<DashRatingsTab league="ringrush" accentColor="#EC4899" label="Basketball League"/>}
       {tab==="baseball_league"&&<BaseballLeagueDashboard cu={cu} />}
     </div>
   );
