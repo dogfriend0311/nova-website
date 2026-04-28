@@ -551,9 +551,10 @@ export function RobloxAvatar({userId,size=44,radius=12,fallback=null,sport="foot
   useEffect(()=>{
     if(!userId){setErr(true);return;}
     setUrl(null);setErr(false);
-    fetch(`/api/roblox-avatar?userId=${userId}`)
+    // Use direct Roblox thumbnail API instead of backend proxy
+    fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=420x420&format=Png`)
       .then(r=>r.json())
-      .then(d=>{if(d.imageUrl)setUrl(d.imageUrl);else setErr(true);})
+      .then(d=>{if(d.data&&d.data[0]&&d.data[0].imageUrl)setUrl(d.data[0].imageUrl);else setErr(true);})
       .catch(()=>setErr(true));
   },[userId]);
   const boxStyle = {
