@@ -90,20 +90,50 @@ function NBBLPage({ cu, users, navigate }) {
     return (
       <div style={S.wrap}>
         <button onClick={onBack} style={{ background: "none", border: "none", color: "#22C55E", cursor: "pointer", fontSize: 14, marginBottom: "1rem" }}>← Back to roster</button>
-        <div style={{ display: "flex", gap: "1.5rem", alignItems: "flex-start", flexWrap: "wrap", marginBottom: "1.5rem" }}>
-          <RobloxAvatar robloxId={player.roblox_id} size={110} />
-          <div style={{ flex: 1 }}>
-            <h1 style={S.h1}>{player.name}</h1>
-            {player.team && <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 20, background: "#22C55E22", color: "#22C55E", border: "1px solid #22C55E55", fontWeight: 700, textTransform: "uppercase" }}>{player.team}</span>}
-            {player.favorite_song && <p style={{ marginTop: "0.5rem", color: "#ccc" }}>Favorite Song: {player.favorite_song}</p>}
+        <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
+          {/* Left: Sports Card */}
+          <div style={{ flex: "0 0 300px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div style={{
+              background: "linear-gradient(135deg, #22C55E, #16A34A)",
+              borderRadius: 16,
+              padding: "20px",
+              textAlign: "center",
+              boxShadow: "0 8px 32px rgba(34, 197, 94, 0.3)",
+              border: "2px solid #22C55E",
+              width: "100%",
+              maxWidth: 280
+            }}>
+              <RobloxAvatar robloxId={player.roblox_id} size={120} />
+              <h2 style={{ color: "#fff", margin: "10px 0 5px", fontSize: 24 }}>{player.name}</h2>
+              <div style={{ fontSize: 18, color: "#E2E8F0" }}>OVR: {player.ovr || 70}</div>
+              {player.team && <div style={{ fontSize: 14, color: "#94A3B8", marginTop: 5 }}>{player.team}</div>}
+              {player.favorite_song && <div style={{ fontSize: 12, color: "#CBD5E1", marginTop: 10 }}>🎵 {player.favorite_song}</div>}
+            </div>
           </div>
-        </div>
-        <div style={S.card}>
-          <div style={S.h2}>Season Stats</div>
-          <div style={S.statRow}><span style={{ color: "rgba(255,255,255,0.6)" }}>AVG</span><span style={{ fontWeight: 600 }}>{player.avg || 0}</span></div>
-          <div style={S.statRow}><span style={{ color: "rgba(255,255,255,0.6)" }}>HR</span><span style={{ fontWeight: 600 }}>{player.hr || 0}</span></div>
-          <div style={S.statRow}><span style={{ color: "rgba(255,255,255,0.6)" }}>RBI</span><span style={{ fontWeight: 600 }}>{player.rbi || 0}</span></div>
-          <div style={S.statRow}><span style={{ color: "rgba(255,255,255,0.6)" }}>SB</span><span style={{ fontWeight: 600 }}>{player.sb || 0}</span></div>
+          {/* Right: Stats */}
+          <div style={{ flex: 1, minWidth: 300 }}>
+            <div style={S.card}>
+              <div style={S.h2}>Season Stats</div>
+              <div style={S.statRow}><span style={{ color: "rgba(255,255,255,0.6)" }}>AVG</span><span style={{ fontWeight: 600 }}>{player.avg || 0}</span></div>
+              <div style={S.statRow}><span style={{ color: "rgba(255,255,255,0.6)" }}>HR</span><span style={{ fontWeight: 600 }}>{player.hr || 0}</span></div>
+              <div style={S.statRow}><span style={{ color: "rgba(255,255,255,0.6)" }}>RBI</span><span style={{ fontWeight: 600 }}>{player.rbi || 0}</span></div>
+              <div style={S.statRow}><span style={{ color: "rgba(255,255,255,0.6)" }}>SB</span><span style={{ fontWeight: 600 }}>{player.sb || 0}</span></div>
+            </div>
+            <div style={S.card}>
+              <div style={S.h2}>Career Stats</div>
+              <div style={S.statRow}><span style={{ color: "rgba(255,255,255,0.6)" }}>AVG</span><span style={{ fontWeight: 600 }}>{player.career_avg || 0}</span></div>
+              <div style={S.statRow}><span style={{ color: "rgba(255,255,255,0.6)" }}>HR</span><span style={{ fontWeight: 600 }}>{player.career_hr || 0}</span></div>
+              <div style={S.statRow}><span style={{ color: "rgba(255,255,255,0.6)" }}>RBI</span><span style={{ fontWeight: 600 }}>{player.career_rbi || 0}</span></div>
+              <div style={S.statRow}><span style={{ color: "rgba(255,255,255,0.6)" }}>SB</span><span style={{ fontWeight: 600 }}>{player.career_sb || 0}</span></div>
+            </div>
+            <div style={S.card}>
+              <div style={S.h2}>Advanced Stats</div>
+              <div style={S.statRow}><span style={{ color: "rgba(255,255,255,0.6)" }}>OPS</span><span style={{ fontWeight: 600 }}>{player.ops || 0}</span></div>
+              <div style={S.statRow}><span style={{ color: "rgba(255,255,255,0.6)" }}>WAR</span><span style={{ fontWeight: 600 }}>{player.war || 0}</span></div>
+              <div style={S.statRow}><span style={{ color: "rgba(255,255,255,0.6)" }}>wOBA</span><span style={{ fontWeight: 600 }}>{player.woba || 0}</span></div>
+              <div style={S.statRow}><span style={{ color: "rgba(255,255,255,0.6)" }}>wRC+</span><span style={{ fontWeight: 600 }}>{player.wrc_plus || 0}</span></div>
+            </div>
+          </div>
         </div>
       </div>
     );

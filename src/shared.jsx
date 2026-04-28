@@ -85,7 +85,7 @@ const extractMedal   = u => { const m=u.match(/clips\/(\d+)/); return m?m[1]:nul
 const fmtTime = ts => { const d=Math.floor((Date.now()-ts)/1000); if(d<60)return"just now"; if(d<3600)return`${Math.floor(d/60)}m ago`; if(d<86400)return`${Math.floor(d/3600)}h ago`; return new Date(ts).toLocaleDateString("en-US",{month:"short",day:"numeric"}); };
 const fmtAgo  = fmtTime;
 const fmtMsg  = ts => new Date(ts).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
-export const ROLE_COLOR  = { Owner:"#F59E0B", "Co-owner":"#FB923C", "Basketball League Admin":"#EC4899", "2v2FF Admin":"#F59E0B", Moderator:"#00D4FF", "Event Host":"#A78BFA", Helper:"#34D399" };
+export const ROLE_COLOR  = { Owner:"#F59E0B", "Co-owner":"#FB923C", "Basketball League Admin":"#EC4899", "2v2FF Admin":"#F59E0B", Moderator:"#00D4FF", "Event Host":"#A78BFA", Helper:"#34D399", "Baseball Stat Helper":"#22C55E" };
 export const STATUS_META = { online:{color:"#22C55E",label:"Online"}, idle:{color:"#EAB308",label:"Idle"}, dnd:{color:"#EF4444",label:"Do Not Disturb"}, offline:{color:"#6B7280",label:"Offline"} };
 export const SOCIAL_ICONS = {
   roblox:    <svg width="16" height="16" viewBox="0 0 512 512" fill="currentColor"><path d="M117.53 0L0 394.47 394.47 512 512 117.53zm177.39 289.73l-94.66-28.46 28.46-94.66 94.66 28.46z"/></svg>,
