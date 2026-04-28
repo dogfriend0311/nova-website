@@ -107,7 +107,18 @@ function NBBLPage({ cu, users, navigate }) {
               <h2 style={{ color: "#fff", margin: "10px 0 5px", fontSize: 24 }}>{player.name}</h2>
               <div style={{ fontSize: 18, color: "#E2E8F0" }}>OVR: {player.ovr || 70}</div>
               {player.team && <div style={{ fontSize: 14, color: "#94A3B8", marginTop: 5 }}>{player.team}</div>}
-              {player.favorite_song && <div style={{ fontSize: 12, color: "#CBD5E1", marginTop: 10 }}>🎵 {player.favorite_song}</div>}
+              {player.favorite_song && (
+                player.favorite_song.includes("spotify.com") ? (
+                  <iframe
+                    src={player.favorite_song.replace("open.spotify.com/track", "open.spotify.com/embed/track").replace("/embed/embed/", "/embed/")}
+                    width="280" height="80" frameBorder="0"
+                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                    style={{ borderRadius: 8, marginTop: 10 }}
+                  />
+                ) : (
+                  <div style={{ fontSize: 12, color: "#CBD5E1", marginTop: 10 }}>🎵 {player.favorite_song}</div>
+                )
+              )}
             </div>
           </div>
           {/* Right: Stats */}

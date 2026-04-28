@@ -54,14 +54,20 @@ export function DashRatingsTab({league,accentColor,label}){
       <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,letterSpacing:".12em",marginBottom:4,fontWeight:700}}>{label} PLAYER RATINGS</div>
       <div style={{fontSize:10,color:"#334155",marginBottom:12}}>Edit any player's OVR — 40 min, 99 max. Color updates live.</div>
       <div style={{marginBottom:12}}>
-        <button onClick={() => {
+        <button onClick={async () => {
           const name = prompt("Player name?");
           if (!name) return;
-          const newPlayer = { id: gid(), name, position: '', team: '', ovr: 70 };
+          const newPlayer = { name, position: '', team: '', ovr: 70 };
           statFields[league].forEach(s => newPlayer[s] = s === 'favorite_song' || s === 'roblox_id' ? '' : 0);
-          sb.post(`nova_${league}_players`, newPlayer);
-          setPlayers(prev => [...prev, newPlayer]);
-          setEditVals(prev => ({ ...prev, [newPlayer.id]: { ovr: 70, ...statFields[league].reduce((a, s) => ({ ...a, [s]: s === 'favorite_song' || s === 'roblox_id' ? '' : 0 }), {}) } }));
+          try {
+            const inserted = await sb.post(`nova_${league}_players`, newPlayer);
+            if (inserted) {
+              setPlayers(prev => [...prev, inserted[0] || newPlayer]);
+              setEditVals(prev => ({ ...prev, [(inserted[0] || newPlayer).id]: { ovr: 70, ...statFields[league].reduce((a, s) => ({ ...a, [s]: s === 'favorite_song' || s === 'roblox_id' ? '' : 0 }), {}) } }));
+            }
+          } catch (e) {
+            alert("Failed to add player: " + e.message);
+          }
         }} style={{padding:"6px 12px",borderRadius:8,background:accentColor+"22",border:"1px solid "+accentColor+"44",color:accentColor,cursor:"pointer",fontSize:11}}>Add Player</button>
       </div>
       {!players.length&&!loaded&&<div style={{color:"#334155",fontSize:11,padding:"20px 0"}}>Loading players...</div>}
@@ -74,15 +80,18 @@ export function DashRatingsTab({league,accentColor,label}){
               <OVRBig ovr={currentOvr}/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:12,fontWeight:700,color:"#E2E8F0"}}>{p.name}</div>
-                <div style={{fontSize:10,color:accentColor}}>{p.position}{p.team?` · ${p.team}`:""}</div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}>
+                  <RobloxAvatar robloxId={editVals[p.id]?.roblox_id} size={28} />
+                  <div style={{fontSize:10,color:accentColor}}>{p.position}{p.team?` · ${p.team}`:""}</div>
+                </div>
               <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:6}}>
                 {statFields[league].filter(s => s !== 'favorite_song' && s !== 'roblox_id' && !s.startsWith('career_')).map(s => (
-                  <input key={s} type="number" step="0.01" placeholder={s.toUpperCase()} value={editVals[p.id]?.[s] || ''} onChange={e=>setEditVals(prev=>({...prev,[p.id]:{...prev[p.id],[s]:e.target.value}}))} onBlur={e=>updateStat(p,s,e.target.value)} style={{width:50,textAlign:"center",fontFamily:"'Orbitron',sans-serif",fontWeight:700,fontSize:10,color:accentColor}} />
+                  <input key={s} type="number" step="0.01" placeholder={s.toUpperCase()} value={editVals[p.id]?.[s] || ''} onChange={e=>setEditVals(prev=>({...prev,[p.id]:{...prev[p.id],[s]:e.target.value}}))} onBlur={e=>updateStat(p,s,e.target.value)} style={{width:70,textAlign:"center",fontFamily:"'Orbitron',sans-serif",fontWeight:700,fontSize:10,color:accentColor}} />
                 ))}
               </div>
               <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:4}}>
                 <input placeholder="Favorite Song" value={editVals[p.id]?.favorite_song || ''} onChange={e=>setEditVals(prev=>({...prev,[p.id]:{...prev[p.id],favorite_song:e.target.value}}))} onBlur={e=>updateStat(p,'favorite_song',e.target.value)} style={{flex:1,fontSize:10}} />
-                <input placeholder="Roblox ID" value={editVals[p.id]?.roblox_id || ''} onChange={e=>setEditVals(prev=>({...prev,[p.id]:{...prev[p.id],roblox_id:e.target.value}}))} onBlur={e=>updateStat(p,'roblox_id',e.target.value)} style={{width:80,fontSize:10}} />
+                <input placeholder="Roblox ID" value={editVals[p.id]?.roblox_id || ''} onChange={e=>setEditVals(prev=>({...prev,[p.id]:{...prev[p.id],roblox_id:e.target.value}}))} onBlur={e=>updateStat(p,'roblox_id',e.target.value)} style={{width:100,fontSize:10}} />
               </div>
               </div>
               <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
@@ -94,11 +103,15 @@ export function DashRatingsTab({league,accentColor,label}){
                 <div style={{width:14,textAlign:"center"}}>{saving[p.id]&&<span style={{fontSize:14,color:"#22C55E"}}>✓</span>}</div>
               </div>
               <div style={{position:"absolute",top:4,right:4}}>
-                <button onClick={() => {
+                <button onClick={async () => {
                   if (!confirm("Delete " + p.name + "?")) return;
-                  sb.del(`nova_${league}_players`, `?id=eq.${p.id}`);
-                  setPlayers(prev => prev.filter(x => x.id !== p.id));
-                  setEditVals(prev => { const next = { ...prev }; delete next[p.id]; return next; });
+                  try {
+                    await sb.del(`nova_${league}_players`, `?id=eq.${p.id}`);
+                    setPlayers(prev => prev.filter(x => x.id !== p.id));
+                    setEditVals(prev => { const next = { ...prev }; delete next[p.id]; return next; });
+                  } catch (e) {
+                    alert("Failed to delete player: " + e.message);
+                  }
                 }} style={{background:"none",border:"none",color:"#EF4444",cursor:"pointer",fontSize:12}}>✕</button>
               </div>
             </div>
@@ -264,6 +277,34 @@ export function DashGMOvrTab({cu}){
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------
+// BaseballLeagueDashboard Components
+// ----------------------------------------------------------------------
+
+function BaseballLeagueDashboard({ cu }) {
+  const [subTab, setSubTab] = useState("roster");
+  return (
+    <div>
+      <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:"#94A3B8",letterSpacing:".12em",marginBottom:4,fontWeight:700}}>⚾ BASEBALL LEAGUE DASHBOARD</div>
+      <div style={{fontSize:10,color:"#334155",marginBottom:14}}>Manage rosters, stats, transactions, and teams for the Baseball League.</div>
+      <div style={{display:"flex",gap:5,marginBottom:12,flexWrap:"wrap"}}>
+        {[
+          {key:"roster",label:"👥 Roster",desc:"Edit player profiles and stats"},
+          {key:"stats",label:"📊 Stats",desc:"View and edit player statistics"},
+          {key:"transactions",label:"🔄 Transactions",desc:"Manage trades and signings"},
+          {key:"teams",label:"🏆 Teams",desc:"Organize team rosters"}
+        ].map(({key,label,desc})=>(
+          <button key={key} onClick={()=>setSubTab(key)} title={desc} style={{padding:"8px 16px",borderRadius:12,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${subTab===key?"#22C55E66":"rgba(255,255,255,.08)"}`,background:subTab===key?"#22C55E18":"rgba(255,255,255,.03)",color:subTab===key?"#22C55E":"#475569",transition:"all .2s"}}>{label}</button>
+        ))}
+      </div>
+      {subTab==="roster"&&<DashRatingsTab league="nbbl" accentColor="#22C55E" label="Baseball League Roster"/>}
+      {subTab==="stats"&&<div style={{textAlign:"center",padding:"40px 20px"}}><div style={{fontSize:36,marginBottom:8}}>📊</div><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,color:"#94A3B8",marginBottom:6}}>Stats Editor</div><div style={{fontSize:11,color:"#334155"}}>Coming soon — advanced stats management.</div></div>}
+      {subTab==="transactions"&&<div style={{textAlign:"center",padding:"40px 20px"}}><div style={{fontSize:36,marginBottom:8}}>🔄</div><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,color:"#94A3B8",marginBottom:6}}>Transactions</div><div style={{fontSize:11,color:"#334155"}}>Coming soon — trade and signing management.</div></div>}
+      {subTab==="teams"&&<div style={{textAlign:"center",padding:"40px 20px"}}><div style={{fontSize:36,marginBottom:8}}>🏆</div><div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,color:"#94A3B8",marginBottom:6}}>Team Rosters</div><div style={{fontSize:11,color:"#334155"}}>Coming soon — organize team lineups.</div></div>}
     </div>
   );
 }
@@ -519,7 +560,7 @@ export default function DashboardPage({cu,users,setUsers,navigate}){
       {tab==="football_ratings"&&<DashRatingsTab league="nffl" accentColor="#F59E0B" label="Football League"/>}
       {tab==="nbbl_ratings"&&<DashRatingsTab league="nbbl" accentColor="#22C55E" label="Baseball League"/>}
       {tab==="ringrush_ratings"&&<DashRatingsTab league="ringrush" accentColor="#EC4899" label="Basketball League"/>}
-      {tab==="baseball_league"&&<DashRatingsTab league="nbbl" accentColor="#22C55E" label="Baseball League"/>}
+      {tab==="baseball_league"&&<BaseballLeagueDashboard cu={cu} />}
     </div>
   );
 }
