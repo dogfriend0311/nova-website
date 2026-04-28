@@ -13,17 +13,22 @@ export function DashRatingsTab({league,accentColor,label}){
   const[loaded,setLoaded]=useState(false);
   const[saving,setSaving]=useState({});
   const[editVals,setEditVals]=useState({});
+  const[availableFields,setAvailableFields]=useState([]);
   const statFields = {
     nbbl: ['avg', 'hr', 'rbi', 'sb', 'ops', 'war', 'woba', 'wrc_plus', 'career_avg', 'career_hr', 'career_rbi', 'career_sb', 'favorite_song', 'roblox_id'],
     nffl: ['yds', 'td', 'int', 'sack', 'favorite_song', 'roblox_id'],
     ringrush: ['pts', 'reb', 'ast', 'stl', 'favorite_song', 'roblox_id']
   };
+  const baseFields = ['name', 'position', 'team', 'ovr', 'favorite_song', 'roblox_id'];
+  const visibleFields = statFields[league].filter(f => f === 'favorite_song' || f === 'roblox_id' || availableFields.includes(f));
+  const statFont = league === 'nbbl' ? 11 : 10;
+  const statInputWidth = league === 'nbbl' ? 80 : 70;
+
   useEffect(()=>{
     if(loaded)return;
     sb.get(`nova_${league}_players`,"?order=name.asc").then(r=>{
       const p=r||[];
-      setPlayers(p);
-      const ev={};
+      setPlayers(p);      setAvailableFields(p[0]?Object.keys(p[0]):[]);      const ev={};
       p.forEach(x => {
         if(x?.id){
           ev[x.id] = { ovr: x.ovr || 70 };
@@ -44,9 +49,13 @@ export function DashRatingsTab({league,accentColor,label}){
       val = parseFloat(rawVal) || 0;
     }
     setSaving(p=>({...p,[player.id]:true}));
-    await sb.patch(`nova_${league}_players`,`?id=eq.${player.id}`,{[field]:val});
-    setPlayers(p=>p.map(x=>x.id===player.id?{...x,[field]:val}:x));
-    setEditVals(p=>({...p,[player.id]:{...p[player.id],[field]:val}}));
+    try {
+      await sb.patch(`nova_${league}_players`,`?id=eq.${player.id}`,{[field]:val});
+      setPlayers(p=>p.map(x=>x.id===player.id?{...x,[field]:val}:x));
+      setEditVals(p=>({...p,[player.id]:{...p[player.id],[field]:val}}));
+    } catch (e) {
+      alert(`Save failed for ${field}: ${e.message || JSON.stringify(e)}`);
+    }
     setTimeout(()=>setSaving(p=>({...p,[player.id]:false})),1200);
   };
   return(
@@ -58,15 +67,21 @@ export function DashRatingsTab({league,accentColor,label}){
           const name = prompt("Player name?");
           if (!name) return;
           const newPlayer = { name, position: '', team: '', ovr: 70 };
-          statFields[league].forEach(s => newPlayer[s] = s === 'favorite_song' || s === 'roblox_id' ? '' : 0);
+          if (availableFields.includes('favorite_song')) newPlayer.favorite_song = '';
+          if (availableFields.includes('roblox_id')) newPlayer.roblox_id = '';
           try {
             const inserted = await sb.post(`nova_${league}_players`, newPlayer);
-            if (inserted) {
-              setPlayers(prev => [...prev, inserted[0] || newPlayer]);
-              setEditVals(prev => ({ ...prev, [(inserted[0] || newPlayer).id]: { ovr: 70, ...statFields[league].reduce((a, s) => ({ ...a, [s]: s === 'favorite_song' || s === 'roblox_id' ? '' : 0 }), {}) } }));
+            const saved = Array.isArray(inserted) ? inserted[0] : inserted;
+            if (saved) {
+              setPlayers(prev => [...prev, saved]);
+              setEditVals(prev => ({ ...prev, [saved.id]: { ovr: saved.ovr || 70, favorite_song: saved.favorite_song || '', roblox_id: saved.roblox_id || '' } }));
+              setAvailableFields(Object.keys(saved));
+            } else {
+              setPlayers(prev => [...prev, newPlayer]);
+              setEditVals(prev => ({ ...prev, [newPlayer.name]: { ovr: 70, favorite_song: '', roblox_id: '' } }));
             }
           } catch (e) {
-            alert("Failed to add player: " + e.message);
+            alert("Failed to add player: " + (e.message || JSON.stringify(e)));
           }
         }} style={{padding:"6px 12px",borderRadius:8,background:accentColor+"22",border:"1px solid "+accentColor+"44",color:accentColor,cursor:"pointer",fontSize:11}}>Add Player</button>
       </div>
@@ -85,13 +100,13 @@ export function DashRatingsTab({league,accentColor,label}){
                   <div style={{fontSize:10,color:accentColor}}>{p.position}{p.team?` · ${p.team}`:""}</div>
                 </div>
               <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:6}}>
-                {statFields[league].filter(s => s !== 'favorite_song' && s !== 'roblox_id' && !s.startsWith('career_')).map(s => (
-                  <input key={s} type="number" step="0.01" placeholder={s.toUpperCase()} value={editVals[p.id]?.[s] || ''} onChange={e=>setEditVals(prev=>({...prev,[p.id]:{...prev[p.id],[s]:e.target.value}}))} onBlur={e=>updateStat(p,s,e.target.value)} style={{width:70,textAlign:"center",fontFamily:"'Orbitron',sans-serif",fontWeight:700,fontSize:10,color:accentColor}} />
+                {visibleFields.filter(s => s !== 'favorite_song' && s !== 'roblox_id' && !s.startsWith('career_')).map(s => (
+                  <input key={s} type="number" step="0.01" placeholder={s.toUpperCase()} value={editVals[p.id]?.[s] || ''} onChange={e=>setEditVals(prev=>({...prev,[p.id]:{...prev[p.id],[s]:e.target.value}}))} onBlur={e=>updateStat(p,s,e.target.value)} style={{width:statInputWidth,textAlign:"center",fontFamily:"'Orbitron',sans-serif",fontWeight:700,fontSize:statFont,color:accentColor}} />
                 ))}
               </div>
               <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:4}}>
-                <input placeholder="Favorite Song" value={editVals[p.id]?.favorite_song || ''} onChange={e=>setEditVals(prev=>({...prev,[p.id]:{...prev[p.id],favorite_song:e.target.value}}))} onBlur={e=>updateStat(p,'favorite_song',e.target.value)} style={{flex:1,fontSize:10}} />
-                <input placeholder="Roblox ID" value={editVals[p.id]?.roblox_id || ''} onChange={e=>setEditVals(prev=>({...prev,[p.id]:{...prev[p.id],roblox_id:e.target.value}}))} onBlur={e=>updateStat(p,'roblox_id',e.target.value)} style={{width:100,fontSize:10}} />
+                <input placeholder="Favorite Song" value={editVals[p.id]?.favorite_song || ''} onChange={e=>setEditVals(prev=>({...prev,[p.id]:{...prev[p.id],favorite_song:e.target.value}}))} onBlur={e=>updateStat(p,'favorite_song',e.target.value)} style={{flex:1,fontSize:statFont,padding:"6px 8px",borderRadius:10,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
+                <input placeholder="Roblox ID" value={editVals[p.id]?.roblox_id || ''} onChange={e=>setEditVals(prev=>({...prev,[p.id]:{...prev[p.id],roblox_id:e.target.value}}))} onBlur={e=>updateStat(p,'roblox_id',e.target.value)} style={{width:100,fontSize:statFont,padding:"6px 8px",borderRadius:10,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
               </div>
               </div>
               <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
