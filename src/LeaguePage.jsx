@@ -103,4 +103,13 @@ export default function LeaguePage() {
   );
 }
 
-export { NFFLPage, NBBLPage, RingRushPage, MessagesPage, LoginModal, RegisterModal };
+function LeaguePlayersPage({ cu, users, navigate }) {
+  return (
+    <div style={{ padding: "20px", background: "#0a0a0a", minHeight: "100vh" }}>
+      <h1 style={{ color: "#fff" }}>League Players</h1>
+      <p style={{ color: "#aaa" }}>Coming soon...</p>
+    </div>
+  );
+}
+
+export { NFFLPage, NBBLPage, RingRushPage, MessagesPage, LoginModal, RegisterModal, LeaguePlayersPage };
