@@ -62,7 +62,7 @@ const StatCell = ({ label, value }) => {
   );
 };
 
-function NBBLPage({ cu, users, navigate }) {
+function BaseballLeaguePage({ cu, users, navigate }) {
   const [players, setPlayers] = React.useState([]);
   const [selectedPlayer, setSelectedPlayer] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
@@ -264,4 +264,4 @@ export default function LeaguePage() {
   );
 }
 
-export { NFFLPage, NBBLPage, RingRushPage, MessagesPage, LoginModal, RegisterModal };
+export { NFFLPage, BaseballLeaguePage, RingRushPage, MessagesPage, LoginModal, RegisterModal };

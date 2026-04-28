@@ -14,12 +14,13 @@ export function DashRatingsTab({league,accentColor,label}){
   const[saving,setSaving]=useState({});
   const[editVals,setEditVals]=useState({});
   const[availableFields,setAvailableFields]=useState([]);
+  const[newPlayer,setNewPlayer]=useState({ name:'', position:'', team:'', ovr:'70', avg:'', hr:'', rbi:'', sb:'', ops:'', war:'', woba:'', wrc_plus:'', favorite_song:'', roblox_id:'', banner_url:'' });
   const statFields = {
     nbbl: ['avg', 'hr', 'rbi', 'sb', 'ops', 'war', 'woba', 'wrc_plus', 'career_avg', 'career_hr', 'career_rbi', 'career_sb', 'favorite_song', 'roblox_id'],
     nffl: ['yds', 'td', 'int', 'sack', 'favorite_song', 'roblox_id'],
     ringrush: ['pts', 'reb', 'ast', 'stl', 'favorite_song', 'roblox_id']
   };
-  const baseFields = ['name', 'position', 'team', 'ovr', 'favorite_song', 'roblox_id'];
+  const baseFields = ['name', 'position', 'team', 'ovr', 'favorite_song', 'roblox_id', 'banner_url'];
   const visibleFields = statFields[league].filter(f => f === 'favorite_song' || f === 'roblox_id' || availableFields.includes(f));
   const statFont = league === 'nbbl' ? 11 : 10;
   const statInputWidth = league === 'nbbl' ? 80 : 70;
@@ -28,7 +29,9 @@ export function DashRatingsTab({league,accentColor,label}){
     if(loaded)return;
     sb.get(`nova_${league}_players`,"?order=name.asc").then(r=>{
       const p=r||[];
-      setPlayers(p);      setAvailableFields(p[0]?Object.keys(p[0]):[]);      const ev={};
+      setPlayers(p);
+      setAvailableFields(p[0]?Object.keys(p[0]):baseFields);
+      const ev={};
       p.forEach(x => {
         if(x?.id){
           ev[x.id] = { ovr: x.ovr || 70 };
@@ -62,28 +65,46 @@ export function DashRatingsTab({league,accentColor,label}){
     <div style={{marginBottom:20}}>
       <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:accentColor,letterSpacing:".12em",marginBottom:4,fontWeight:700}}>{label} PLAYER RATINGS</div>
       <div style={{fontSize:10,color:"#334155",marginBottom:12}}>Edit any player's OVR — 40 min, 99 max. Color updates live.</div>
-      <div style={{marginBottom:12}}>
+      <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"repeat(2,minmax(220px,1fr))",gap:10,marginBottom:14}}>
+        <input value={newPlayer.name} onChange={e=>setNewPlayer(prev=>({...prev,name:e.target.value}))} placeholder="Name" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
+        <input value={newPlayer.team} onChange={e=>setNewPlayer(prev=>({...prev,team:e.target.value}))} placeholder="Team" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
+        <input value={newPlayer.position} onChange={e=>setNewPlayer(prev=>({...prev,position:e.target.value}))} placeholder="Position" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
+        <input type="number" min="40" max="99" value={newPlayer.ovr} onChange={e=>setNewPlayer(prev=>({...prev,ovr:e.target.value}))} placeholder="OVR" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
+        <input value={newPlayer.avg} onChange={e=>setNewPlayer(prev=>({...prev,avg:e.target.value}))} placeholder="AVG" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
+        <input value={newPlayer.hr} onChange={e=>setNewPlayer(prev=>({...prev,hr:e.target.value}))} placeholder="HR" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
+        <input value={newPlayer.rbi} onChange={e=>setNewPlayer(prev=>({...prev,rbi:e.target.value}))} placeholder="RBI" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
+        <input value={newPlayer.sb} onChange={e=>setNewPlayer(prev=>({...prev,sb:e.target.value}))} placeholder="SB" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
+        <input value={newPlayer.ops} onChange={e=>setNewPlayer(prev=>({...prev,ops:e.target.value}))} placeholder="OPS" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
+        <input value={newPlayer.war} onChange={e=>setNewPlayer(prev=>({...prev,war:e.target.value}))} placeholder="WAR" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
+        <input value={newPlayer.woba} onChange={e=>setNewPlayer(prev=>({...prev,woba:e.target.value}))} placeholder="wOBA" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
+        <input value={newPlayer.wrc_plus} onChange={e=>setNewPlayer(prev=>({...prev,wrc_plus:e.target.value}))} placeholder="wRC+" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
+        <input value={newPlayer.roblox_id} onChange={e=>setNewPlayer(prev=>({...prev,roblox_id:e.target.value}))} placeholder="Roblox ID" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
+        <input value={newPlayer.favorite_song} onChange={e=>setNewPlayer(prev=>({...prev,favorite_song:e.target.value}))} placeholder="Spotify song URL" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
+        <input value={newPlayer.banner_url} onChange={e=>setNewPlayer(prev=>({...prev,banner_url:e.target.value}))} placeholder="Banner URL" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
+      </div>
+      <div style={{marginBottom:18}}>
         <button onClick={async () => {
-          const name = prompt("Player name?");
-          if (!name) return;
-          const newPlayer = { name, position: '', team: '', ovr: 70 };
-          if (availableFields.includes('favorite_song')) newPlayer.favorite_song = '';
-          if (availableFields.includes('roblox_id')) newPlayer.roblox_id = '';
+          if (!newPlayer.name.trim()) { alert('Name is required'); return; }
+          const payload = { id: gid(), name: newPlayer.name.trim(), position: newPlayer.position.trim(), team: newPlayer.team.trim(), ovr: Math.max(40, Math.min(99, parseInt(newPlayer.ovr)||70)) };
+          if (availableFields.includes('favorite_song')) payload.favorite_song = newPlayer.favorite_song.trim();
+          if (availableFields.includes('roblox_id')) payload.roblox_id = newPlayer.roblox_id.trim();
+          if (availableFields.includes('banner_url')) payload.banner_url = newPlayer.banner_url.trim();
+          ['avg','hr','rbi','sb','ops','war','woba','wrc_plus','career_avg','career_hr','career_rbi','career_sb'].forEach(field => {
+            if (availableFields.includes(field) && newPlayer[field] !== '') payload[field] = parseFloat(newPlayer[field]) || 0;
+          });
           try {
-            const inserted = await sb.post(`nova_${league}_players`, newPlayer);
+            const inserted = await sb.post(`nova_${league}_players`, payload);
             const saved = Array.isArray(inserted) ? inserted[0] : inserted;
             if (saved) {
               setPlayers(prev => [...prev, saved]);
-              setEditVals(prev => ({ ...prev, [saved.id]: { ovr: saved.ovr || 70, favorite_song: saved.favorite_song || '', roblox_id: saved.roblox_id || '' } }));
+              setEditVals(prev => ({ ...prev, [saved.id]: { ...prev[saved.id], ...payload } }));
               setAvailableFields(Object.keys(saved));
-            } else {
-              setPlayers(prev => [...prev, newPlayer]);
-              setEditVals(prev => ({ ...prev, [newPlayer.name]: { ovr: 70, favorite_song: '', roblox_id: '' } }));
+              setNewPlayer({ name:'', position:'', team:'', ovr:'70', avg:'', hr:'', rbi:'', sb:'', ops:'', war:'', woba:'', wrc_plus:'', favorite_song:'', roblox_id:'', banner_url:'' });
             }
           } catch (e) {
-            alert("Failed to add player: " + (e.message || JSON.stringify(e)));
+            alert('Failed to create player: ' + (e.message || JSON.stringify(e)));
           }
-        }} style={{padding:"6px 12px",borderRadius:8,background:accentColor+"22",border:"1px solid "+accentColor+"44",color:accentColor,cursor:"pointer",fontSize:11}}>Add Player</button>
+        }} style={{padding:"10px 16px",borderRadius:12,background:accentColor+"22",border:"1px solid "+accentColor+"44",color:accentColor,cursor:"pointer",fontSize:12,fontWeight:700}}>Create Player</button>
       </div>
       {!players.length&&!loaded&&<div style={{color:"#334155",fontSize:11,padding:"20px 0"}}>Loading players...</div>}
       {!players.length&&loaded&&<div style={{color:"#334155",fontSize:11,padding:"20px 0"}}>No players added yet</div>}
