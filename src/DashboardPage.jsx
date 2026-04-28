@@ -316,8 +316,46 @@ export function DashGMOvrTab({cu}){
 // BaseballLeagueDashboard Components
 // ----------------------------------------------------------------------
 
-function BaseballLeagueDashboard({ cu }) {
+function BaseballLeagueDashboard({ cu, customTeams, setCustomTeams }) {
+  const mob = useIsMobile();
   const [subTab, setSubTab] = useState("roster");
+  const [teamForm, setTeamForm] = useState({ id:"", name:"", abbr:"", color:"#22C55E" });
+  const [teamSaving, setTeamSaving] = useState(false);
+  const [teamError, setTeamError] = useState("");
+
+  const saveTeam = async () => {
+    if (!teamForm.name.trim() || !teamForm.abbr.trim()) {
+      setTeamError("Team name and abbreviation are required.");
+      return;
+    }
+    setTeamSaving(true);
+    try {
+      const payload = { name: teamForm.name.trim(), abbr: teamForm.abbr.trim(), color: teamForm.color || "#22C55E" };
+      if (teamForm.id) {
+        await sb.patch("nova_custom_teams", `?id=eq.${teamForm.id}`, payload);
+        setCustomTeams(prev => prev.map(t => t.id === teamForm.id ? { ...t, ...payload } : t));
+      } else {
+        const inserted = await sb.post("nova_custom_teams", { id: gid(), ...payload });
+        const saved = Array.isArray(inserted) ? inserted[0] : inserted;
+        if (saved) setCustomTeams(prev => [...prev, saved]);
+      }
+      setTeamForm({ id:"", name:"", abbr:"", color:"#22C55E" });
+      setTeamError("");
+    } catch (e) {
+      console.error(e);
+      setTeamError("Failed to save team.");
+    }
+    setTeamSaving(false);
+  };
+
+  const editTeam = t => setTeamForm({ id: t.id, name: t.name || "", abbr: t.abbr || "", color: t.color || "#22C55E" });
+  const deleteTeam = async t => {
+    if (!confirm(`Delete team ${t.name}?`)) return;
+    await sb.del("nova_custom_teams", `?id=eq.${t.id}`);
+    setCustomTeams(prev => prev.filter(x => x.id !== t.id));
+    if (teamForm.id === t.id) setTeamForm({ id:"", name:"", abbr:"", color:"#22C55E" });
+  };
+
   return (
     <div>
       <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:10,color:"#94A3B8",letterSpacing:".12em",marginBottom:4,fontWeight:700}}>⚾ BASEBALL LEAGUE DASHBOARD</div>
@@ -372,9 +410,15 @@ export default function DashboardPage({cu,users,setUsers,navigate}){
   const[starMsg,setStarMsg]=useState(null);
   const[starBalances,setStarBalances]=useState({});
   const[starLoading,setStarLoading]=useState(false);
+  const[customTeams,setCustomTeams]=useState([]);
+  const[teamsLoaded,setTeamsLoaded]=useState(false);
   const isCoOwner=cu?.staff_role==="Co-owner";
   const isBaseballHelper=cu?.staff_role==="Baseball Stat Helper";
   if(!cu?.is_owner&&!isCoOwner&&!isBaseballHelper)return<div style={{padding:"100px 20px",textAlign:"center",color:"#334155",fontFamily:"'Orbitron',sans-serif"}}>⛔ Access Denied</div>;
+
+  useEffect(()=>{
+    sb.get("nova_custom_teams","?order=name.asc").then(r=>{setCustomTeams(r||[]);setTeamsLoaded(true);}).catch(()=>setTeamsLoaded(true));
+  },[]);
 
   const loadStarBalance=async(uid)=>{
     if(starBalances[uid]!==undefined)return;
@@ -414,6 +458,10 @@ export default function DashboardPage({cu,users,setUsers,navigate}){
   const setRole=async(uid,role)=>{
     await sb.patch("nova_users",`?id=eq.${uid}`,{staff_role:role||null});
     setUsers(prev=>prev.map(x=>x.id===uid?{...x,staff_role:role||null}:x));
+  };
+  const setUserTeam=async(uid,teamId)=>{
+    await sb.patch("nova_users",`?id=eq.${uid}`,{custom_team:teamId||null});
+    setUsers(prev=>prev.map(x=>x.id===uid?{...x,custom_team:teamId||null}:x));
   };
   const deleteUser=async uid=>{
     if(!confirm("Permanently delete this user? This cannot be undone."))return;
@@ -509,6 +557,13 @@ export default function DashboardPage({cu,users,setUsers,navigate}){
                     <option value="">None</option>
                     {Object.keys(ROLE_COLOR).map(r=><option key={r} value={r}>{r}</option>)}
                   </select>
+                </div>
+                <div><Lbl>Custom Team</Lbl>
+                  <select value={target.custom_team||""} onChange={e=>setUserTeam(target.id,e.target.value)} style={{width:"100%"}}>
+                    <option value="">None</option>
+                    {customTeams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                  {customTeams.length===0&&<div style={{fontSize:10,color:"#64748B",marginTop:6}}>Create teams in the Baseball League dashboard first.</div>}
                 </div>
                 <div><Lbl>Badges</Lbl>
                   <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
