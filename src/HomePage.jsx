@@ -19,7 +19,7 @@ export default function HomePage({discordUrl,staffUsers,nav,users}){
     {p:"hub",icon:"📊",label:"Hub",color:"#00D4FF",desc:"News, live scores, player stats, game logs, standings and predictions all in one place — across MLB, NBA, NHL, and NFL."},
     {p:"nffl",icon:"🏈",label:"2v2FF",color:"#F59E0B",desc:"2v2FF — player stats, game feed, transactions and rosters for our community football league."},
     {p:"nbbl",icon:"⚾",label:"Baseball League",color:"#22C55E",desc:"Baseball League — hitting stats, pitching stats, fielding stats and game feed for our community baseball league."},
-    {p:"ringrush",icon:"🏀",label:"Basketball League",color:"#EC4899",desc:"Ring Rush — the Basketball League. Stats, rosters, game feed and player profiles for our community hoops league."},
+    {p:"ringrush",icon:"🏀",label:"Basketball League",color:"#EC4899",desc:"Basketball League — the Basketball League. Stats, rosters, game feed and player profiles for our community hoops league."},
     {p:"messages",icon:"💬",label:"Messages",color:"#38BDF8",desc:"Slide into DMs, create group chats, share clips and GIFs, and hop on voice calls with other Nova members."},
   ];
 

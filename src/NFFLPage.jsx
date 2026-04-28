@@ -100,6 +100,7 @@ function PlayerProfile({ player, onBack }) {
           {player.team && <span style={S.badge("#CC0000")}>{player.team}</span>}
           {player.positions && <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 6 }}>📍 {player.positions}</p>}
           {player.bio && <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, lineHeight: 1.6, marginTop: 8, maxWidth: 480 }}>{player.bio}</p>}
+          {player.favorite_song && <p style={{ marginTop: "0.5rem", color: "#ccc" }}>Favorite Song: {player.favorite_song}</p>}
           {player.song_url && (
             <div style={{ marginTop: 10 }}>
               <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>🎵 Player's Song</p>
