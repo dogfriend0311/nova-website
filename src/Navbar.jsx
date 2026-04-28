@@ -6,7 +6,7 @@ export default function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,o
   const mob=useIsMobile();
   const[gamesOpen,setGamesOpen]=useState(false);
   const gamesRef=useRef(null);
-  const GAMES_PAGES=["trivia","leaderboard","cards","gmmode","animecards"];
+  const GAMES_PAGES=["trivia","leaderboard","cards","animecards"];
   const HUB_PAGES=["hub","stats","news","predict"];
   const dTabs=[["home","Home"],["members","Members"],["feed","🎬 Feed"]];
   const mTabs=[{p:"home",icon:"🏠",lbl:"Home"},{p:"hub",icon:"📊",lbl:"Hub"},{p:"feed",icon:"🎬",lbl:"Feed"},{p:"members",icon:"👥",lbl:"Members"},{p:"messages",icon:"💬",lbl:"DMs",badge:msgUnread}];
@@ -41,7 +41,7 @@ export default function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,o
                 </button>
                 {gamesOpen&&(
                   <div style={{position:"absolute",top:"calc(100% + 8px)",left:0,background:"linear-gradient(160deg,#0c1220,#10172a)",border:"1px solid rgba(168,85,247,.25)",borderRadius:12,padding:6,minWidth:160,zIndex:200,boxShadow:"0 16px 40px rgba(0,0,0,.7)"}}>
-                    {[["gmmode","🏆","GM Mode","Be the GM of any pro sports team — trades, draft, simulate a season"],["cards","⚾","Nova Cards","Collect & level up MLB player cards"],["animecards","🌸","Anime Cards","Collect, build decks & battle with anime characters"],["trivia","🧠","Trivia","Test your sports knowledge"],["leaderboard","🏆","Leaderboard","Top members ranked"]].map(([p,icon,label,desc])=>(
+                    {[["cards","⚾","Nova Cards","Collect & level up MLB player cards"],["animecards","🌸","Anime Cards","Collect, build decks & battle with anime characters"],["trivia","🧠","Trivia","Test your sports knowledge"],["leaderboard","🏆","Leaderboard","Top members ranked"]].map(([p,icon,label,desc])=>(
                       <button key={p} onClick={()=>{nav(p);setGamesOpen(false);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"9px 12px",borderRadius:8,background:page===p?"rgba(168,85,247,.12)":"none",border:"none",cursor:"pointer",textAlign:"left",transition:"background .15s"}}>
                         <span style={{fontSize:18,flexShrink:0}}>{icon}</span>
                         <div>
@@ -108,7 +108,7 @@ export default function Navbar({cu,onLogin,onRegister,onLogout,nav,page,notifs,o
         <div style={{position:"fixed",inset:0,zIndex:300,background:"rgba(0,0,0,.7)"}} onClick={()=>setGamesOpen(false)}>
           <div style={{position:"absolute",bottom:70,left:0,right:0,background:"linear-gradient(160deg,#0c1220,#10172a)",borderTop:"1px solid rgba(168,85,247,.25)",borderRadius:"20px 20px 0 0",padding:"20px 16px"}} onClick={e=>e.stopPropagation()}>
             <div style={{fontSize:10,fontFamily:"'Orbitron',sans-serif",color:"#475569",letterSpacing:".12em",marginBottom:14}}>🎮 GAMES</div>
-            {[["gmmode","🏆","GM Mode","Be the GM of any pro sports team — trades, draft, simulate a season"],["cards","⚾","Nova Cards","Collect & level up MLB player cards"],["animecards","🌸","Anime Cards","Collect, build decks & battle with anime characters"],["trivia","🧠","Trivia","Test your sports knowledge"],["leaderboard","🏆","Leaderboard","Top members ranked"]].map(([p,icon,label,desc])=>(
+            {[["cards","⚾","Nova Cards","Collect & level up MLB player cards"],["animecards","🌸","Anime Cards","Collect, build decks & battle with anime characters"],["trivia","🧠","Trivia","Test your sports knowledge"],["leaderboard","🏆","Leaderboard","Top members ranked"]].map(([p,icon,label,desc])=>(
               <button key={p} onClick={()=>{nav(p);setGamesOpen(false);}} style={{display:"flex",alignItems:"center",gap:12,width:"100%",padding:"12px 14px",borderRadius:12,background:page===p?"rgba(168,85,247,.12)":"rgba(255,255,255,.03)",border:"1px solid "+(page===p?"rgba(168,85,247,.3)":"rgba(255,255,255,.06)"),marginBottom:8,cursor:"pointer",textAlign:"left"}}>
                 <span style={{fontSize:22}}>{icon}</span>
                 <div>

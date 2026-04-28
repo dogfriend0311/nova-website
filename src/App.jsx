@@ -11,7 +11,6 @@ import StatsPage from "./StatsPage";
 import NewsPage from "./NewsPage";
 import { BaseballLeaguePage, MessagesPage } from "./LeaguePage";
 import { LoginModal, RegisterModal } from "./AuthModals";
-import GMGame from "./GMModePage";
 import CardsPage from "./CardsPage";
 import TriviaPage from "./TriviaPage";
 import LeaderboardPage from "./LeaderboardPage";
@@ -148,7 +147,6 @@ export default function App() {
     if (page === "hub") return <HubPage cu={cu} users={users} setUsers={setUsers} navigate={nav} />;
     if (page === "stats") return <StatsPage navigate={nav} initPlayer={statsPlayerRef?.id || null} initSport={statsPlayerRef?.sport || null} />;
     if (page === "nbbl") return <BaseballLeaguePage cu={cu} users={users} navigate={nav} />;
-    if (page === "gmmode") return <GMGame cu={cu} />;
     if (page === "cards") return <CardsPage cu={cu} />;
     if (page === "trivia") return <TriviaPage cu={cu} />;
     if (page === "leaderboard") return <LeaderboardPage users={users} navigate={nav} />;

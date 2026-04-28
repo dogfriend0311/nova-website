@@ -11,7 +11,6 @@ export default function HomePage({discordUrl,staffUsers,nav,users}){
     {p:"members",icon:"👥",label:"Members",color:"#00D4FF",desc:"Browse every Nova member, see their stats, teams, and profiles. Follow your favorites and connect with the community."},
 
     {p:"feed",icon:"🎬",label:"Clips Feed",color:"#EC4899",desc:"Watch and share highlight clips from the community. React, comment, and show love to the best plays."},
-    {p:"gmmode",icon:"🏆",label:"GM Mode",color:"#F59E0B",desc:"Run any MLB, NFL, NBA or NHL team as GM. Manage contracts, trade players, sim a full season, and build a dynasty."},
     {p:"cards",icon:"⚾",label:"Nova Cards",color:"#F59E0B",desc:"Collect MLB player and team cards, open packs for real 2025 play cards, level up your cards and flex them on your profile."},
 
     {p:"trivia",icon:"🧠",label:"Trivia",color:"#A855F7",desc:"Challenge yourself with sports trivia across 4 sports and 3 difficulty levels. MVP years, stat records, championships and more."},

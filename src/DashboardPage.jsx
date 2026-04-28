@@ -14,14 +14,14 @@ export function DashRatingsTab({league,accentColor,label}){
   const[saving,setSaving]=useState({});
   const[editVals,setEditVals]=useState({});
   const[availableFields,setAvailableFields]=useState([]);
-  const[newPlayer,setNewPlayer]=useState({ name:'', position:'', team:'', ovr:'70', avg:'', hr:'', rbi:'', sb:'', ops:'', war:'', woba:'', wrc_plus:'', favorite_song:'', roblox_id:'' });
+  const[newPlayer,setNewPlayer]=useState({ name:'', position:'', team:'', ovr:'70', avg:'', hr:'', rbi:'', sb:'', ops:'', war:'', woba:'', wrc_plus:'', roblox_id:'' });
   const statFields = {
-    nbbl: ['avg', 'hr', 'rbi', 'sb', 'ops', 'war', 'woba', 'wrc_plus', 'career_avg', 'career_hr', 'career_rbi', 'career_sb', 'favorite_song', 'roblox_id'],
-    nffl: ['yds', 'td', 'int', 'sack', 'favorite_song', 'roblox_id'],
-    ringrush: ['pts', 'reb', 'ast', 'stl', 'favorite_song', 'roblox_id']
+    nbbl: ['avg', 'hr', 'rbi', 'sb', 'ops', 'war', 'woba', 'wrc_plus', 'career_avg', 'career_hr', 'career_rbi', 'career_sb', 'roblox_id'],
+    nffl: ['yds', 'td', 'int', 'sack', 'roblox_id'],
+    ringrush: ['pts', 'reb', 'ast', 'stl', 'roblox_id']
   };
-  const baseFields = ['name', 'position', 'team', 'ovr', 'favorite_song', 'roblox_id'];
-  const visibleFields = statFields[league].filter(f => f === 'favorite_song' || f === 'roblox_id' || availableFields.includes(f));
+  const baseFields = ['name', 'position', 'team', 'ovr', 'roblox_id'];
+  const visibleFields = statFields[league].filter(f => f === 'roblox_id' || availableFields.includes(f));
   const statFont = league === 'nbbl' ? 11 : 10;
   const statInputWidth = league === 'nbbl' ? 80 : 70;
 
@@ -35,7 +35,7 @@ export function DashRatingsTab({league,accentColor,label}){
       p.forEach(x => {
         if(x?.id){
           ev[x.id] = { ovr: x.ovr || 70 };
-          statFields[league].forEach(s => ev[x.id][s] = x[s] || (s === 'favorite_song' || s === 'roblox_id' ? '' : 0));
+          statFields[league].forEach(s => ev[x.id][s] = x[s] || (s === 'roblox_id' ? '' : 0));
         }
       });
       setEditVals(ev);
@@ -44,7 +44,7 @@ export function DashRatingsTab({league,accentColor,label}){
   },[]);
   const updateStat=async(player,field,rawVal)=>{
     let val;
-    if (field === 'favorite_song' || field === 'roblox_id') {
+    if (field === 'roblox_id') {
       val = rawVal;
     } else if (field === 'ovr') {
       val = Math.max(40, Math.min(99, parseInt(rawVal) || 70));
@@ -79,13 +79,11 @@ export function DashRatingsTab({league,accentColor,label}){
         <input value={newPlayer.woba} onChange={e=>setNewPlayer(prev=>({...prev,woba:e.target.value}))} placeholder="wOBA" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
         <input value={newPlayer.wrc_plus} onChange={e=>setNewPlayer(prev=>({...prev,wrc_plus:e.target.value}))} placeholder="wRC+" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
         <input value={newPlayer.roblox_id} onChange={e=>setNewPlayer(prev=>({...prev,roblox_id:e.target.value}))} placeholder="Roblox ID" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
-        <input value={newPlayer.favorite_song} onChange={e=>setNewPlayer(prev=>({...prev,favorite_song:e.target.value}))} placeholder="Spotify song URL" style={{padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
       </div>
       <div style={{marginBottom:18}}>
         <button onClick={async () => {
           if (!newPlayer.name.trim()) { alert('Name is required'); return; }
           const payload = { id: gid(), name: newPlayer.name.trim(), position: newPlayer.position.trim(), team: newPlayer.team.trim(), ovr: Math.max(40, Math.min(99, parseInt(newPlayer.ovr)||70)) };
-          if (availableFields.includes('favorite_song')) payload.favorite_song = newPlayer.favorite_song.trim();
           if (availableFields.includes('roblox_id')) payload.roblox_id = newPlayer.roblox_id.trim();
           ['avg','hr','rbi','sb','ops','war','woba','wrc_plus','career_avg','career_hr','career_rbi','career_sb'].forEach(field => {
             if (availableFields.includes(field) && newPlayer[field] !== '') payload[field] = parseFloat(newPlayer[field]) || 0;
@@ -97,7 +95,7 @@ export function DashRatingsTab({league,accentColor,label}){
               setPlayers(prev => [...prev, saved]);
               setEditVals(prev => ({ ...prev, [saved.id]: { ...prev[saved.id], ...payload } }));
               setAvailableFields(Object.keys(saved));
-              setNewPlayer({ name:'', position:'', team:'', ovr:'70', avg:'', hr:'', rbi:'', sb:'', ops:'', war:'', woba:'', wrc_plus:'', favorite_song:'', roblox_id:'', banner_url:'' });
+              setNewPlayer({ name:'', position:'', team:'', ovr:'70', avg:'', hr:'', rbi:'', sb:'', ops:'', war:'', woba:'', wrc_plus:'', roblox_id:'' });
             }
           } catch (e) {
             alert('Failed to create player: ' + (e.message || JSON.stringify(e)));
@@ -124,7 +122,6 @@ export function DashRatingsTab({league,accentColor,label}){
                 ))}
               </div>
               <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:4}}>
-                <input placeholder="Favorite Song" value={editVals[p.id]?.favorite_song || ''} onChange={e=>setEditVals(prev=>({...prev,[p.id]:{...prev[p.id],favorite_song:e.target.value}}))} onBlur={e=>updateStat(p,'favorite_song',e.target.value)} style={{flex:1,fontSize:statFont,padding:"6px 8px",borderRadius:10,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
                 <input placeholder="Roblox ID" value={editVals[p.id]?.roblox_id || ''} onChange={e=>setEditVals(prev=>({...prev,[p.id]:{...prev[p.id],roblox_id:e.target.value}}))} onBlur={e=>updateStat(p,'roblox_id',e.target.value)} style={{width:100,fontSize:statFont,padding:"6px 8px",borderRadius:10,border:"1px solid rgba(255,255,255,.12)",background:"rgba(255,255,255,.04)",color:"#E2E8F0"}} />
               </div>
               </div>
@@ -468,7 +465,7 @@ export default function DashboardPage({cu,users,setUsers,navigate}){
       <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
         <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
           <div style={{fontSize:8,color:"#334155",fontFamily:"'Orbitron',sans-serif",letterSpacing:".1em",marginRight:4,flexShrink:0}}>NOVA</div>
-          {[["members","👥 Members"],["badges","🏅 Badges"],["roles","⭐ Roles"],["stars","⭐ Stars"],["announce","📢 Announce"],["nbbl_ratings","⚾ Baseball League Ratings"],["baseball_league","⚾ Baseball League Dashboard"],["gm_ovr","🎮 GM OVRs"]].map(([t,l])=>(
+          {[["members","👥 Members"],["badges","🏅 Badges"],["roles","⭐ Roles"],["stars","⭐ Stars"],["announce","📢 Announce"],["baseball_league","⚾ Baseball League Dashboard"]].map(([t,l])=>(
             <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 14px",borderRadius:18,cursor:"pointer",fontSize:11,fontFamily:"'Orbitron',sans-serif",fontWeight:700,border:`1px solid ${tab===t?"rgba(245,158,11,.5)":"rgba(255,255,255,.08)"}`,background:tab===t?"rgba(245,158,11,.12)":"rgba(255,255,255,.03)",color:tab===t?"#F59E0B":"#64748B",transition:"all .2s"}}>{l}</button>
           ))}
         </div>
@@ -602,8 +599,7 @@ export default function DashboardPage({cu,users,setUsers,navigate}){
       )}
       {tab==="stars"&&(<div style={{maxWidth:600}}>...</div>)}
       {tab==="announce"&&(<div style={{maxWidth:600}}>...</div>)}
-      {tab==="gm_ovr"&&<DashGMOvrTab cu={cu}/>}
-      {tab==="nbbl_ratings"&&<DashRatingsTab league="nbbl" accentColor="#22C55E" label="Baseball League"/>}
+      {/* removed gm_ovr */}
       {tab==="baseball_league"&&<BaseballLeagueDashboard cu={cu} />}
     </div>
   );
